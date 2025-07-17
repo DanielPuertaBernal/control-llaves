@@ -10,8 +10,14 @@ def limpiar_programacion(df: pd.DataFrame) -> pd.DataFrame:
     # Limpiar datos básicos
     df['horario'] = df['horario'].astype(str)
     df['profesor'] = df['profesor'].fillna('').str.strip()
-    # Convertir nroidenti a string y limpiar formato
-    df['nroidenti'] = pd.to_numeric(df['nroidenti'], errors='coerce').fillna(0).astype(int).astype(str)
+    # Convertir nroidenti a string limpio sin .0
+    def limpiar_documento(doc):
+        doc_str = str(doc)
+        if doc_str.endswith('.0'):
+            return doc_str[:-2]
+        return doc_str
+    
+    df['nroidenti'] = df['nroidenti'].apply(limpiar_documento)
     df['dia'] = df['dia'].str.upper().str.strip()
     
     # Limpiar nombres de materias
@@ -36,12 +42,22 @@ def limpiar_programacion(df: pd.DataFrame) -> pd.DataFrame:
     # Verificar que todas las columnas existan
     columnas_disponibles = [col for col in columnas_agrupacion if col in df.columns]
     
-    agrupado = df.groupby(columnas_disponibles).agg({
+    # Preparar diccionario de agregación dinámicamente
+    agg_dict = {
         'hora_ini': 'min',
-        'hora_fin': 'max',
-        'nro_estudiantes': 'first',  # Tomar el primer valor, no sumar
-        **{col: 'first' for col in ['grupo', 'nivel_grupo', 'semestre', 'PROGRAMA'] if col in df.columns}
-    }).reset_index()
+        'hora_fin': 'max'
+    }
+    
+    # Agregar columnas opcionales solo si existen
+    if 'nro_estudiantes' in df.columns:
+        agg_dict['nro_estudiantes'] = 'first'
+    
+    # Agregar otras columnas opcionales
+    for col in ['grupo', 'nivel_grupo', 'semestre', 'PROGRAMA']:
+        if col in df.columns:
+            agg_dict[col] = 'first'
+    
+    agrupado = df.groupby(columnas_disponibles).agg(agg_dict).reset_index()
 
     # Reconstruir columna horario
     agrupado['horario'] = agrupado['hora_ini'].astype(str) + ' a ' + agrupado['hora_fin'].astype(str)

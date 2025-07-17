@@ -214,6 +214,7 @@ El sistema detecta y consolida automáticamente:
 - ✅ **Solucionado**: El sistema ahora limpia automáticamente los números
 - Los documentos se muestran sin decimales (ej: 12345678 en lugar de 12345678.0)
 - Funciona tanto en carga como en búsquedas y registros
+- **Función inteligente**: Solo elimina .0 cuando es apropiado, preserva otros formatos
 
 ## Contacto y Soporte
 
