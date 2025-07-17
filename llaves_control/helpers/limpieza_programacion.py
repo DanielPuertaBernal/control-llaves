@@ -10,7 +10,8 @@ def limpiar_programacion(df: pd.DataFrame) -> pd.DataFrame:
     # Limpiar datos básicos
     df['horario'] = df['horario'].astype(str)
     df['profesor'] = df['profesor'].fillna('').str.strip()
-    df['nroidenti'] = df['nroidenti'].astype(str).str.strip()
+    # Convertir nroidenti a string y limpiar formato
+    df['nroidenti'] = pd.to_numeric(df['nroidenti'], errors='coerce').fillna(0).astype(int).astype(str)
     df['dia'] = df['dia'].str.upper().str.strip()
     
     # Limpiar nombres de materias

@@ -26,6 +26,8 @@ Sistema de gestión para el control de entrega y devolución de llaves de aulas 
 - **Navegación simple**: Acceso rápido a todas las funciones
 - **Información clara**: Estados visuales con emojis y colores
 - **Responsive**: Ventanas redimensionables con scrollbars
+- **Panel de llaves prestadas**: Vista en tiempo real de todas las llaves entregadas
+- **Devolución rápida**: Doble clic para devolver desde el panel de prestadas
 
 ## Estructura del Proyecto
 
@@ -129,6 +131,23 @@ ControlDeLLaves/
 7. **Limpiar filtros**: Restaurar vista completa
 8. **Ver estadísticas**: Información en tiempo real de la vista actual
 
+### 7. Monitoreo de Llaves Prestadas
+
+El sistema incluye un **panel en tiempo real** que muestra todas las llaves actualmente prestadas:
+
+1. **Vista automática**: Panel visible en la interfaz principal
+2. **Información completa**: Documento, profesor, aula y hora de entrega
+3. **Contador dinámico**: Total de llaves prestadas actualizado automáticamente
+4. **Devolución rápida**: Doble clic en cualquier fila para devolver la llave
+5. **Actualización automática**: Se actualiza después de cada entrega/devolución
+6. **Botón de actualizar**: Refrescar manualmente cuando sea necesario
+
+**Características del panel:**
+- 🔴 **Texto rojo**: Cuando hay llaves prestadas
+- 🟢 **Texto verde**: Cuando no hay llaves prestadas  
+- 📊 **Estadísticas**: Contador en tiempo real
+- ⚡ **Acceso rápido**: Doble clic para devolver
+
 ## Formato del Archivo de Programación
 
 El sistema acepta archivos Excel (.xlsx, .xls) con las siguientes columnas:
@@ -188,6 +207,13 @@ El sistema detecta y consolida automáticamente:
 - Verificar que la clase esté seleccionada
 - Comprobar estado de la llave
 - Revisar permisos de escritura en carpeta data/
+
+### Solución de Problemas Comunes
+
+**Números de documento con .0**
+- ✅ **Solucionado**: El sistema ahora limpia automáticamente los números
+- Los documentos se muestran sin decimales (ej: 12345678 en lugar de 12345678.0)
+- Funciona tanto en carga como en búsquedas y registros
 
 ## Contacto y Soporte
 

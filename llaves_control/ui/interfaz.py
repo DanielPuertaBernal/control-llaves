@@ -19,6 +19,9 @@ class App:
         aplicar_estilo(root)
         self.crear_interfaz()
 
+        # Cargar llaves prestadas al inicio
+        self.actualizar_llaves_prestadas()
+
     def crear_interfaz(self):
         # Frame principal
         main_frame = ttk.Frame(self.root, padding="10")
@@ -71,7 +74,7 @@ class App:
 
         # Frame para la tabla
         frame_tabla = ttk.LabelFrame(main_frame, text="Clases del Profesor", padding="10")
-        frame_tabla.pack(fill=tk.BOTH, expand=True)
+        frame_tabla.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
 
         # Tabla con scrollbar
         tabla_frame = ttk.Frame(frame_tabla)
@@ -110,6 +113,53 @@ class App:
         self.tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scrollbar_v.pack(side=tk.RIGHT, fill=tk.Y)
         scrollbar_h.pack(side=tk.BOTTOM, fill=tk.X)
+
+        # Nuevo frame para llaves prestadas
+        frame_llaves_prestadas = ttk.LabelFrame(main_frame, text="🔑 Llaves Actualmente Prestadas", padding="10")
+        frame_llaves_prestadas.pack(fill=tk.X, pady=(0, 10))
+
+        # Crear frame interno para organizar el contenido
+        contenido_prestadas = ttk.Frame(frame_llaves_prestadas)
+        contenido_prestadas.pack(fill=tk.BOTH, expand=True)
+
+        # Tabla de llaves prestadas (más compacta)
+        self.tree_prestadas = ttk.Treeview(contenido_prestadas,
+                                          columns=("doc_prestada", "profesor_prestada", "aula_prestada", "hora_prestada"),
+                                          show="headings",
+                                          height=6)
+
+        # Configurar columnas de llaves prestadas
+        columnas_prestadas = {
+            "doc_prestada": ("Documento", 100),
+            "profesor_prestada": ("Profesor", 180),
+            "aula_prestada": ("Aula", 80),
+            "hora_prestada": ("Hora Entrega", 130)
+        }
+
+        for col, (texto, ancho) in columnas_prestadas.items():
+            self.tree_prestadas.heading(col, text=texto)
+            self.tree_prestadas.column(col, width=ancho, minwidth=50)
+
+        self.tree_prestadas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+        # Bind para doble clic en llaves prestadas
+        self.tree_prestadas.bind('<Double-1>', self.devolver_desde_prestadas)
+
+        # Scrollbar para tabla de prestadas
+        scrollbar_prestadas = ttk.Scrollbar(contenido_prestadas, orient=tk.VERTICAL, command=self.tree_prestadas.yview)
+        self.tree_prestadas.configure(yscrollcommand=scrollbar_prestadas.set)
+        scrollbar_prestadas.pack(side=tk.RIGHT, fill=tk.Y)
+
+        # Botón de actualizar llaves prestadas
+        frame_btn_prestadas = ttk.Frame(frame_llaves_prestadas)
+        frame_btn_prestadas.pack(fill=tk.X, pady=(5, 0))
+
+        self.label_total_prestadas = ttk.Label(frame_btn_prestadas, text="Total: 0 llaves prestadas", 
+                                              font=('Segoe UI', 9, 'bold'), foreground="red")
+        self.label_total_prestadas.pack(side=tk.LEFT)
+
+        ttk.Button(frame_btn_prestadas, text="🔄 Actualizar", 
+                  command=self.actualizar_llaves_prestadas).pack(side=tk.RIGHT)
 
         # Frame de información
         self.info_label = ttk.Label(main_frame, text="Sistema listo. Cargue una programación para comenzar.", 
@@ -172,6 +222,9 @@ class App:
             return
 
         try:
+            # Limpiar el número de documento para evitar formato .0
+            doc_limpio = str(int(float(doc))) if doc.replace('.', '').isdigit() else doc
+            
             # Obtener día actual en español
             dias_semana = {
                 'Monday': 'LUNES',
@@ -188,11 +241,11 @@ class App:
             
             # Buscar clases del profesor para el día actual
             clases = self.programacion[
-                (self.programacion['nroidenti'] == doc) & 
+                (self.programacion['nroidenti'].astype(str) == doc_limpio) & 
                 (self.programacion['dia'] == dia_espanol)
             ]
             
-            self.mostrar_clases(clases, f"Clases de hoy ({dia_espanol}) para documento: {doc}")
+            self.mostrar_clases(clases, f"Clases de hoy ({dia_espanol}) para documento: {doc_limpio}")
             
         except Exception as e:
             messagebox.showerror("Error", f"Error al buscar clases:\n{str(e)}")
@@ -208,8 +261,11 @@ class App:
             return
 
         try:
-            clases = self.programacion[self.programacion['nroidenti'] == doc]
-            self.mostrar_clases(clases, f"Todas las clases para documento: {doc}")
+            # Limpiar el número de documento para evitar formato .0
+            doc_limpio = str(int(float(doc))) if doc.replace('.', '').isdigit() else doc
+            
+            clases = self.programacion[self.programacion['nroidenti'].astype(str) == doc_limpio]
+            self.mostrar_clases(clases, f"Todas las clases para documento: {doc_limpio}")
         except Exception as e:
             messagebox.showerror("Error", f"Error al buscar clases:\n{str(e)}")
 
@@ -255,8 +311,11 @@ class App:
 
         try:
             doc = self.doc_entry.get().strip()
+            # Limpiar el número de documento
+            doc_limpio = str(int(float(doc))) if doc.replace('.', '').isdigit() else doc
+            
             info_clase = {
-                'nroidenti': doc,
+                'nroidenti': doc_limpio,
                 'profesor': valores[0],
                 'materia': valores[1],
                 'aula': valores[2],
@@ -267,9 +326,9 @@ class App:
             
             if registrar_entrega(info_clase):
                 messagebox.showinfo("Éxito", f"Llave entregada para {valores[1]} en aula {valores[2]}")
-                # Actualizar la vista
-                if hasattr(self, 'buscar_clases'):
-                    self.buscar_clases()
+                # Actualizar las vistas
+                self.buscar_clases()
+                self.actualizar_llaves_prestadas()
             else:
                 messagebox.showerror("Error", "No se pudo registrar la entrega")
                 
@@ -289,12 +348,14 @@ class App:
 
         try:
             doc = self.doc_entry.get().strip()
+            # Limpiar el número de documento
+            doc_limpio = str(int(float(doc))) if doc.replace('.', '').isdigit() else doc
             
-            if registrar_devolucion(doc, valores[1], valores[2]):
+            if registrar_devolucion(doc_limpio, valores[1], valores[2]):
                 messagebox.showinfo("Éxito", f"Llave devuelta para {valores[1]} en aula {valores[2]}")
-                # Actualizar la vista
-                if hasattr(self, 'buscar_clases'):
-                    self.buscar_clases()
+                # Actualizar las vistas
+                self.buscar_clases()
+                self.actualizar_llaves_prestadas()
             else:
                 messagebox.showerror("Error", "No se encontró la llave entregada para devolver")
                 
@@ -744,3 +805,87 @@ se cargan nuevas programaciones en la ventana principal.
                     
         except Exception as e:
             print(f"Error al ordenar: {e}")
+
+    def actualizar_llaves_prestadas(self):
+        """Actualiza la tabla de llaves actualmente prestadas"""
+        try:
+            # Limpiar tabla
+            for item in self.tree_prestadas.get_children():
+                self.tree_prestadas.delete(item)
+            
+            # Obtener llaves prestadas
+            llaves_prestadas = obtener_llaves_pendientes()
+            
+            if not llaves_prestadas.empty:
+                for _, fila in llaves_prestadas.iterrows():
+                    # Limpiar número de documento
+                    doc_limpio = str(int(float(str(fila['nroidenti'])))) if str(fila['nroidenti']).replace('.', '').replace('0', '').isdigit() else str(fila['nroidenti'])
+                    
+                    self.tree_prestadas.insert('', 'end', values=(
+                        doc_limpio,
+                        fila['profesor'],
+                        fila['aula'],
+                        fila['hora_entrega']
+                    ))
+            
+            # Actualizar contador
+            total_prestadas = len(llaves_prestadas)
+            color = "red" if total_prestadas > 0 else "green"
+            self.label_total_prestadas.config(
+                text=f"Total: {total_prestadas} llaves prestadas",
+                foreground=color
+            )
+            
+        except Exception as e:
+            self.label_total_prestadas.config(text="Error al cargar llaves prestadas", foreground="red")
+            print(f"Error al actualizar llaves prestadas: {e}")
+
+    def devolver_desde_prestadas(self, event):
+        """Permite devolver una llave directamente desde la tabla de prestadas"""
+        seleccion = self.tree_prestadas.selection()
+        if not seleccion:
+            return
+        
+        valores = self.tree_prestadas.item(seleccion[0])['values']
+        if len(valores) < 3:
+            return
+        
+        documento = valores[0]
+        profesor = valores[1]
+        aula = valores[2]
+        
+        # Confirmar devolución
+        respuesta = messagebox.askyesno(
+            "Confirmar Devolución",
+            f"¿Devolver llave del aula {aula}?\n\n"
+            f"Profesor: {profesor}\n"
+            f"Documento: {documento}"
+        )
+        
+        if respuesta:
+            try:
+                # Buscar la materia en la programación para completar la devolución
+                if self.programacion is not None:
+                    clase_info = self.programacion[
+                        (self.programacion['nroidenti'].astype(str) == str(documento)) & 
+                        (self.programacion['aula'] == aula)
+                    ]
+                    
+                    if not clase_info.empty:
+                        materia = clase_info.iloc[0]['materia']
+                        
+                        if registrar_devolucion(documento, materia, aula):
+                            messagebox.showinfo("Éxito", f"Llave devuelta: {aula}")
+                            self.actualizar_llaves_prestadas()
+                            # Actualizar búsqueda si hay documento en el campo
+                            if self.doc_entry.get().strip():
+                                self.buscar_clases()
+                        else:
+                            messagebox.showerror("Error", "No se pudo registrar la devolución")
+                    else:
+                        messagebox.showerror("Error", "No se encontró información de la clase en la programación")
+                else:
+                    messagebox.showerror("Error", "Debe cargar una programación primero")
+                    
+            except Exception as e:
+                messagebox.showerror("Error", f"Error al devolver llave:\n{str(e)}")

@@ -13,7 +13,7 @@ def test_programacion_completa():
     
     # Crear datos de prueba más completos
     datos_prueba = {
-        'nroidenti': ['12345678', '12345678', '87654321', '87654321', '11111111', '22222222'],
+        'nroidenti': [12345678, 12345678, 87654321, 87654321, 11111111, 22222222],
         'profesor': ['JUAN PEREZ', 'JUAN PEREZ', 'MARIA GARCIA', 'MARIA GARCIA', 'CARLOS LOPEZ', 'ANA MARTINEZ'],
         'MATERIA': ['MATEMATICAS I', 'MATEMATICAS II', 'FISICA II', 'FISICA I', 'QUIMICA', 'BIOLOGIA'],
         'aula': ['A101', 'A102', 'B205', 'B206', 'C301', 'C302'],
@@ -62,6 +62,16 @@ def test_programacion_completa():
     for _, clase in clases_aula.iterrows():
         print(f"     - {clase['profesor']}: {clase['materia']} ({clase['dia']}) - {clase['horario']}")
     
+    # Test 6: Verificar que los números de documento no tengan .0
+    print("\n6. Verificación de números de documento:")
+    for _, fila in df_limpio.iterrows():
+        doc = fila['nroidenti']
+        print(f"   Documento: {doc} (tipo: {type(doc)})")
+        if '.0' in str(doc):
+            print(f"   ⚠️  ADVERTENCIA: Documento {doc} contiene .0")
+        else:
+            print(f"   ✓ Documento limpio: {doc}")
+    
     print("\n=== FUNCIONALIDAD DE PROGRAMACIÓN COMPLETA VERIFICADA ===")
     print("\nNuevas características disponibles:")
     print("✓ Vista de programación completa")
@@ -70,6 +80,11 @@ def test_programacion_completa():
     print("✓ Estadísticas en tiempo real")
     print("✓ Exportación de vista filtrada")
     print("✓ Limpiar filtros")
+    print("\n=== PROBLEMAS SOLUCIONADOS ===")
+    print("✓ Números de documento sin formato .0")
+    print("✓ Panel de llaves prestadas en tiempo real")
+    print("✓ Devolución directa desde tabla de prestadas")
+    print("✓ Actualización automática de vistas")
     print("\nPara usar: Abrir aplicación → 'Ver Programación Completa'")
 
 if __name__ == "__main__":

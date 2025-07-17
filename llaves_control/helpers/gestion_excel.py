@@ -25,8 +25,12 @@ def registrar_entrega(info_clase):
         inicializar_registro()
         df = pd.read_excel(RUTA_REGISTRO)
     
+    # Limpiar el número de documento para evitar formato .0
+    nroidenti_limpio = str(int(float(str(info_clase['nroidenti']))))
+    
     nueva = {
         **info_clase,
+        'nroidenti': nroidenti_limpio,
         'estado': 'Entregada',
         'hora_entrega': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
         'hora_devolucion': ''
@@ -40,9 +44,12 @@ def registrar_devolucion(nroidenti, materia, aula):
     try:
         df = pd.read_excel(RUTA_REGISTRO)
         
+        # Limpiar el número de documento para evitar formato .0
+        nroidenti_limpio = str(int(float(str(nroidenti))))
+        
         # Buscar la llave entregada más reciente
         mask = (
-            (df['nroidenti'] == str(nroidenti)) & 
+            (df['nroidenti'].astype(str) == nroidenti_limpio) & 
             (df['materia'] == materia) & 
             (df['aula'] == aula) & 
             (df['estado'] == 'Entregada')
@@ -78,8 +85,12 @@ def verificar_llave_entregada(nroidenti, materia, aula):
     """Verifica si ya hay una llave entregada para esta clase"""
     try:
         df = pd.read_excel(RUTA_REGISTRO)
+        
+        # Limpiar el número de documento para evitar formato .0
+        nroidenti_limpio = str(int(float(str(nroidenti))))
+        
         mask = (
-            (df['nroidenti'] == str(nroidenti)) & 
+            (df['nroidenti'].astype(str) == nroidenti_limpio) & 
             (df['materia'] == materia) & 
             (df['aula'] == aula) & 
             (df['estado'] == 'Entregada')
