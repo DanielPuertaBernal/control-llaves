@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 import pandas as pd
+import os
 from datetime import datetime
 from helpers.limpieza_programacion import limpiar_programacion, guardar_programacion_limpia
 from helpers.gestion_excel import (registrar_entrega, registrar_devolucion, 
@@ -104,6 +105,11 @@ class App:
         # Pack de la lista y scrollbar
         self.tree_profesores.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scrollbar_prof.pack(side=tk.RIGHT, fill=tk.Y)
+
+        # Label de información de búsqueda
+        self.info_label = ttk.Label(frame_izq, text="Escriba nombre o número de documento para buscar", 
+                                   foreground="gray")
+        self.info_label.pack(pady=(0, 10))
 
         # Botón de entrega
         btn_entregar = ttk.Button(frame_izq, text="🔑 ENTREGAR LLAVE", 
@@ -427,7 +433,7 @@ class App:
     # ============ FUNCIONES VISTA ENTREGA/DEVOLUCIÓN ============
     
     def buscar_profesor(self, event=None):
-        """Busca profesores en la programación"""
+        """Busca profesores en la programación por nombre o documento"""
         if self.programacion is None:
             messagebox.showwarning("Advertencia", "Primero debe cargar una programación.")
             return
@@ -441,12 +447,18 @@ class App:
         if len(termino) < 2:
             return
 
-        # Filtrar profesores que coincidan
-        resultados = self.programacion[
-            self.programacion['profesor'].str.contains(termino, case=False, na=False)
+        # Crear una copia de la programación con documentos limpios para búsqueda
+        programacion_busqueda = self.programacion.copy()
+        programacion_busqueda['nroidenti_limpio'] = programacion_busqueda['nroidenti'].astype(str).str.replace('.0', '', regex=False)
+
+        # Filtrar profesores que coincidan por nombre O por documento
+        resultados = programacion_busqueda[
+            (programacion_busqueda['profesor'].str.contains(termino, case=False, na=False)) |
+            (programacion_busqueda['nroidenti_limpio'].str.contains(termino, case=False, na=False))
         ]
 
         # Agregar resultados al tree
+        count = 0
         for _, fila in resultados.iterrows():
             documento = limpiar_numero_documento(str(fila['nroidenti']))
             self.tree_profesores.insert('', 'end', values=(
@@ -456,6 +468,14 @@ class App:
                 fila['aula'],
                 fila['horario']
             ))
+            count += 1
+        
+        # Mostrar información sobre los resultados
+        if hasattr(self, 'info_label') and self.info_label:
+            if count == 0:
+                self.info_label.config(text=f"No se encontraron profesores para: '{termino}'", foreground="red")
+            else:
+                self.info_label.config(text=f"Se encontraron {count} profesor(es)", foreground="green")
 
     def entregar_llave_seleccionada(self):
         """Entrega la llave del profesor seleccionado"""
@@ -533,9 +553,10 @@ class App:
         item = self.tree_prestadas.item(seleccion[0])
         valores = item['values']
         
+        # Orden correcto: Profesor(0), Documento(1), Aula(2), Fecha(3), Hora(4)
+        profesor = str(valores[0])
         documento = str(valores[1])
-        profesor = valores[0]
-        aula = valores[2]
+        aula = str(valores[2])
 
         # Confirmar devolución
         respuesta = messagebox.askyesno("Confirmar Devolución", 
@@ -608,7 +629,8 @@ class App:
                     # Actualizar información general
                     total_registros = len(self.programacion)
                     total_aulas = len(aulas)
-                    self.info_label.config(text=f"Programación cargada: {total_registros} registros, {total_aulas} aulas")
+                    if hasattr(self, 'info_label'):
+                        self.info_label.config(text=f"Programación cargada: {total_registros} registros, {total_aulas} aulas")
                     
                     messagebox.showinfo("Éxito", 
                                       f"Programación cargada correctamente.\n"
@@ -618,6 +640,7 @@ class App:
                     messagebox.showerror("Error", "No se pudo procesar el archivo de programación.")
                     
             except Exception as e:
+                messagebox.showerror("Error", f"Error al cargar el archivo:\n{str(e)}")
                 messagebox.showerror("Error", f"Error al cargar el archivo:\n{str(e)}")
 
     def mostrar_programacion_en_vista(self):
@@ -672,7 +695,8 @@ class App:
 
         # Actualizar info
         total = len(programacion_filtrada)
-        self.info_label.config(text=f"Mostrando {total} registros filtrados")
+        if hasattr(self, 'info_label'):
+            self.info_label.config(text=f"Mostrando {total} registros filtrados")
 
     def limpiar_filtros_prog(self):
         """Limpia todos los filtros de programación"""
@@ -685,7 +709,8 @@ class App:
         self.mostrar_programacion_en_vista()
         
         total = len(self.programacion)
-        self.info_label.config(text=f"Mostrando todos los registros: {total}")
+        if hasattr(self, 'info_label'):
+            self.info_label.config(text=f"Mostrando todos los registros: {total}")
 
     def exportar_programacion_actual(self):
         """Exporta la programación actualmente mostrada"""
@@ -1523,29 +1548,14 @@ class App:
         # Frame de información
         self.info_label = ttk.Label(main_frame, text="Sistema listo. Cargue una programación para comenzar.", 
                                    foreground="blue")
+        # Info label para mostrar estados del sistema
+        self.info_label = ttk.Label(main_frame, text="Sistema listo. Cargue una programación para comenzar.", 
+                                   foreground="blue", font=('Segoe UI', 10))
         self.info_label.pack(pady=10)
 
-    def cargar_programacion(self):
-        file = filedialog.askopenfilename(
-            title="Seleccionar archivo de programación",
-            filetypes=[("Excel Files", "*.xlsx *.xls"), ("All Files", "*.*")]
-        )
-        if file:
-            try:
-                df = pd.read_excel(file)
-                self.programacion_original = df.copy()
-                self.programacion = limpiar_programacion(df)
-                self.info_label.config(
-                    text=f"Programación cargada: {len(self.programacion)} clases consolidadas de {len(df)} registros originales",
-                    foreground="green"
-                )
-                messagebox.showinfo("Éxito", 
-                    f"Programación cargada exitosamente.\n"
-                    f"Registros originales: {len(df)}\n"
-                    f"Clases consolidadas: {len(self.programacion)}")
-            except Exception as e:
-                messagebox.showerror("Error", f"Error al cargar el archivo:\n{str(e)}")
-                self.info_label.config(text="Error al cargar programación", foreground="red")
+        # Inicializar valores
+        self.actualizar_llaves_prestadas()
+        self.actualizar_estadisticas_generales()
 
     def limpiar_y_guardar(self):
         if self.programacion_original is None:
@@ -1563,10 +1573,11 @@ class App:
                 ruta_guardada = guardar_programacion_limpia(self.programacion_original, archivo_salida)
                 messagebox.showinfo("Éxito", 
                     f"Programación limpia guardada en:\n{ruta_guardada}")
-                self.info_label.config(
-                    text=f"Archivo limpio guardado: {ruta_guardada}",
-                    foreground="green"
-                )
+                if hasattr(self, 'info_label'):
+                    self.info_label.config(
+                        text=f"Archivo limpio guardado: {ruta_guardada}",
+                        foreground="green"
+                    )
         except Exception as e:
             messagebox.showerror("Error", f"Error al guardar archivo:\n{str(e)}")
 
@@ -1632,7 +1643,8 @@ class App:
         self.tree.delete(*self.tree.get_children())
         
         if clases.empty:
-            self.info_label.config(text="No se encontraron clases para este documento", foreground="orange")
+            if hasattr(self, 'info_label'):
+                self.info_label.config(text="No se encontraron clases para este documento", foreground="orange")
             return
 
         for _, fila in clases.iterrows():
@@ -1655,7 +1667,8 @@ class App:
                 estado
             ))
         
-        self.info_label.config(text=f"{titulo} - {len(clases)} clases encontradas", foreground="blue")
+        if hasattr(self, 'info_label'):
+            self.info_label.config(text=f"{titulo} - {len(clases)} clases encontradas", foreground="blue")
 
     def entregar_llave(self):
         seleccion = self.tree.selection()
@@ -2165,40 +2178,6 @@ se cargan nuevas programaciones en la ventana principal.
         except Exception as e:
             print(f"Error al ordenar: {e}")
 
-    def actualizar_llaves_prestadas(self):
-        """Actualiza la tabla de llaves actualmente prestadas"""
-        try:
-            # Limpiar tabla
-            for item in self.tree_prestadas.get_children():
-                self.tree_prestadas.delete(item)
-            
-            # Obtener llaves prestadas
-            llaves_prestadas = obtener_llaves_pendientes()
-            
-            if not llaves_prestadas.empty:
-                for _, fila in llaves_prestadas.iterrows():
-                    # Limpiar número de documento
-                    doc_limpio = limpiar_numero_documento(fila['nroidenti'])
-                    
-                    self.tree_prestadas.insert('', 'end', values=(
-                        doc_limpio,
-                        fila['profesor'],
-                        fila['aula'],
-                        fila['hora_entrega']
-                    ))
-            
-            # Actualizar contador
-            total_prestadas = len(llaves_prestadas)
-            color = "red" if total_prestadas > 0 else "green"
-            self.label_total_prestadas.config(
-                text=f"Total: {total_prestadas} llaves prestadas",
-                foreground=color
-            )
-            
-        except Exception as e:
-            self.label_total_prestadas.config(text="Error al cargar llaves prestadas", foreground="red")
-            print(f"Error al actualizar llaves prestadas: {e}")
-
     def devolver_desde_prestadas(self, event):
         """Permite devolver una llave directamente desde la tabla de prestadas"""
         seleccion = self.tree_prestadas.selection()
@@ -2209,8 +2188,9 @@ se cargan nuevas programaciones en la ventana principal.
         if len(valores) < 3:
             return
         
-        documento = valores[0]
-        profesor = valores[1]
+        # Orden correcto: Profesor(0), Documento(1), Aula(2), Fecha(3), Hora(4)
+        profesor = valores[0]
+        documento = valores[1]
         aula = valores[2]
         
         # Confirmar devolución
