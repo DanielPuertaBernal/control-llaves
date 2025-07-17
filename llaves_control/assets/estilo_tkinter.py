@@ -92,6 +92,19 @@ def aplicar_estilo(root):
                     darkcolor=color_secundario,
                     lightcolor=color_secundario)
 
+    # Estilos para Combobox
+    style.configure("TCombobox",
+                    padding=5,
+                    relief="solid",
+                    borderwidth=1,
+                    font=('Segoe UI', 10),
+                    fieldbackground=color_blanco,
+                    selectbackground=color_acento)
+    
+    style.map("TCombobox",
+              focuscolor=[('!focus', color_secundario)],
+              bordercolor=[('focus', color_primario)])
+
 def configurar_ventana_principal(root):
     """Configuración adicional para la ventana principal"""
     # Centrar la ventana en la pantalla

@@ -50,19 +50,23 @@ class App:
         ttk.Button(frame_busqueda, text="Buscar Clases del Día", 
                   command=self.buscar_clases).pack(side=tk.LEFT, padx=(0, 10))
         ttk.Button(frame_busqueda, text="Ver Todas las Clases", 
-                  command=self.ver_todas_clases).pack(side=tk.LEFT)
+                  command=self.ver_todas_clases).pack(side=tk.LEFT, padx=(0, 10))
+        ttk.Button(frame_busqueda, text="Ver Programación Completa", 
+                  command=self.ver_programacion_completa).pack(side=tk.LEFT)
 
         # Frame para acciones
         frame_acciones = ttk.Frame(main_frame)
         frame_acciones.pack(fill=tk.X, pady=(0, 10))
 
-        ttk.Button(frame_acciones, text="Entregar Llave", 
+        ttk.Button(frame_acciones, text="🔑 Entregar Llave", 
                   command=self.entregar_llave).pack(side=tk.LEFT, padx=(0, 10))
-        ttk.Button(frame_acciones, text="Devolver Llave", 
+        ttk.Button(frame_acciones, text="🔄 Devolver Llave", 
                   command=self.devolver_llave).pack(side=tk.LEFT, padx=(0, 10))
-        ttk.Button(frame_acciones, text="Ver Llaves Entregadas", 
+        ttk.Button(frame_acciones, text="📋 Llaves Entregadas", 
                   command=self.ver_llaves_entregadas).pack(side=tk.LEFT, padx=(0, 10))
-        ttk.Button(frame_acciones, text="Ver Historial", 
+        ttk.Button(frame_acciones, text="📚 Programación Completa", 
+                  command=self.ver_programacion_completa).pack(side=tk.LEFT, padx=(0, 10))
+        ttk.Button(frame_acciones, text="📊 Historial", 
                   command=self.ver_historial).pack(side=tk.LEFT)
 
         # Frame para la tabla
@@ -403,3 +407,340 @@ class App:
         
         tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+    def ver_programacion_completa(self):
+        """Muestra la programación completa con filtros por día"""
+        if self.programacion is None:
+            messagebox.showerror("Error", "Primero debe cargar una programación")
+            return
+
+        try:
+            # Crear ventana para la programación completa
+            self.mostrar_ventana_programacion_completa()
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Error al mostrar programación:\n{str(e)}")
+
+    def mostrar_ventana_programacion_completa(self):
+        """Crea una ventana para mostrar toda la programación con filtros"""
+        ventana = tk.Toplevel(self.root)
+        ventana.title("Programación Académica Completa")
+        ventana.geometry("1200x700")
+        
+        main_frame = ttk.Frame(ventana, padding="10")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # Título
+        ttk.Label(main_frame, text="PROGRAMACIÓN ACADÉMICA COMPLETA", 
+                 font=('Segoe UI', 16, 'bold')).pack(pady=(0, 20))
+        
+        # Frame para filtros
+        frame_filtros = ttk.LabelFrame(main_frame, text="Filtros", padding="10")
+        frame_filtros.pack(fill=tk.X, pady=(0, 10))
+        
+        # Filtro por día
+        ttk.Label(frame_filtros, text="Filtrar por día:").pack(side=tk.LEFT)
+        
+        self.combo_dia = ttk.Combobox(frame_filtros, width=15, state="readonly")
+        dias_disponibles = ["TODOS"] + sorted(self.programacion['dia'].unique().tolist())
+        self.combo_dia['values'] = dias_disponibles
+        self.combo_dia.set("TODOS")
+        self.combo_dia.pack(side=tk.LEFT, padx=(5, 10))
+        self.combo_dia.bind('<<ComboboxSelected>>', self.filtrar_por_dia)
+        
+        # Filtro por aula
+        ttk.Label(frame_filtros, text="Filtrar por aula:").pack(side=tk.LEFT, padx=(20, 5))
+        
+        self.combo_aula = ttk.Combobox(frame_filtros, width=15, state="readonly")
+        aulas_disponibles = ["TODAS"] + sorted(self.programacion['aula'].unique().tolist())
+        self.combo_aula['values'] = aulas_disponibles
+        self.combo_aula.set("TODAS")
+        self.combo_aula.pack(side=tk.LEFT, padx=(5, 10))
+        self.combo_aula.bind('<<ComboboxSelected>>', self.filtrar_por_aula)
+        
+        # Botón para limpiar filtros
+        ttk.Button(frame_filtros, text="Limpiar Filtros", 
+                  command=self.limpiar_filtros_programacion).pack(side=tk.LEFT, padx=(20, 0))
+        
+        # Botón de ayuda
+        ttk.Button(frame_filtros, text="❓ Ayuda", 
+                  command=self.mostrar_ayuda_programacion).pack(side=tk.RIGHT)
+
+        # Frame para estadísticas
+        frame_stats = ttk.Frame(main_frame)
+        frame_stats.pack(fill=tk.X, pady=(0, 10))
+        
+        self.label_estadisticas = ttk.Label(frame_stats, 
+                                           text="", 
+                                           font=('Segoe UI', 10, 'bold'),
+                                           foreground="blue")
+        self.label_estadisticas.pack()
+        
+        # Frame para la tabla
+        frame_tabla = ttk.Frame(main_frame)
+        frame_tabla.pack(fill=tk.BOTH, expand=True)
+        
+        # Crear tabla con scrollbars
+        scrollbar_v = ttk.Scrollbar(frame_tabla, orient=tk.VERTICAL)
+        scrollbar_h = ttk.Scrollbar(frame_tabla, orient=tk.HORIZONTAL)
+        
+        self.tree_programacion = ttk.Treeview(frame_tabla,
+                                            columns=("documento", "profesor", "materia", "aula", "dia", "horario", "estudiantes", "grupo"),
+                                            show="headings",
+                                            yscrollcommand=scrollbar_v.set,
+                                            xscrollcommand=scrollbar_h.set)
+        
+        scrollbar_v.config(command=self.tree_programacion.yview)
+        scrollbar_h.config(command=self.tree_programacion.xview)
+        
+        # Configurar columnas
+        columnas_programacion = {
+            "documento": ("Documento", 100),
+            "profesor": ("Profesor", 200),
+            "materia": ("Materia", 250),
+            "aula": ("Aula", 80),
+            "dia": ("Día", 100),
+            "horario": ("Horario", 120),
+            "estudiantes": ("Estudiantes", 80),
+            "grupo": ("Grupo", 80)
+        }
+        
+        for col, (texto, ancho) in columnas_programacion.items():
+            self.tree_programacion.heading(col, text=texto, 
+                                          command=lambda c=col: self.ordenar_programacion(c))
+            self.tree_programacion.column(col, width=ancho, minwidth=50)
+        
+        # Posicionar elementos
+        self.tree_programacion.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar_v.pack(side=tk.RIGHT, fill=tk.Y)
+        scrollbar_h.pack(side=tk.BOTTOM, fill=tk.X)
+        
+        # Botones de acción
+        frame_acciones = ttk.Frame(main_frame)
+        frame_acciones.pack(fill=tk.X, pady=(10, 0))
+        
+        ttk.Button(frame_acciones, text="Exportar Vista Actual", 
+                  command=self.exportar_programacion_filtrada).pack(side=tk.LEFT, padx=(0, 10))
+        ttk.Button(frame_acciones, text="Actualizar", 
+                  command=self.actualizar_programacion_completa).pack(side=tk.LEFT)
+        
+        # Cargar datos iniciales
+        self.programacion_filtrada = self.programacion.copy()
+        self.actualizar_tabla_programacion()
+        
+        # Guardar referencia a la ventana
+        self.ventana_programacion = ventana
+
+    def filtrar_por_dia(self, event=None):
+        """Filtra la programación por día seleccionado"""
+        dia_seleccionado = self.combo_dia.get()
+        aula_seleccionada = self.combo_aula.get()
+        
+        # Aplicar filtros
+        datos_filtrados = self.programacion.copy()
+        
+        if dia_seleccionado != "TODOS":
+            datos_filtrados = datos_filtrados[datos_filtrados['dia'] == dia_seleccionado]
+        
+        if aula_seleccionada != "TODAS":
+            datos_filtrados = datos_filtrados[datos_filtrados['aula'] == aula_seleccionada]
+        
+        self.programacion_filtrada = datos_filtrados
+        self.actualizar_tabla_programacion()
+
+    def filtrar_por_aula(self, event=None):
+        """Filtra la programación por aula seleccionada"""
+        self.filtrar_por_dia()  # Reutilizar la lógica de filtrado
+
+    def limpiar_filtros_programacion(self):
+        """Limpia todos los filtros y muestra toda la programación"""
+        self.combo_dia.set("TODOS")
+        self.combo_aula.set("TODAS")
+        self.programacion_filtrada = self.programacion.copy()
+        self.actualizar_tabla_programacion()
+
+    def actualizar_tabla_programacion(self):
+        """Actualiza la tabla de programación con los datos filtrados"""
+        # Limpiar tabla
+        for item in self.tree_programacion.get_children():
+            self.tree_programacion.delete(item)
+        
+        if self.programacion_filtrada.empty:
+            self.label_estadisticas.config(text="No hay clases que coincidan con los filtros seleccionados")
+            return
+        
+        # Agregar datos a la tabla
+        for _, fila in self.programacion_filtrada.iterrows():
+            self.tree_programacion.insert('', 'end', values=(
+                fila['nroidenti'],
+                fila['profesor'],
+                fila['materia'],
+                fila['aula'],
+                fila['dia'],
+                fila['horario'],
+                fila.get('nro_estudiantes', ''),
+                fila.get('grupo', '')
+            ))
+        
+        # Actualizar estadísticas
+        total_clases = len(self.programacion_filtrada)
+        total_profesores = self.programacion_filtrada['profesor'].nunique()
+        total_aulas = self.programacion_filtrada['aula'].nunique()
+        
+        estadisticas = f"Total: {total_clases} clases | {total_profesores} profesores | {total_aulas} aulas"
+        
+        dia_actual = self.combo_dia.get()
+        aula_actual = self.combo_aula.get()
+        
+        if dia_actual != "TODOS" or aula_actual != "TODAS":
+            filtros_activos = []
+            if dia_actual != "TODOS":
+                filtros_activos.append(f"Día: {dia_actual}")
+            if aula_actual != "TODAS":
+                filtros_activos.append(f"Aula: {aula_actual}")
+            estadisticas += f" | Filtros: {', '.join(filtros_activos)}"
+        
+        self.label_estadisticas.config(text=estadisticas)
+
+    def actualizar_programacion_completa(self):
+        """Actualiza los datos de la programación completa"""
+        if hasattr(self, 'ventana_programacion') and self.ventana_programacion.winfo_exists():
+            # Actualizar combos con nuevos valores si los hay
+            dias_disponibles = ["TODOS"] + sorted(self.programacion['dia'].unique().tolist())
+            self.combo_dia['values'] = dias_disponibles
+            
+            aulas_disponibles = ["TODAS"] + sorted(self.programacion['aula'].unique().tolist())
+            self.combo_aula['values'] = aulas_disponibles
+            
+            # Aplicar filtros actuales
+            self.filtrar_por_dia()
+
+    def exportar_programacion_filtrada(self):
+        """Exporta la programación filtrada actual a Excel"""
+        try:
+            archivo_salida = filedialog.asksaveasfilename(
+                title="Exportar programación filtrada",
+                defaultextension=".xlsx",
+                filetypes=[("Excel Files", "*.xlsx"), ("All Files", "*.*")]
+            )
+            
+            if archivo_salida:
+                # Preparar datos para exportar
+                datos_exportar = self.programacion_filtrada.copy()
+                
+                # Agregar información del filtro
+                dia_filtro = self.combo_dia.get()
+                aula_filtro = self.combo_aula.get()
+                
+                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                
+                # Crear un DataFrame con información del reporte
+                info_reporte = pd.DataFrame({
+                    'Campo': ['Fecha de exportación', 'Total de clases', 'Filtro por día', 'Filtro por aula'],
+                    'Valor': [timestamp, len(datos_exportar), dia_filtro, aula_filtro]
+                })
+                
+                # Exportar a Excel con múltiples hojas
+                with pd.ExcelWriter(archivo_salida, engine='openpyxl') as writer:
+                    datos_exportar.to_excel(writer, sheet_name='Programación', index=False)
+                    info_reporte.to_excel(writer, sheet_name='Información del Reporte', index=False)
+                
+                messagebox.showinfo("Éxito", 
+                    f"Programación exportada exitosamente:\n{archivo_salida}\n\n"
+                    f"Registros exportados: {len(datos_exportar)}")
+                
+        except Exception as e:
+            messagebox.showerror("Error", f"Error al exportar:\n{str(e)}")
+
+    def mostrar_ayuda_programacion(self):
+        """Muestra ayuda sobre la funcionalidad de programación completa"""
+        ayuda_texto = """
+AYUDA - PROGRAMACIÓN ACADÉMICA COMPLETA
+
+🔍 FILTROS DISPONIBLES:
+• Filtrar por día: Seleccione un día específico o "TODOS"
+• Filtrar por aula: Seleccione un aula específica o "TODAS"
+• Los filtros se pueden combinar para mayor precisión
+
+📊 ESTADÍSTICAS:
+• Total de clases mostradas
+• Número de profesores únicos
+• Número de aulas utilizadas
+• Filtros activos actuales
+
+⚡ FUNCIONES RÁPIDAS:
+• Doble clic en combo para seleccionar rápido
+• "Limpiar Filtros" restaura vista completa
+• "Actualizar" recarga los datos
+• "Exportar Vista Actual" guarda los datos filtrados
+
+💡 CONSEJOS:
+• Use filtro por día para ver carga diaria
+• Use filtro por aula para gestión de espacios
+• Combine filtros para análisis específicos
+• Exporte vistas para reportes
+
+🔄 ACTUALIZACIÓN:
+Los datos se actualizan automáticamente cuando 
+se cargan nuevas programaciones en la ventana principal.
+        """
+        
+        messagebox.showinfo("Ayuda - Programación Completa", ayuda_texto)
+
+    def ordenar_programacion(self, columna):
+        """Ordena la tabla de programación por la columna seleccionada"""
+        try:
+            # Mapear nombres de columnas de la tabla a nombres del DataFrame
+            mapeo_columnas = {
+                "documento": "nroidenti",
+                "profesor": "profesor",
+                "materia": "materia",
+                "aula": "aula",
+                "dia": "dia",
+                "horario": "horario",
+                "estudiantes": "nro_estudiantes",
+                "grupo": "grupo"
+            }
+            
+            columna_df = mapeo_columnas.get(columna)
+            if not columna_df or columna_df not in self.programacion_filtrada.columns:
+                return
+            
+            # Alternar entre ascendente y descendente
+            if not hasattr(self, 'orden_columna') or self.orden_columna != columna:
+                self.orden_ascendente = True
+                self.orden_columna = columna
+            else:
+                self.orden_ascendente = not self.orden_ascendente
+            
+            # Ordenar datos
+            self.programacion_filtrada = self.programacion_filtrada.sort_values(
+                by=columna_df, 
+                ascending=self.orden_ascendente,
+                na_position='last'
+            ).reset_index(drop=True)
+            
+            # Actualizar tabla
+            self.actualizar_tabla_programacion()
+            
+            # Actualizar encabezado para mostrar dirección del ordenamiento
+            direccion = "↑" if self.orden_ascendente else "↓"
+            for col in ["documento", "profesor", "materia", "aula", "dia", "horario", "estudiantes", "grupo"]:
+                texto_base = {
+                    "documento": "Documento",
+                    "profesor": "Profesor", 
+                    "materia": "Materia",
+                    "aula": "Aula",
+                    "dia": "Día",
+                    "horario": "Horario",
+                    "estudiantes": "Estudiantes",
+                    "grupo": "Grupo"
+                }[col]
+                
+                if col == columna:
+                    self.tree_programacion.heading(col, text=f"{texto_base} {direccion}")
+                else:
+                    self.tree_programacion.heading(col, text=texto_base)
+                    
+        except Exception as e:
+            print(f"Error al ordenar: {e}")

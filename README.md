@@ -16,6 +16,10 @@ Sistema de gestión para el control de entrega y devolución de llaves de aulas 
 - **Limpieza automática**: Consolidación de clases largas divididas en múltiples registros
 - **Exportación limpia**: Generación de archivo Excel corregido
 - **Búsqueda inteligente**: Localización rápida por documento y fecha
+- **Vista completa**: Visualización integral de toda la programación
+- **Filtros avanzados**: Filtrado por día, aula y combinaciones
+- **Ordenamiento**: Clasificación por cualquier columna
+- **Estadísticas**: Información en tiempo real de clases, profesores y aulas
 
 ### 🎨 Interfaz Intuitiva
 - **Diseño moderno**: Interfaz gráfica amigable con colores institucionales
@@ -112,6 +116,18 @@ ControlDeLLaves/
 
 - **Llaves Entregadas**: Ver todas las llaves actualmente en poder de profesores
 - **Historial**: Consultar el registro completo de todas las transacciones
+- **Programación Completa**: Vista integral de toda la programación con filtros avanzados
+
+### 6. Ver y Filtrar Programación Completa
+
+1. **Acceder a la vista**: Clic en "Ver Programación Completa"
+2. **Filtrar por día**: Seleccionar día específico del dropdown
+3. **Filtrar por aula**: Seleccionar aula específica del dropdown
+4. **Combinar filtros**: Usar ambos filtros simultáneamente
+5. **Ordenar datos**: Clic en encabezados de columna para ordenar
+6. **Exportar vista**: Guardar datos filtrados en Excel
+7. **Limpiar filtros**: Restaurar vista completa
+8. **Ver estadísticas**: Información en tiempo real de la vista actual
 
 ## Formato del Archivo de Programación
 
