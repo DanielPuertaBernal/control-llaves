@@ -81,7 +81,7 @@ class App:
         list_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 15))
 
         # Crear Treeview para mostrar profesores
-        columns = ('Profesor', 'Documento', 'Materia', 'Aula', 'Horario')
+        columns = ('Profesor', 'Documento', 'Materia', 'Aula', 'Día', 'Horario')
         self.tree_profesores = ttk.Treeview(list_frame, columns=columns, show='headings', height=8)
 
         # Configurar columnas
@@ -89,6 +89,7 @@ class App:
         self.tree_profesores.heading('Documento', text='Documento')
         self.tree_profesores.heading('Materia', text='Materia')
         self.tree_profesores.heading('Aula', text='Aula')
+        self.tree_profesores.heading('Día', text='Día')
         self.tree_profesores.heading('Horario', text='Horario')
 
         # Ajustar ancho de columnas
@@ -96,6 +97,7 @@ class App:
         self.tree_profesores.column('Documento', width=90)
         self.tree_profesores.column('Materia', width=100)
         self.tree_profesores.column('Aula', width=60)
+        self.tree_profesores.column('Día', width=70)
         self.tree_profesores.column('Horario', width=90)
 
         # Scrollbar para la lista
@@ -116,6 +118,20 @@ class App:
                                  command=self.entregar_llave_seleccionada,
                                  style="Accent.TButton")
         btn_entregar.pack(pady=10, fill=tk.X)
+
+        # Frame para botones de exportación
+        frame_export = ttk.Frame(frame_izq)
+        frame_export.pack(fill=tk.X, pady=(0, 10))
+
+        btn_export_registro = ttk.Button(frame_export, text="📊 Exportar Registro", 
+                                        command=self.exportar_registro_entregas,
+                                        width=20)
+        btn_export_registro.pack(side=tk.LEFT, padx=(0, 5))
+
+        btn_export_prog = ttk.Button(frame_export, text="📄 Exportar Programación", 
+                                    command=self.exportar_programacion_limpia,
+                                    width=20)
+        btn_export_prog.pack(side=tk.RIGHT, padx=(5, 0))
 
         # Columna derecha - Devolución de llaves
         frame_der = ttk.LabelFrame(main_container, text="DEVOLUCIÓN DE LLAVES", padding="15")
@@ -461,11 +477,13 @@ class App:
         count = 0
         for _, fila in resultados.iterrows():
             documento = limpiar_numero_documento(str(fila['nroidenti']))
+            dia = fila.get('dia', 'N/A')  # Obtener día o 'N/A' si no existe
             self.tree_profesores.insert('', 'end', values=(
                 fila['profesor'],
                 documento,
                 fila['materia'],
                 fila['aula'],
+                dia,
                 fila['horario']
             ))
             count += 1
@@ -595,6 +613,172 @@ class App:
                     fecha_entrega,
                     hora_entrega
                 ))
+
+    # ============ FUNCIONES DE EXPORTACIÓN ============
+    
+    def exportar_registro_entregas(self):
+        """Exporta el registro completo de entregas de llaves"""
+        try:
+            print("🔍 Iniciando exportación de registro de entregas...")
+            
+            # Obtener historial completo
+            historial = obtener_historial_completo()
+            
+            if historial.empty:
+                messagebox.showwarning("Advertencia", "No hay registros de entregas para exportar.")
+                return
+
+            print(f"✅ Historial obtenido: {len(historial)} registros")
+
+            # Solicitar ruta de guardado
+            archivo_salida = filedialog.asksaveasfilename(
+                title="Guardar Registro de Entregas",
+                defaultextension=".xlsx",
+                filetypes=[("Excel files", "*.xlsx"), ("All files", "*.*")],
+                initialfile=f"registro_entregas_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+            )
+            
+            if not archivo_salida:
+                print("❌ Exportación cancelada por el usuario")
+                return
+            
+            print(f"📂 Archivo de salida: {archivo_salida}")
+            
+            # Preparar datos para exportación
+            datos_export = historial.copy()
+            
+            # Verificar que openpyxl esté disponible
+            try:
+                import openpyxl
+                print("✅ Librería openpyxl disponible")
+            except ImportError:
+                messagebox.showerror("Error", "La librería openpyxl no está instalada.\nEjecute: pip install openpyxl")
+                return
+            
+            # Crear el archivo Excel
+            print("📊 Creando archivo Excel...")
+            with pd.ExcelWriter(archivo_salida, engine='openpyxl') as writer:
+                # Escribir datos principales
+                datos_export.to_excel(writer, sheet_name='Registro_Entregas', index=False)
+                print("✅ Datos principales escritos")
+                
+                # Crear hoja de metadatos
+                entregas_pendientes = len(datos_export[datos_export['estado'] == 'Entregada']) if 'estado' in datos_export.columns else 0
+                entregas_completadas = len(datos_export[datos_export['estado'] == 'Devuelta']) if 'estado' in datos_export.columns else 0
+                
+                metadatos = pd.DataFrame({
+                    'Información': [
+                        'Fecha de Exportación',
+                        'Total de Registros',
+                        'Entregas Pendientes',
+                        'Entregas Completadas',
+                        'Sistema'
+                    ],
+                    'Valor': [
+                        datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                        len(datos_export),
+                        entregas_pendientes,
+                        entregas_completadas,
+                        'Control de Llaves v2.0'
+                    ]
+                })
+                metadatos.to_excel(writer, sheet_name='Metadatos', index=False)
+                print("✅ Metadatos escritos")
+            
+            print("🎉 Exportación completada exitosamente")
+            messagebox.showinfo("Éxito", f"Registro exportado exitosamente:\n{archivo_salida}")
+                
+        except Exception as e:
+            error_msg = f"Error al exportar registro:\n{str(e)}"
+            print(f"❌ {error_msg}")
+            import traceback
+            traceback.print_exc()
+            messagebox.showerror("Error", error_msg)
+
+    def exportar_programacion_limpia(self):
+        """Exporta la programación limpia actualmente cargada"""
+        try:
+            print("🔍 Iniciando exportación de programación limpia...")
+            
+            if self.programacion is None:
+                messagebox.showwarning("Advertencia", "No hay programación cargada para exportar.")
+                return
+
+            print(f"✅ Programación disponible: {len(self.programacion)} registros")
+
+            # Solicitar ruta de guardado
+            archivo_salida = filedialog.asksaveasfilename(
+                title="Guardar Programación Limpia",
+                defaultextension=".xlsx",
+                filetypes=[("Excel files", "*.xlsx"), ("All files", "*.*")],
+                initialfile=f"programacion_limpia_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+            )
+            
+            if not archivo_salida:
+                print("❌ Exportación cancelada por el usuario")
+                return
+            
+            print(f"📂 Archivo de salida: {archivo_salida}")
+            
+            # Preparar datos para exportación
+            datos_export = self.programacion.copy()
+            
+            # Limpiar documentos para exportación
+            print("🧹 Limpiando documentos...")
+            datos_export['nroidenti'] = datos_export['nroidenti'].apply(
+                lambda x: str(x).replace('.0', '') if str(x).endswith('.0') else str(x)
+            )
+            
+            # Verificar que openpyxl esté disponible
+            try:
+                import openpyxl
+                print("✅ Librería openpyxl disponible")
+            except ImportError:
+                messagebox.showerror("Error", "La librería openpyxl no está instalada.\nEjecute: pip install openpyxl")
+                return
+            
+            # Crear el archivo Excel
+            print("📊 Creando archivo Excel...")
+            with pd.ExcelWriter(archivo_salida, engine='openpyxl') as writer:
+                # Escribir datos principales
+                datos_export.to_excel(writer, sheet_name='Programacion_Limpia', index=False)
+                print("✅ Datos principales escritos")
+                
+                # Crear hoja de metadatos
+                profesores_unicos = datos_export['profesor'].nunique() if 'profesor' in datos_export.columns else 0
+                aulas_unicas = datos_export['aula'].nunique() if 'aula' in datos_export.columns else 0
+                materias_unicas = datos_export['materia'].nunique() if 'materia' in datos_export.columns else 0
+                
+                metadatos = pd.DataFrame({
+                    'Información': [
+                        'Fecha de Exportación',
+                        'Total de Registros',
+                        'Profesores Únicos',
+                        'Aulas Únicas',
+                        'Materias Únicas',
+                        'Sistema'
+                    ],
+                    'Valor': [
+                        datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                        len(datos_export),
+                        profesores_unicos,
+                        aulas_unicas,
+                        materias_unicas,
+                        'Control de Llaves v2.0'
+                    ]
+                })
+                metadatos.to_excel(writer, sheet_name='Metadatos', index=False)
+                print("✅ Metadatos escritos")
+            
+            print("🎉 Exportación completada exitosamente")
+            messagebox.showinfo("Éxito", f"Programación exportada exitosamente:\n{archivo_salida}")
+                
+        except Exception as e:
+            error_msg = f"Error al exportar programación:\n{str(e)}"
+            print(f"❌ {error_msg}")
+            import traceback
+            traceback.print_exc()
+            messagebox.showerror("Error", error_msg)
 
     # ============ FUNCIONES VISTA PROGRAMACIÓN ============
     
