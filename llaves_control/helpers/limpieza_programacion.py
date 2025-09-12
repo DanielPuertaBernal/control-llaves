@@ -35,22 +35,37 @@ def limpiar_programacion(archivo_o_df):
         # Limpiar datos básicos
         df['horario'] = df['horario'].astype(str)
         df['profesor'] = df['profesor'].fillna('').str.strip()
-        
+
         # Convertir nroidenti a string limpio sin .0
         def limpiar_documento(doc):
             doc_str = str(doc)
             if doc_str.endswith('.0'):
                 return doc_str[:-2]
             return doc_str
-        
         df['nroidenti'] = df['nroidenti'].apply(limpiar_documento)
         df['dia'] = df['dia'].str.upper().str.strip()
-        
+
         # Limpiar nombres de materias
         if 'MATERIA' in df.columns:
             df['materia'] = df['MATERIA'].fillna('').str.strip()
         elif 'materia' not in df.columns:
             df['materia'] = df.get('materia', '').fillna('').str.strip()
+
+        # --- NUEVO: Calcular nro_estudiantes ---
+        if 'TOTAL' in df.columns:
+            df['nro_estudiantes'] = df['TOTAL']
+        else:
+            premat = df['nro_estudiantes_premat'] if 'nro_estudiantes_premat' in df.columns else 0
+            mat = df['nro_estudiantes'] if 'nro_estudiantes' in df.columns else 0
+            # Si ambos existen, sumarlos; si solo uno, usar ese
+            if isinstance(premat, pd.Series) and isinstance(mat, pd.Series):
+                df['nro_estudiantes'] = premat.fillna(0).astype(float) + mat.fillna(0).astype(float)
+            elif isinstance(premat, pd.Series):
+                df['nro_estudiantes'] = premat.fillna(0).astype(float)
+            elif isinstance(mat, pd.Series):
+                df['nro_estudiantes'] = mat.fillna(0).astype(float)
+            else:
+                df['nro_estudiantes'] = 0
 
         # Separar hora inicio y fin con diferentes formatos posibles
         if len(df) > 0 and ' A ' in str(df['horario'].iloc[0]).upper():
@@ -65,7 +80,7 @@ def limpiar_programacion(archivo_o_df):
                 # Si no hay separador reconocible, usar horario completo
                 df['hora_ini'] = df['horario']
                 df['hora_fin'] = df['horario']
-        
+
         # Convertir horas a formato time (con manejo de errores)
         try:
             df['hora_ini'] = pd.to_datetime(df['hora_ini'], format='%H:%M', errors='coerce').dt.time
@@ -76,7 +91,7 @@ def limpiar_programacion(archivo_o_df):
 
         # Agrupar por clase con misma información para unificar franjas horarias
         columnas_agrupacion = ['nroidenti', 'profesor', 'materia', 'aula', 'dia']
-        
+
         # Verificar que todas las columnas existan
         columnas_disponibles = [col for col in columnas_agrupacion if col in df.columns]
         
