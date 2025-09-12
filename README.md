@@ -1,227 +1,146 @@
 # Sistema de Control de Llaves
 
 ## Descripción
-Sistema de gestión para el control de entrega y devolución de llaves de aulas académicas. Permite llevar un registro detallado de quién tiene cada llave y cuándo fue entregada/devuelta.
+Sistema modular para gestión de entrega y devolución de llaves académicas. Procesa programación académica desde Excel, gestiona registros de llaves en tiempo real y genera informes exportables.
 
-## Características principales
+## Características Principales
 
 ### 🔑 Gestión de Llaves
-- **Entrega de llaves**: Registro de entrega con fecha y hora
-- **Devolución de llaves**: Control de devoluciones con timestamp
-- **Estado en tiempo real**: Visualización del estado actual de cada llave
-- **Historial completo**: Registro de todas las transacciones
+- Entrega y devolución con registro automático de fecha/hora
+- Búsqueda inteligente por nombre de profesor o número de documento
+- Panel en tiempo real de llaves prestadas
+- Validación automática de duplicados
 
-### 📊 Gestión de Programación
-- **Carga de programación**: Importación desde archivos Excel
-- **Limpieza automática**: Consolidación de clases largas divididas en múltiples registros
-- **Exportación limpia**: Generación de archivo Excel corregido
-- **Búsqueda inteligente**: Localización rápida por documento y fecha
-- **Vista completa**: Visualización integral de toda la programación
-- **Filtros avanzados**: Filtrado por día, aula y combinaciones
-- **Ordenamiento**: Clasificación por cualquier columna
-- **Estadísticas**: Información en tiempo real de clases, profesores y aulas
+### 📊 Procesamiento de Programación
+- Carga desde archivos Excel/CSV
+- Limpieza automática de datos (eliminación de .0, consolidación de horarios)
+- Cálculo automático de estudiantes totales (prematriculados + matriculados)
+- Exportación de datos limpios
 
-### 🎨 Interfaz Intuitiva
-- **Diseño moderno**: Interfaz gráfica amigable con colores institucionales
-- **Navegación simple**: Acceso rápido a todas las funciones
-- **Información clara**: Estados visuales con emojis y colores
-- **Responsive**: Ventanas redimensionables con scrollbars
-- **Panel de llaves prestadas**: Vista en tiempo real de todas las llaves entregadas
-- **Devolución rápida**: Doble clic para devolver desde el panel de prestadas
+### 📈 Informes y Reportes
+- Informe de llaves pendientes de devolución  
+- Historial completo de entregas y devoluciones
+- Exportación a Excel con metadatos
+- Estadísticas en tiempo real
 
-## Estructura del Proyecto
+### 🎨 Interfaz Modular
+- Arquitectura por pestañas especializada
+- Vista de Entrega y Devolución
+- Vista de Programación Académica
+- Vista de Informes y Reportes
 
-```
-ControlDeLLaves/
-├── llaves_control/
-│   ├── main.py                 # Punto de entrada de la aplicación
-│   ├── assets/
-│   │   └── estilo_tkinter.py   # Estilos y temas de la interfaz
-│   ├── data/
-│   │   └── registros_llaves.xlsx  # Base de datos de registros
-│   ├── helpers/
-│   │   ├── gestion_excel.py    # Manejo de archivos Excel
-│   │   └── limpieza_programacion.py  # Procesamiento de datos
-│   └── ui/
-│       └── interfaz.py         # Interfaz gráfica principal
-├── requirements.txt            # Dependencias del proyecto
-└── README.md                  # Este archivo
-```
-
-## Instalación
+## Instalación Rápida
 
 ### Prerrequisitos
-- Python 3.7 o superior
-- Pip (gestor de paquetes de Python)
+- Python 3.7+
+- pip
 
-### Pasos de instalación
+### Pasos
+```bash
+# 1. Descargar el proyecto
+git clone <url-repositorio>
+cd ControlDeLLaves
 
-1. **Clonar o descargar el proyecto**
-   ```bash
-   git clone <url-del-repositorio>
-   cd ControlDeLLaves
-   ```
+# 2. Instalar dependencias
+pip install -r requirements.txt
 
-2. **Instalar dependencias**
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-3. **Ejecutar la aplicación**
-   ```bash
-   python llaves_control/main.py
-   ```
+# 3. Ejecutar
+python llaves_control/main.py
+```
 
 ## Uso del Sistema
 
-### 1. Cargar Programación Académica
+### 1. Cargar Programación
+1. **Pestaña "📅 Programación"**
+2. **Clic "📁 Seleccionar Archivo"**
+3. **Elegir Excel/CSV** con columnas: `nroidenti`, `profesor`, `aula`, `dia`, `horario`
+4. **Sistema procesa automáticamente**: limpia documentos, suma estudiantes, consolida horarios
 
-1. **Preparar archivo Excel** con la siguiente estructura mínima:
-   - `nroidenti`: Número de identificación del profesor
-   - `profesor`: Nombre del profesor
-   - `materia` o `MATERIA`: Nombre de la asignatura
-   - `aula`: Código del aula
-   - `dia`: Día de la semana
-   - `horario`: Horario en formato "HH:MM A HH:MM"
-   - `nro_estudiantes`: Número de estudiantes
+### 2. Entregar Llaves
+1. **Pestaña "🔑 Entrega y Devolución"**
+2. **Buscar profesor**: escribir nombre o documento
+3. **Seleccionar de la lista** de resultados
+4. **Clic "🔑 ENTREGAR LLAVE"**
 
-2. **Cargar archivo**:
-   - Clic en "Cargar Programación"
-   - Seleccionar archivo Excel
-   - El sistema automáticamente limpia y consolida los datos
+### 3. Devolver Llaves
+1. **En panel "Llaves Prestadas"**
+2. **Seleccionar llave** a devolver
+3. **Clic "↩️ DEVOLVER LLAVE"** o doble clic directo
 
-3. **Generar archivo limpio** (opcional):
-   - Clic en "Limpiar y Guardar Programación"
-   - Elegir ubicación para guardar el archivo corregido
+### 4. Generar Informes
+1. **Pestaña "📊 Informes"**
+2. **Elegir tipo**: llaves pendientes o historial completo
+3. **Exportar con "💾 Exportar Informe"**
 
-### 2. Buscar Clases de un Profesor
-
-1. **Ingresar documento**: Escribir el número de identificación en el campo
-2. **Búsqueda del día**: Clic en "Buscar Clases del Día" para ver solo las clases de hoy
-3. **Ver todas**: Clic en "Ver Todas las Clases" para ver toda la programación del profesor
-
-### 3. Gestionar Entrega de Llaves
-
-1. **Seleccionar clase**: Hacer clic en una fila de la tabla
-2. **Entregar llave**: Clic en "Entregar Llave"
-   - Solo disponible para clases marcadas como "⭕ Disponible"
-   - Se registra automáticamente fecha y hora
-3. **Confirmar entrega**: El sistema muestra mensaje de confirmación
-
-### 4. Gestionar Devolución de Llaves
-
-1. **Seleccionar clase entregada**: Hacer clic en una fila marcada como "🔑 Entregada"
-2. **Devolver llave**: Clic en "Devolver Llave"
-3. **Confirmar devolución**: Se actualiza el registro automáticamente
-
-### 5. Consultar Información
-
-- **Llaves Entregadas**: Ver todas las llaves actualmente en poder de profesores
-- **Historial**: Consultar el registro completo de todas las transacciones
-- **Programación Completa**: Vista integral de toda la programación con filtros avanzados
-
-### 6. Ver y Filtrar Programación Completa
-
-1. **Acceder a la vista**: Clic en "Ver Programación Completa"
-2. **Filtrar por día**: Seleccionar día específico del dropdown
-3. **Filtrar por aula**: Seleccionar aula específica del dropdown
-4. **Combinar filtros**: Usar ambos filtros simultáneamente
-5. **Ordenar datos**: Clic en encabezados de columna para ordenar
-6. **Exportar vista**: Guardar datos filtrados en Excel
-7. **Limpiar filtros**: Restaurar vista completa
-8. **Ver estadísticas**: Información en tiempo real de la vista actual
-
-### 7. Monitoreo de Llaves Prestadas
-
-El sistema incluye un **panel en tiempo real** que muestra todas las llaves actualmente prestadas:
-
-1. **Vista automática**: Panel visible en la interfaz principal
-2. **Información completa**: Documento, profesor, aula y hora de entrega
-3. **Contador dinámico**: Total de llaves prestadas actualizado automáticamente
-4. **Devolución rápida**: Doble clic en cualquier fila para devolver la llave
-5. **Actualización automática**: Se actualiza después de cada entrega/devolución
-6. **Botón de actualizar**: Refrescar manualmente cuando sea necesario
-
-**Características del panel:**
-- 🔴 **Texto rojo**: Cuando hay llaves prestadas
-- 🟢 **Texto verde**: Cuando no hay llaves prestadas  
-- 📊 **Estadísticas**: Contador en tiempo real
-- ⚡ **Acceso rápido**: Doble clic para devolver
-
-## Formato del Archivo de Programación
-
-El sistema acepta archivos Excel (.xlsx, .xls) con las siguientes columnas:
+## Formato de Programación
 
 ### Columnas Requeridas
-- `nroidenti`: Número de documento del profesor
-- `profesor`: Nombre completo del profesor  
-- `materia` o `MATERIA`: Nombre de la asignatura
-- `aula`: Código o nombre del aula
-- `dia`: Día de la semana (LUNES, MARTES, etc.)
-- `horario`: Horario en formato "14:01 A 16:00"
-
-### Columnas Opcionales
-- `nro_estudiantes`: Cantidad de estudiantes
-- `grupo`: Número de grupo
-- `nivel_grupo`: Nivel del grupo
-- `semestre`: Semestre académico
-- `PROGRAMA`: Programa académico
-
-### Ejemplo de datos:
 ```
-nroidenti | profesor | materia | aula | dia | horario | nro_estudiantes
-93387345 | AVELINO LEDESMA | INVESTIGACIÓN I | M405 | MARTES | 14:01 A 16:00 | 20
+nroidenti    - Número documento profesor
+profesor     - Nombre completo
+aula         - Código del aula
+```
+
+### Columnas Opcionales (Procesadas)
+```
+dia                    - Día de la semana
+horario               - Horario clase
+materia/MATERIA       - Nombre materia
+nro_estudiantes_premat - Estudiantes prematriculados
+nro_estudiantes       - Estudiantes matriculados
+TOTAL                 - Total estudiantes (prioritario)
+```
+
+### Ejemplo
+```
+nroidenti | profesor      | aula | dia     | horario        | TOTAL
+12345678  | JUAN PEREZ   | A101 | LUNES   | 08:00 A 10:00 | 25
+87654321  | MARIA LOPEZ  | B205 | MARTES  | 14:00 A 16:00 | 30
 ```
 
 ## Características Técnicas
 
-### Consolidación Automática
-El sistema detecta y consolida automáticamente:
-- **Clases divididas**: Asignaturas largas divididas en múltiples registros
-- **Horarios continuos**: Unifica 12:01-13:00 y 13:01-14:00 en 12:01-14:00
-- **Duplicados**: Elimina registros redundantes
+### Procesamiento Inteligente
+- **Limpieza de documentos**: `12345678.0` → `12345678`
+- **Cálculo estudiantes**: `premat + matriculados` o usar `TOTAL`
+- **Consolidación horarios**: Une clases largas divididas
+
+### Arquitectura Modular
+```
+ui/interfaz.py           - Coordinador principal
+ui/entrega_devolucion.py - Gestión de llaves
+ui/programacion.py       - Procesamiento académico
+ui/informes.py          - Reportes y análisis
+helpers/                - Lógica de negocio
+```
 
 ### Base de Datos
-- **Archivo Excel**: `data/registros_llaves.xlsx`
-- **Campos**: Documento, profesor, materia, aula, estado, timestamps
-- **Backup automático**: Se preservan todos los registros históricos
-
-### Estados de Llaves
-- **⭕ Disponible**: Llave disponible para entrega
-- **🔑 Entregada**: Llave en poder del profesor
-- **Devuelta**: Llave devuelta (en historial)
+- **Archivo**: `data/registros_llaves.xlsx`
+- **Persistencia automática** con timestamps
+- **Backup automático** de todos los registros
 
 ## Solución de Problemas
 
-### Error al cargar programación
-- Verificar que el archivo sea Excel (.xlsx o .xls)
-- Comprobar que existan las columnas requeridas
-- Revisar formato de datos (fechas, números)
+### 🚨 Error al cargar programación
+- Verificar formato Excel/CSV
+- Comprobar columnas requeridas: `nroidenti`, `profesor`, `aula`
 
-### No aparecen clases
-- Verificar número de documento correcto
-- Comprobar que el día coincida (sistema usa día actual)
-- Revisar que la programación esté cargada
+### 🚨 No aparecen profesores en búsqueda  
+- Verificar que programación esté cargada
+- Comprobar formato de búsqueda (nombre parcial o documento)
 
-### Error en entrega/devolución
-- Verificar que la clase esté seleccionada
-- Comprobar estado de la llave
-- Revisar permisos de escritura en carpeta data/
+### 🚨 Error en entrega/devolución
+- Verificar selección de profesor/llave
+- Comprobar permisos de escritura en carpeta `data/`
 
-### Solución de Problemas Comunes
+## Documentación Adicional
 
-**Números de documento con .0**
-- ✅ **Solucionado**: El sistema ahora limpia automáticamente los números
-- Los documentos se muestran sin decimales (ej: 12345678 en lugar de 12345678.0)
-- Funciona tanto en carga como en búsquedas y registros
-- **Función inteligente**: Solo elimina .0 cuando es apropiado, preserva otros formatos
-
-## Contacto y Soporte
-
-Para reportar errores o solicitar nuevas características, contactar al administrador del sistema.
+- **📋 Documentación Técnica**: Ver `DOCUMENTACION_TECNICA.md`
+- **🔧 Arquitectura y APIs**: Detalles de funciones y flujos de datos
+- **📊 Estructuras de datos**: Formatos internos y validaciones
 
 ---
 
-**Versión**: 2.0  
-**Fecha**: Enero 2025  
-**Desarrollado para**: Control de Llaves Académicas
+**Versión**: 2.0 Modular  
+**Fecha**: Septiembre 2025  
+**Licencia**: Uso Académico
