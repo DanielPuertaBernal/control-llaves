@@ -149,3 +149,24 @@ def guardar_programacion_limpia(df_original: pd.DataFrame, ruta_salida: str = No
     df_limpio.to_excel(ruta_salida, index=False)
     
     return ruta_salida
+
+def verificar_programacion_guardada(ruta_base: str = "llaves_control/data") -> str:
+    """
+    Verifica si existe una programación limpia guardada previamente
+    """
+    ruta_actual = os.path.join(ruta_base, "programacion_limpia_actual.xlsx")
+    return ruta_actual if os.path.exists(ruta_actual) else None
+
+def guardar_programacion_actual(df_limpio: pd.DataFrame, ruta_base: str = "llaves_control/data") -> str:
+    """
+    Guarda la programación limpia como la versión actual para cargas posteriores
+    """
+    ruta_actual = os.path.join(ruta_base, "programacion_limpia_actual.xlsx")
+    
+    # Asegurar que el directorio existe
+    os.makedirs(os.path.dirname(ruta_actual), exist_ok=True)
+    
+    # Guardar como versión actual
+    df_limpio.to_excel(ruta_actual, index=False)
+    
+    return ruta_actual

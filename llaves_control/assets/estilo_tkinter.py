@@ -66,8 +66,8 @@ def aplicar_estilo(root):
                     font=('Segoe UI', 10, 'bold'),
                     background=color_primario,
                     foreground=color_blanco,
-                    relief="flat",
-                    borderwidth=1)
+                    relief="raised",
+                    borderwidth=2)
     
     style.map("Treeview.Heading",
               background=[('active', color_secundario)])
@@ -77,11 +77,18 @@ def aplicar_estilo(root):
                     foreground=color_texto,
                     fieldbackground=color_blanco,
                     font=('Segoe UI', 9),
-                    rowheight=25)
+                    rowheight=28,
+                    borderwidth=2,
+                    relief="solid")
     
     style.map("Treeview",
               background=[('selected', color_acento)],
               foreground=[('selected', color_texto)])
+
+    # Configurar estilos específicos para filas alternadas
+    style.configure("Treeview.Item",
+                    borderwidth=1,
+                    relief="solid")
 
     # Estilos para Scrollbar
     style.configure("Vertical.TScrollbar",
