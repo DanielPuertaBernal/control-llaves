@@ -9,6 +9,7 @@ from helpers.limpieza_programacion import (
     verificar_programacion_guardada, 
     guardar_programacion_actual
 )
+from .detalle_programacion import VentanaDetalleProgramacion
 
 class VistaProgramacion:
     def __init__(self, notebook, app):
@@ -120,6 +121,9 @@ class VistaProgramacion:
         
         frame_tabla.grid_rowconfigure(0, weight=1)
         frame_tabla.grid_columnconfigure(0, weight=1)
+        
+        # Configurar evento de doble click
+        self.tree_programacion.bind('<Double-1>', self.mostrar_detalle_fila)
 
     def verificar_programacion_guardada(self):
         """Verificar si existe una programación limpia guardada y cargarla automáticamente"""
@@ -294,6 +298,35 @@ class VistaProgramacion:
                 
         except Exception as e:
             messagebox.showerror("Error", f"Error al exportar: {str(e)}")
+
+    def mostrar_detalle_fila(self, event):
+        """Mostrar ventana emergente con todos los detalles de la fila seleccionada"""
+        selection = self.tree_programacion.selection()
+        if not selection:
+            return
+        
+        # Obtener el item seleccionado
+        item = selection[0]
+        
+        # Obtener el índice de la fila en los datos
+        item_index = self.tree_programacion.index(item)
+        
+        # Obtener los datos de la fila desde datos_filtrados o datos_completos
+        datos_a_usar = self.datos_filtrados if self.datos_filtrados is not None else self.datos_completos
+        
+        if datos_a_usar is None or datos_a_usar.empty or item_index >= len(datos_a_usar):
+            messagebox.showwarning("Advertencia", "No se pudieron obtener los detalles de la fila")
+            return
+        
+        # Obtener la fila específica
+        fila_datos = datos_a_usar.iloc[item_index]
+        
+        # Crear y mostrar la ventana de detalles
+        try:
+            ventana_detalle = VentanaDetalleProgramacion(self.app.root, fila_datos)
+            ventana_detalle.mostrar()
+        except Exception as e:
+            messagebox.showerror("Error", f"Error al mostrar los detalles: {str(e)}")
         # Limpiar tabla
         for item in self.tree_programacion.get_children():
             self.tree_programacion.delete(item)
