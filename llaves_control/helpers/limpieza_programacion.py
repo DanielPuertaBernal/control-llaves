@@ -90,13 +90,98 @@ def limpiar_programacion(archivo_o_df):
             pass
 
         # Agrupar por clase con misma información para unificar franjas horarias
-        columnas_agrupacion = ['nroidenti', 'profesor', 'materia', 'aula', 'dia']
+        # IMPORTANTE: Incluir 'grupo' para evitar unificar clases de grupos diferentes
+        columnas_agrupacion = ['nroidenti', 'profesor', 'materia', 'aula', 'dia', 'grupo']
 
         # Verificar que todas las columnas existan
         columnas_disponibles = [col for col in columnas_agrupacion if col in df.columns]
         
         # Solo procesar si tenemos las columnas básicas
         if len(columnas_disponibles) >= 4:  # Al menos nroidenti, profesor, aula, dia
+            
+            # NUEVA LÓGICA: Evaluar gaps de tiempo antes de unificar
+            def evaluar_clases_continuas(grupo_df):
+                """
+                Evalúa si las clases de un grupo pueden unificarse o deben mantenerse separadas
+                basándose en el gap de tiempo entre ellas
+                """
+                if len(grupo_df) <= 1:
+                    return grupo_df
+                
+                # Ordenar por hora de inicio
+                grupo_df = grupo_df.sort_values('hora_ini')
+                
+                # Convertir horas a datetime para calcular diferencias
+                try:
+                    from datetime import datetime, timedelta
+                    
+                    clases_separadas = []
+                    clase_actual = [grupo_df.iloc[0]]
+                    
+                    for i in range(1, len(grupo_df)):
+                        fila_anterior = grupo_df.iloc[i-1]
+                        fila_actual = grupo_df.iloc[i]
+                        
+                        # Calcular gap entre fin de clase anterior y inicio de actual
+                        if pd.notna(fila_anterior['hora_fin']) and pd.notna(fila_actual['hora_ini']):
+                            try:
+                                fin_anterior = datetime.combine(datetime.today(), fila_anterior['hora_fin'])
+                                inicio_actual = datetime.combine(datetime.today(), fila_actual['hora_ini'])
+                                gap = inicio_actual - fin_anterior
+                                
+                                # Si el gap es mayor a 30 minutos, es una clase separada
+                                if gap > timedelta(minutes=30):
+                                    # Guardar clase actual como grupo separado
+                                    clases_separadas.append(pd.DataFrame(clase_actual))
+                                    clase_actual = [fila_actual]
+                                else:
+                                    # Continuar con la misma clase
+                                    clase_actual.append(fila_actual)
+                            except:
+                                # Si hay error en conversión, mantener separadas
+                                clases_separadas.append(pd.DataFrame(clase_actual))
+                                clase_actual = [fila_actual]
+                        else:
+                            clase_actual.append(fila_actual)
+                    
+                    # Agregar la última clase
+                    clases_separadas.append(pd.DataFrame(clase_actual))
+                    
+                    # Unificar horarios dentro de cada clase continua
+                    resultado = []
+                    for clase_df in clases_separadas:
+                        if len(clase_df) > 1:
+                            # Unificar horarios de esta clase continua
+                            clase_unificada = clase_df.iloc[0].copy()
+                            clase_unificada['hora_ini'] = clase_df['hora_ini'].min()
+                            clase_unificada['hora_fin'] = clase_df['hora_fin'].max()
+                            resultado.append(clase_unificada)
+                        else:
+                            resultado.append(clase_df.iloc[0])
+                    
+                    return pd.DataFrame(resultado)
+                    
+                except Exception as e:
+                    print(f"Error evaluando clases continuas: {e}")
+                    return grupo_df
+            
+            # Aplicar la nueva lógica grupo por grupo
+            if 'hora_ini' in df.columns and 'hora_fin' in df.columns:
+                grupos_procesados = []
+                for nombre_grupo, grupo_df in df.groupby(columnas_disponibles):
+                    grupo_procesado = evaluar_clases_continuas(grupo_df)
+                    grupos_procesados.append(grupo_procesado)
+                
+                # Combinar todos los grupos procesados
+                if grupos_procesados:
+                    agrupado = pd.concat(grupos_procesados, ignore_index=True)
+                    
+                    # Reconstruir columna horario
+                    agrupado['horario'] = agrupado['hora_ini'].astype(str) + ' a ' + agrupado['hora_fin'].astype(str)
+                    
+                    return agrupado
+            
+            # LÓGICA FALLBACK: Si no se puede evaluar gaps, usar método original
             # Preparar diccionario de agregación dinámicamente
             agg_dict = {}
             
@@ -110,8 +195,8 @@ def limpiar_programacion(archivo_o_df):
             if 'nro_estudiantes' in df.columns:
                 agg_dict['nro_estudiantes'] = 'first'
             
-            # Agregar otras columnas opcionales
-            for col in ['grupo', 'nivel_grupo', 'semestre', 'PROGRAMA']:
+            # Agregar otras columnas opcionales (grupo ya está en columnas_agrupacion)
+            for col in ['nivel_grupo', 'semestre', 'PROGRAMA']:
                 if col in df.columns:
                     agg_dict[col] = 'first'
             
