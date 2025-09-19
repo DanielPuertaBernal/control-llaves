@@ -4,7 +4,6 @@ from helpers.gestion_excel import inicializar_registro
 from assets.estilo_tkinter import aplicar_estilo
 from .entrega_devolucion import VistaEntregaDevolucion
 from .programacion import VistaProgramacion
-from .informes import VistaInformes
 
 class App:
     def __init__(self, root):
@@ -33,4 +32,3 @@ class App:
         # Instanciar las vistas modulares
         self.vista_entrega = VistaEntregaDevolucion(self.notebook, self)
         self.vista_programacion = VistaProgramacion(self.notebook, self)
-        self.vista_informes = VistaInformes(self.notebook, self)

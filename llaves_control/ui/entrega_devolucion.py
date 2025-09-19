@@ -1,7 +1,7 @@
 from tkinter import ttk, messagebox, filedialog
 import tkinter as tk
-import pandas as pd
 from datetime import datetime
+from openpyxl import Workbook
 from helpers.gestion_excel import (registrar_entrega, registrar_devolucion, 
                                  obtener_llaves_pendientes, limpiar_numero_documento, 
                                  obtener_historial_completo, verificar_llave_entregada)
@@ -199,8 +199,8 @@ class VistaEntregaDevolucion:
         # Obtener llaves pendientes
         prestadas = obtener_llaves_pendientes()
         
-        if not prestadas.empty:
-            for _, fila in prestadas.iterrows():
+        if prestadas:  # Si hay elementos en la lista
+            for fila in prestadas:
                 documento_limpio = limpiar_numero_documento(fila['nroidenti'])
                 self.tree_prestadas.insert('', 'end', values=(
                     fila['profesor'],
@@ -217,7 +217,7 @@ class VistaEntregaDevolucion:
             # Obtener historial
             historial = obtener_historial_completo()
             
-            if historial.empty:
+            if not historial:
                 messagebox.showwarning("Advertencia", "No hay registros para exportar")
                 return
             
@@ -230,28 +230,25 @@ class VistaEntregaDevolucion:
             )
             
             if archivo_salida:
-                # Exportar con openpyxl
-                with pd.ExcelWriter(archivo_salida, engine='openpyxl') as writer:
-                    historial.to_excel(writer, sheet_name='Registro_Entregas', index=False)
+                # Crear workbook con openpyxl
+                wb = Workbook()
+                
+                # Hoja de datos
+                ws_datos = wb.active
+                ws_datos.title = "Registro_Entregas"
+                
+                # Agregar encabezados
+                if historial:
+                    headers = list(historial[0].keys())
+                    ws_datos.append(headers)
                     
-                    # Crear hoja de metadatos
-                    metadatos = pd.DataFrame({
-                        'Información': [
-                            'Fecha de Exportación',
-                            'Total de Registros',
-                            'Entregas Pendientes',
-                            'Entregas Completadas',
-                            'Sistema'
-                        ],
-                        'Valor': [
-                            datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                            len(historial),
-                            len(historial[historial['estado'] == 'Entregada']),
-                            len(historial[historial['estado'] == 'Devuelta']),
-                            'Control de Llaves v2.0'
-                        ]
-                    })
-                    metadatos.to_excel(writer, sheet_name='Metadatos', index=False)
+                    # Agregar datos
+                    for registro in historial:
+                        row_data = [registro.get(header, '') for header in headers]
+                        ws_datos.append(row_data)
+                
+                wb.save(archivo_salida)
+                wb.close()
                 
                 messagebox.showinfo("Éxito", f"Registro exportado exitosamente a:\n{archivo_salida}")
                 
@@ -275,27 +272,22 @@ class VistaEntregaDevolucion:
             if archivo_salida:
                 programacion_limpia = limpiar_programacion(self.app.programacion)
                 
-                with pd.ExcelWriter(archivo_salida, engine='openpyxl') as writer:
-                    programacion_limpia.to_excel(writer, sheet_name='Programacion_Limpia', index=False)
+                # Crear workbook
+                wb = Workbook()
+                ws_datos = wb.active
+                ws_datos.title = "Programacion_Limpia"
+                
+                # Agregar datos de la programación
+                if len(programacion_limpia) > 0:
+                    # Convertir DataFrame a lista de listas para openpyxl
+                    headers = list(programacion_limpia.columns)
+                    ws_datos.append(headers)
                     
-                    # Metadatos
-                    metadatos = pd.DataFrame({
-                        'Información': [
-                            'Fecha de Exportación',
-                            'Total de Registros',
-                            'Profesores Únicos',
-                            'Aulas Únicas',
-                            'Sistema'
-                        ],
-                        'Valor': [
-                            datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                            len(programacion_limpia),
-                            programacion_limpia['profesor'].nunique() if 'profesor' in programacion_limpia.columns else 0,
-                            programacion_limpia['aula'].nunique() if 'aula' in programacion_limpia.columns else 0,
-                            'Control de Llaves v2.0'
-                        ]
-                    })
-                    metadatos.to_excel(writer, sheet_name='Metadatos', index=False)
+                    for _, row in programacion_limpia.iterrows():
+                        ws_datos.append(row.tolist())
+                
+                wb.save(archivo_salida)
+                wb.close()
                 
                 messagebox.showinfo("Éxito", f"Programación exportada exitosamente a:\n{archivo_salida}")
                 

@@ -1,6 +1,6 @@
 from datetime import datetime
-import pandas as pd
 import os
+from openpyxl import Workbook, load_workbook
 
 RUTA_REGISTRO = 'data/registros_llaves.xlsx'
 
@@ -10,13 +10,19 @@ def inicializar_registro():
         os.makedirs('data')
     
     if not os.path.exists(RUTA_REGISTRO):
-        df = pd.DataFrame(columns=[
+        wb = Workbook()
+        ws = wb.active
+        
+        # Encabezados
+        headers = [
             'nroidenti', 'profesor', 'materia', 'aula',
             'dia', 'horario', 'nro_estudiantes',
             'fecha_entrega', 'hora_entrega', 'fecha_devolucion', 'hora_devolucion',
             'estado', 'observaciones'
-        ])
-        df.to_excel(RUTA_REGISTRO, index=False)
+        ]
+        
+        ws.append(headers)
+        wb.save(RUTA_REGISTRO)
 
 def limpiar_numero_documento(doc):
     """Limpia el número de documento eliminando .0 si existe"""
@@ -32,50 +38,49 @@ def registrar_entrega(info_clase):
         if not os.path.exists(RUTA_REGISTRO):
             inicializar_registro()
         
-        # Leer archivo existente
+        # Cargar workbook
         try:
-            df = pd.read_excel(RUTA_REGISTRO)
+            wb = load_workbook(RUTA_REGISTRO)
+            ws = wb.active
         except:
             # Si falla, crear uno nuevo
             inicializar_registro()
-            df = pd.read_excel(RUTA_REGISTRO)
+            wb = load_workbook(RUTA_REGISTRO)
+            ws = wb.active
         
         # Limpiar el número de documento
         nroidenti_limpio = limpiar_numero_documento(info_clase['nroidenti'])
         
-        # Verificar si ya tiene una llave prestada
-        prestada_existente = df[
-            (df['nroidenti'].astype(str) == nroidenti_limpio) & 
-            (df['estado'] == 'Entregada')
-        ]
-        
-        if not prestada_existente.empty:
-            return False  # Ya tiene una llave prestada
+        # Verificar si ya tiene una llave prestada - optimizado
+        for row in ws.iter_rows(min_row=2, values_only=True):
+            if row and str(row[0]) == nroidenti_limpio and row[11] == 'Entregada':
+                return False  # Ya tiene una llave prestada
         
         # Preparar nuevo registro
         ahora = datetime.now()
-        nuevo_registro = {
-            'nroidenti': nroidenti_limpio,
-            'profesor': info_clase.get('profesor', ''),
-            'materia': info_clase.get('materia', ''),
-            'aula': info_clase.get('aula', ''),
-            'dia': info_clase.get('dia', ''),
-            'horario': info_clase.get('horario', ''),
-            'nro_estudiantes': info_clase.get('nro_estudiantes', 0),
-            'fecha_entrega': ahora.strftime('%Y-%m-%d'),
-            'hora_entrega': ahora.strftime('%H:%M:%S'),
-            'fecha_devolucion': '',
-            'hora_devolucion': '',
-            'estado': 'Entregada',
-            'observaciones': ''
-        }
+        nuevo_registro = [
+            nroidenti_limpio,
+            info_clase.get('profesor', ''),
+            info_clase.get('materia', ''),
+            info_clase.get('aula', ''),
+            info_clase.get('dia', ''),
+            info_clase.get('horario', ''),
+            info_clase.get('nro_estudiantes', 0),
+            ahora.strftime('%Y-%m-%d'),
+            ahora.strftime('%H:%M:%S'),
+            '',  # fecha_devolucion
+            '',  # hora_devolucion
+            'Entregada',
+            ''   # observaciones
+        ]
         
         # Agregar registro
-        df = pd.concat([df, pd.DataFrame([nuevo_registro])], ignore_index=True)
+        ws.append(nuevo_registro)
         
         # Guardar con manejo de errores
         try:
-            df.to_excel(RUTA_REGISTRO, index=False)
+            wb.save(RUTA_REGISTRO)
+            wb.close()
             return True
         except Exception as e:
             print(f"Error al guardar registro: {e}")
@@ -90,102 +95,112 @@ def registrar_devolucion(nroidenti):
     try:
         if not os.path.exists(RUTA_REGISTRO):
             return False
-            
-        df = pd.read_excel(RUTA_REGISTRO)
+        
+        wb = load_workbook(RUTA_REGISTRO)
+        ws = wb.active
         
         # Limpiar el número de documento
         nroidenti_limpio = limpiar_numero_documento(nroidenti)
         
         # Buscar la llave entregada más reciente para este documento
-        mask = (
-            (df['nroidenti'].astype(str) == nroidenti_limpio) & 
-            (df['estado'] == 'Entregada')
-        )
+        fila_encontrada = None
+        for row_idx, row in enumerate(ws.iter_rows(min_row=2, values_only=False), start=2):
+            if row and str(row[0].value) == nroidenti_limpio and row[11].value == 'Entregada':
+                fila_encontrada = row_idx
         
-        if mask.any():
-            # Obtener el índice de la entrega más reciente
-            registros_entregados = df[mask]
-            ultimo_indice = registros_entregados.index[-1]
-            
+        if fila_encontrada:
             # Actualizar registro
             ahora = datetime.now()
-            df.loc[ultimo_indice, 'estado'] = 'Devuelta'
-            df.loc[ultimo_indice, 'fecha_devolucion'] = ahora.strftime('%Y-%m-%d')
-            df.loc[ultimo_indice, 'hora_devolucion'] = ahora.strftime('%H:%M:%S')
+            ws.cell(row=fila_encontrada, column=12, value='Devuelta')  # estado
+            ws.cell(row=fila_encontrada, column=10, value=ahora.strftime('%Y-%m-%d'))  # fecha_devolucion
+            ws.cell(row=fila_encontrada, column=11, value=ahora.strftime('%H:%M:%S'))  # hora_devolucion
             
             # Guardar
-            df.to_excel(RUTA_REGISTRO, index=False)
+            wb.save(RUTA_REGISTRO)
+            wb.close()
             return True
         else:
+            wb.close()
             return False
             
     except Exception as e:
         print(f"Error al registrar devolución: {e}")
         return False
 
-def obtener_llaves_pendientes():
-    """Obtiene todas las llaves que están entregadas (pendientes de devolución)"""
-    try:
-        if not os.path.exists(RUTA_REGISTRO):
-            return pd.DataFrame()
-            
-        df = pd.read_excel(RUTA_REGISTRO)
-        
-        # Filtrar solo las entregadas
-        pendientes = df[df['estado'] == 'Entregada']
-        
-        # Limpiar números de documento
-        if not pendientes.empty:
-            pendientes = pendientes.copy()
-            pendientes['nroidenti'] = pendientes['nroidenti'].apply(limpiar_numero_documento)
-        
-        return pendientes
-        
-    except Exception as e:
-        print(f"Error al obtener llaves pendientes: {e}")
-        return pd.DataFrame()
-
-def obtener_historial_completo():
-    """Obtiene el historial completo de entregas y devoluciones"""
-    try:
-        if not os.path.exists(RUTA_REGISTRO):
-            return pd.DataFrame()
-            
-        df = pd.read_excel(RUTA_REGISTRO)
-        
-        # Limpiar números de documento
-        if not df.empty:
-            df = df.copy()
-            df['nroidenti'] = df['nroidenti'].apply(limpiar_numero_documento)
-        
-        return df
-        
-    except Exception as e:
-        print(f"Error al obtener historial: {e}")
-        return pd.DataFrame()
-
 def verificar_llave_entregada(nroidenti):
     """Verifica si un profesor ya tiene una llave entregada"""
     try:
         if not os.path.exists(RUTA_REGISTRO):
             return False
-            
-        df = pd.read_excel(RUTA_REGISTRO)
+        
+        wb = load_workbook(RUTA_REGISTRO, read_only=True)
+        ws = wb.active
         
         # Limpiar el número de documento
         nroidenti_limpio = limpiar_numero_documento(nroidenti)
         
         # Verificar si tiene llaves entregadas
-        mask = (
-            (df['nroidenti'].astype(str) == nroidenti_limpio) & 
-            (df['estado'] == 'Entregada')
-        )
+        for row in ws.iter_rows(min_row=2, values_only=True):
+            if row and str(row[0]) == nroidenti_limpio and row[11] == 'Entregada':
+                wb.close()
+                return True
         
-        return mask.any()
+        wb.close()
+        return False
         
     except Exception as e:
         print(f"Error al verificar llave entregada: {e}")
         return False
+
+def obtener_llaves_pendientes():
+    """Obtiene todas las llaves que están entregadas (pendientes de devolución)"""
+    try:
+        if not os.path.exists(RUTA_REGISTRO):
+            return []
+        
+        wb = load_workbook(RUTA_REGISTRO, read_only=True)
+        ws = wb.active
+        
+        pendientes = []
+        headers = [cell.value for cell in ws[1]]
+        
+        for row in ws.iter_rows(min_row=2, values_only=True):
+            if row and row[11] == 'Entregada':  # estado == 'Entregada'
+                registro = dict(zip(headers, row))
+                registro['nroidenti'] = limpiar_numero_documento(registro['nroidenti'])
+                pendientes.append(registro)
+        
+        wb.close()
+        return pendientes
+        
+    except Exception as e:
+        print(f"Error al obtener llaves pendientes: {e}")
+        return []
+
+def obtener_historial_completo():
+    """Obtiene el historial completo de entregas y devoluciones"""
+    try:
+        if not os.path.exists(RUTA_REGISTRO):
+            return []
+        
+        wb = load_workbook(RUTA_REGISTRO, read_only=True)
+        ws = wb.active
+        
+        historial = []
+        headers = [cell.value for cell in ws[1]]
+        
+        for row in ws.iter_rows(min_row=2, values_only=True):
+            if row:
+                registro = dict(zip(headers, row))
+                registro['nroidenti'] = limpiar_numero_documento(registro['nroidenti'])
+                historial.append(registro)
+        
+        wb.close()
+        return historial
+        
+    except Exception as e:
+        print(f"Error al obtener historial: {e}")
+        return []
 
 def generar_respaldo():
     """Genera un respaldo del archivo de registros"""
@@ -194,8 +209,10 @@ def generar_respaldo():
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
             ruta_respaldo = f'data/respaldo_registros_{timestamp}.xlsx'
             
-            df = pd.read_excel(RUTA_REGISTRO)
-            df.to_excel(ruta_respaldo, index=False)
+            # Copiar archivo usando openpyxl
+            wb = load_workbook(RUTA_REGISTRO)
+            wb.save(ruta_respaldo)
+            wb.close()
             
             return ruta_respaldo
         return None

@@ -1,4 +1,4 @@
-from tkinter import ttk, messagebox, filedialog, StringVar
+from tkinter import ttk, messagebox, filedialog
 import tkinter as tk
 import pandas as pd
 from datetime import datetime
@@ -17,113 +17,62 @@ class VistaProgramacion:
         self.frame_programacion = ttk.Frame(notebook, padding="20")
         notebook.add(self.frame_programacion, text="📅 Programación")
         
-        # Variables para búsqueda
-        self.var_busqueda = StringVar()
-        self.var_busqueda.trace("w", self.buscar_en_tiempo_real)
-        
-        # Datos para la búsqueda
-        self.datos_completos = None
-        self.datos_filtrados = None
-        
         self.crear_vista_programacion()
         self.verificar_programacion_guardada()
 
     def crear_vista_programacion(self):
-        frame_prog = ttk.Frame(self.frame_programacion, padding="0")
-        frame_prog.pack(fill='both', expand=True)
+        # Frame principal con padding mejorado
+        main_frame = ttk.Frame(self.frame_programacion, padding="15")
+        main_frame.pack(fill='both', expand=True)
         
-        titulo_prog = ttk.Label(frame_prog, text="GESTIÓN DE PROGRAMACIÓN ACADÉMICA", 
-                               font=('Segoe UI', 16, 'bold'))
-        titulo_prog.pack(pady=(0, 20))
+        # Título centrado con mejor estilo
+        titulo_prog = ttk.Label(main_frame, text="GESTIÓN DE PROGRAMACIÓN ACADÉMICA", 
+                               font=('Segoe UI', 18, 'bold'))
+        titulo_prog.pack(pady=(0, 25))
         
-        # Frame superior con controles
-        frame_controles = ttk.Frame(frame_prog)
-        frame_controles.pack(fill='x', pady=(0, 15))
+        # Contenedor central para mejor organización
+        contenedor_principal = ttk.Frame(main_frame)
+        contenedor_principal.pack(fill='both', expand=True)
         
-        # Frame para cargar programación
-        frame_cargar = ttk.LabelFrame(frame_controles, text="CARGAR PROGRAMACIÓN", padding="10")
-        frame_cargar.pack(side='left', fill='x', expand=True, padx=(0, 10))
+        # Frame superior reorganizado con mejor distribución
+        frame_controles = ttk.Frame(contenedor_principal)
+        frame_controles.pack(fill='x', pady=(0, 20))
         
-        frame_archivo = ttk.Frame(frame_cargar)
-        frame_archivo.pack(fill='x', pady=(0, 10))
+        # Frame para cargar programación - más ancho y mejor diseño
+        frame_cargar = ttk.LabelFrame(frame_controles, text="📁 CARGAR PROGRAMACIÓN", 
+                                    padding="15", style="Card.TLabelframe")
+        frame_cargar.pack(fill='x', pady=(0, 15))
         
-        ttk.Label(frame_archivo, text="Archivo de Programación:").pack(side='left')
-        btn_cargar = ttk.Button(frame_archivo, text="📁 Seleccionar Archivo", 
-                               command=self.cargar_programacion)
-        btn_cargar.pack(side='right')
+        # Área de selección de archivo con mejor layout
+        area_archivo = ttk.Frame(frame_cargar)
+        area_archivo.pack(fill='x', pady=(0, 10))
         
-        self.label_archivo = ttk.Label(frame_cargar, text="No hay archivo cargado", 
-                                      foreground="red")
+        ttk.Label(area_archivo, text="Seleccione el archivo de programación académica:", 
+                 font=('Segoe UI', 10)).pack(anchor='w', pady=(0, 8))
+        
+        btn_cargar = ttk.Button(area_archivo, text="📁 Seleccionar Archivo Excel/CSV", 
+                               command=self.cargar_programacion,
+                               style="Accent.TButton")
+        btn_cargar.pack(pady=(0, 10))
+        
+        # Indicador de estado más visible
+        self.label_archivo = ttk.Label(frame_cargar, text="❌ No hay archivo cargado", 
+                                      foreground="#d32f2f", font=('Segoe UI', 10, 'bold'))
         self.label_archivo.pack(anchor='w')
         
-        # Frame para acciones
-        frame_acciones = ttk.LabelFrame(frame_controles, text="ACCIONES", padding="10")
-        frame_acciones.pack(side='right', fill='x', expand=True, padx=(10, 0))
+        # Frame para acciones - diseño mejorado
+        frame_acciones = ttk.LabelFrame(contenedor_principal, text="⚡ ACCIONES DISPONIBLES", 
+                                      padding="15", style="Card.TLabelframe")
+        frame_acciones.pack(fill='x', pady=(0, 15))
+        
+        # Descripción de la acción
+        ttk.Label(frame_acciones, text="Exportar la programación procesada:", 
+                 font=('Segoe UI', 10)).pack(anchor='w', pady=(0, 8))
         
         btn_exportar = ttk.Button(frame_acciones, text="💾 Exportar Programación Limpia", 
-                                 command=self.exportar_programacion_limpia)
-        btn_exportar.pack(fill='x')
-        
-        # Frame para búsqueda
-        frame_busqueda = ttk.Frame(frame_prog)
-        frame_busqueda.pack(fill='x', pady=(0, 15))
-        
-        ttk.Label(frame_busqueda, text="🔍 Buscar:").pack(side='left', padx=(0, 10))
-        entry_busqueda = ttk.Entry(frame_busqueda, textvariable=self.var_busqueda, width=50)
-        entry_busqueda.pack(side='left', fill='x', expand=True)
-        
-        btn_limpiar = ttk.Button(frame_busqueda, text="🗑️ Limpiar", 
-                                command=self.limpiar_busqueda)
-        btn_limpiar.pack(side='right', padx=(10, 0))
-
-        
-        # Área para mostrar programación
-        frame_tabla = ttk.Frame(frame_prog)
-        frame_tabla.pack(fill='both', expand=True, pady=(15, 0))
-        
-        # Treeview para mostrar programación con estilo mejorado
-        columns_prog = ('Profesor', 'Documento', 'Materia', 'Aula', 'Día', 'Horario', 'Estudiantes')
-        self.tree_programacion = ttk.Treeview(frame_tabla, columns=columns_prog, show='headings', height=15)
-        
-        # Configurar columnas con anchos específicos y alineación centrada
-        column_widths = {
-            'Profesor': 200,
-            'Documento': 120,
-            'Materia': 250,
-            'Aula': 100,
-            'Día': 100,
-            'Horario': 130,
-            'Estudiantes': 90
-        }
-        
-        for col in columns_prog:
-            self.tree_programacion.heading(col, text=col, anchor='center')
-            self.tree_programacion.column(col, width=column_widths[col], anchor='center', minwidth=80)
-        
-        # Aplicar estilo a las filas (alternando colores)
-        self.tree_programacion.tag_configure('oddrow', background='#f8f9fa', foreground='#212121')
-        self.tree_programacion.tag_configure('evenrow', background='#ffffff', foreground='#212121')
-        
-        # Configurar estilo de selección
-        style = ttk.Style()
-        style.configure("Treeview", selectbackground="#e3f2fd", selectforeground="#1976d2")
-        
-        # Scrollbars
-        scrollbar_vert = ttk.Scrollbar(frame_tabla, orient='vertical', command=self.tree_programacion.yview)
-        scrollbar_horiz = ttk.Scrollbar(frame_tabla, orient='horizontal', command=self.tree_programacion.xview)
-        
-        self.tree_programacion.configure(yscrollcommand=scrollbar_vert.set, xscrollcommand=scrollbar_horiz.set)
-        
-        # Empaquetar con grid para mejor control
-        self.tree_programacion.grid(row=0, column=0, sticky='nsew')
-        scrollbar_vert.grid(row=0, column=1, sticky='ns')
-        scrollbar_horiz.grid(row=1, column=0, sticky='ew')
-        
-        frame_tabla.grid_rowconfigure(0, weight=1)
-        frame_tabla.grid_columnconfigure(0, weight=1)
-        
-        # Configurar evento de doble click
-        self.tree_programacion.bind('<Double-1>', self.mostrar_detalle_fila)
+                                 command=self.exportar_programacion_limpia,
+                                 style="Success.TButton")
+        btn_exportar.pack(pady=(0, 5))
 
     def verificar_programacion_guardada(self):
         """Verificar si existe una programación limpia guardada y cargarla automáticamente"""
@@ -137,66 +86,14 @@ class VistaProgramacion:
                 self.datos_filtrados = df.copy()
                 
                 self.label_archivo.config(
-                    text=f"✅ Programación limpia cargada: {len(df)} registros", 
-                    foreground="green"
+                    text=f"✅ Programación cargada automáticamente: {len(df)} registros procesados", 
+                    foreground="#2e7d32", font=('Segoe UI', 10, 'bold')
                 )
                 
                 self.mostrar_programacion_en_vista()
                 
             except Exception as e:
                 print(f"Error al cargar programación guardada: {e}")
-
-    def buscar_en_tiempo_real(self, *args):
-        """Buscar en tiempo real mientras el usuario escribe"""
-        if self.datos_completos is None:
-            return
-        
-        termino_busqueda = self.var_busqueda.get().lower().strip()
-        
-        if not termino_busqueda:
-            self.datos_filtrados = self.datos_completos.copy()
-        else:
-            # Buscar en todas las columnas de texto
-            mask = pd.Series([False] * len(self.datos_completos))
-            
-            for columna in self.datos_completos.select_dtypes(include=['object']).columns:
-                mask |= self.datos_completos[columna].astype(str).str.lower().str.contains(termino_busqueda, na=False)
-            
-            # También buscar en columna de documento (que puede ser numérica)
-            if 'nroidenti' in self.datos_completos.columns:
-                mask |= self.datos_completos['nroidenti'].astype(str).str.contains(termino_busqueda, na=False)
-            
-            self.datos_filtrados = self.datos_completos[mask].copy()
-        
-        self.mostrar_programacion_filtrada()
-
-    def limpiar_busqueda(self):
-        """Limpiar el campo de búsqueda"""
-        self.var_busqueda.set("")
-
-    def mostrar_programacion_filtrada(self):
-        """Mostrar la programación filtrada en el Treeview"""
-        # Limpiar tabla
-        for item in self.tree_programacion.get_children():
-            self.tree_programacion.delete(item)
-        
-        if self.datos_filtrados is not None and not self.datos_filtrados.empty:
-            for index, (_, fila) in enumerate(self.datos_filtrados.iterrows()):
-                documento = str(fila.get('nroidenti', '')).replace('.0', '')
-                estudiantes = fila.get('nro_estudiantes', 0)
-                
-                # Alternar colores de filas
-                tag = 'evenrow' if index % 2 == 0 else 'oddrow'
-                
-                self.tree_programacion.insert('', 'end', values=(
-                    fila.get('profesor', ''),
-                    documento,
-                    fila.get('materia', ''),
-                    fila.get('aula', ''),
-                    fila.get('dia', ''),
-                    fila.get('horario', ''),
-                    estudiantes
-                ), tags=(tag,))
 
     # ============ FUNCIONES VISTA PROGRAMACIÓN ============
     def cargar_programacion(self):
@@ -233,117 +130,57 @@ class VistaProgramacion:
                 # Guardar en la aplicación
                 self.app.programacion_original = df
                 self.app.programacion = programacion_limpia
-                self.datos_completos = programacion_limpia.copy()
-                self.datos_filtrados = programacion_limpia.copy()
                 
-                self.label_archivo.config(text=f"✅ Archivo cargado: {len(programacion_limpia)} registros", 
-                                        foreground="green")
+                self.label_archivo.config(
+                    text=f"✅ Archivo procesado exitosamente: {len(programacion_limpia)} registros listos", 
+                    foreground="#2e7d32", font=('Segoe UI', 10, 'bold')
+                )
                 
                 self.mostrar_programacion_en_vista()
                 
-                messagebox.showinfo("Éxito", 
-                                  f"Programación cargada y guardada exitosamente\nRegistros: {len(programacion_limpia)}")
+                messagebox.showinfo("✅ Carga Exitosa", 
+                                  f"📊 Programación cargada y limpia guardada automáticamente\n\n" +
+                                  f"🔢 Total de registros procesados: {len(programacion_limpia)}\n" +
+                                  f"📁 Guardada en: programacion_limpia_actual.xlsx")
                 
             except Exception as e:
                 messagebox.showerror("Error", f"Error al cargar archivo: {str(e)}")
 
     def mostrar_programacion_en_vista(self):
-        """Mostrar la programación en el Treeview"""
-        # Limpiar tabla
-        for item in self.tree_programacion.get_children():
-            self.tree_programacion.delete(item)
-        
-        if self.app.programacion is not None and not self.app.programacion.empty:
-            # Actualizar datos completos para búsqueda
-            self.datos_completos = self.app.programacion.copy()
-            self.datos_filtrados = self.app.programacion.copy()
-            
-            for index, (_, fila) in enumerate(self.app.programacion.iterrows()):
-                documento = str(fila.get('nroidenti', '')).replace('.0', '')
-                estudiantes = fila.get('nro_estudiantes', 0)
-                
-                # Alternar colores de filas
-                tag = 'evenrow' if index % 2 == 0 else 'oddrow'
-                
-                self.tree_programacion.insert('', 'end', values=(
-                    fila.get('profesor', ''),
-                    documento,
-                    fila.get('materia', ''),
-                    fila.get('aula', ''),
-                    fila.get('dia', ''),
-                    fila.get('horario', ''),
-                    estudiantes
-                ), tags=(tag,))
+        """Función simplificada - ya no necesita procesar datos para mostrar"""
+        pass
 
     def exportar_programacion_limpia(self):
         """Exportar la programación limpia actual"""
         if self.app.programacion is None or self.app.programacion.empty:
-            messagebox.showwarning("Advertencia", "No hay programación cargada")
+            messagebox.showwarning("⚠️ Sin Datos", "No hay programación cargada para exportar\n\nPor favor, cargue primero un archivo de programación.")
             return
         
         try:
             # Permitir al usuario elegir dónde guardar
             archivo_salida = filedialog.asksaveasfilename(
-                title="Exportar Programación Limpia",
+                title="💾 Exportar Programación Limpia - Seleccione ubicación",
                 defaultextension=".xlsx",
-                filetypes=[("Excel files", "*.xlsx"), ("All files", "*.*")],
-                initialfilename=f"programacion_limpia_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+                filetypes=[("Archivos Excel", "*.xlsx"), ("Todos los archivos", "*.*")],
+                initialfile=f"programacion_limpia_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
             )
             
             if archivo_salida:
-                # Si hay datos filtrados, exportar esos; si no, exportar todos
-                datos_a_exportar = self.datos_filtrados if self.datos_filtrados is not None else self.app.programacion
-                datos_a_exportar.to_excel(archivo_salida, index=False)
-                messagebox.showinfo("Éxito", f"Programación limpia exportada a: {archivo_salida}")
+                # Exportar toda la programación cargada
+                total_registros = len(self.app.programacion)
+                self.app.programacion.to_excel(archivo_salida, index=False)
+                
+                messagebox.showinfo("✅ Exportación Exitosa", 
+                                   f"📊 Programación exportada correctamente\n\n" +
+                                   f"📁 Archivo: {os.path.basename(archivo_salida)}\n" +
+                                   f"📍 Ubicación: {os.path.dirname(archivo_salida)}\n" +
+                                   f"🔢 Registros exportados: {total_registros}")
                 
         except Exception as e:
             messagebox.showerror("Error", f"Error al exportar: {str(e)}")
 
     def mostrar_detalle_fila(self, event):
-        """Mostrar ventana emergente con todos los detalles de la fila seleccionada"""
-        selection = self.tree_programacion.selection()
-        if not selection:
-            return
-        
-        # Obtener el item seleccionado
-        item = selection[0]
-        
-        # Obtener el índice de la fila en los datos
-        item_index = self.tree_programacion.index(item)
-        
-        # Obtener los datos de la fila desde datos_filtrados o datos_completos
-        datos_a_usar = self.datos_filtrados if self.datos_filtrados is not None else self.datos_completos
-        
-        if datos_a_usar is None or datos_a_usar.empty or item_index >= len(datos_a_usar):
-            messagebox.showwarning("Advertencia", "No se pudieron obtener los detalles de la fila")
-            return
-        
-        # Obtener la fila específica
-        fila_datos = datos_a_usar.iloc[item_index]
-        
-        # Crear y mostrar la ventana de detalles
-        try:
-            ventana_detalle = VentanaDetalleProgramacion(self.app.root, fila_datos)
-            ventana_detalle.mostrar()
-        except Exception as e:
-            messagebox.showerror("Error", f"Error al mostrar los detalles: {str(e)}")
-        # Limpiar tabla
-        for item in self.tree_programacion.get_children():
-            self.tree_programacion.delete(item)
-        
-        if self.app.programacion is not None and not self.app.programacion.empty:
-            for _, fila in self.app.programacion.iterrows():
-                documento = str(fila.get('nroidenti', '')).replace('.0', '')
-                estudiantes = fila.get('nro_estudiantes', 0)
-                
-                self.tree_programacion.insert('', 'end', values=(
-                    fila.get('profesor', ''),
-                    documento,
-                    fila.get('materia', ''),
-                    fila.get('aula', ''),
-                    fila.get('dia', ''),
-                    fila.get('horario', ''),
-                    estudiantes
-                ))
+        """Función eliminada - ya no hay tabla para hacer clic"""
+        pass
 
 
