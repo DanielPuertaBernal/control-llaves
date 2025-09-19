@@ -2,6 +2,67 @@ import pandas as pd
 from datetime import datetime
 import os
 
+def renombrar_columnas_exportacion(df):
+    """
+    Renombra las columnas para la exportación final con nombres descriptivos y buena ortografía
+    """
+    mapeo_columnas = {
+        'semestre': 'Semestre',
+        'materia': 'Código de la Materia', 
+        'inp': 'INP',
+        'grupo': 'Grupo',
+        'nivel_grupo': 'Nivel del Grupo',
+        'semanas': 'Semanas',
+        'nro_horas': 'Número de Horas',
+        'fecha_inicio': 'Fecha Inicio',
+        'fecha_fin': 'Fecha Fin', 
+        'nro_estudiantes_premat': 'Estudiantes Prematriculados',
+        'nro_estudiantes': 'Estudiantes Matriculados',
+        'Total Estudiantes': 'Total de Estudiantes',
+        'TOTAL': 'Total de Estudiantes',
+        'nroidenti': 'Número de Documento',
+        'profesor': 'Docente',
+        'dia': 'Día',
+        'hora_ini': 'Hora Inicio',
+        'hora_fin': 'Hora Fin',
+        'horario': 'Horario',
+        'aula': 'Aula',
+        'Facultad': 'Facultad',
+        'PROGRAMA': 'Facultad',
+        'Materia de la clase': 'Materia de la Clase',
+        'MATERIA': 'Materia de la Clase'
+    }
+    
+    # Crear DataFrame con columnas renombradas
+    df_renamed = df.copy()
+    
+    # Renombrar columnas que existan
+    for col_original, col_nuevo in mapeo_columnas.items():
+        if col_original in df_renamed.columns:
+            df_renamed.rename(columns={col_original: col_nuevo}, inplace=True)
+    
+    # Agregar columna de observaciones si no existe
+    if 'Observaciones' not in df_renamed.columns:
+        df_renamed['Observaciones'] = ''
+    
+    # Definir orden de columnas deseado
+    orden_columnas = [
+        'Semestre', 'Código de la Materia', 'INP', 'Grupo', 'Nivel del Grupo', 
+        'Semanas', 'Número de Horas', 'Fecha Inicio', 'Fecha Fin',
+        'Estudiantes Prematriculados', 'Estudiantes Matriculados', 'Total de Estudiantes',
+        'Número de Documento', 'Docente', 'Día', 'Hora Inicio', 'Hora Fin', 'Horario',
+        'Aula', 'Facultad', 'Materia de la Clase', 'Observaciones'
+    ]
+    
+    # Reordenar columnas (solo las que existan)
+    columnas_existentes = [col for col in orden_columnas if col in df_renamed.columns]
+    columnas_extra = [col for col in df_renamed.columns if col not in columnas_existentes]
+    
+    # Combinar columnas en el orden deseado
+    orden_final = columnas_existentes + columnas_extra
+    
+    return df_renamed[orden_final]
+
 def limpiar_programacion(archivo_o_df):
     """
     Limpia y consolida la programación académica, unificando clases largas
@@ -179,7 +240,8 @@ def limpiar_programacion(archivo_o_df):
                     # Reconstruir columna horario
                     agrupado['horario'] = agrupado['hora_ini'].astype(str) + ' a ' + agrupado['hora_fin'].astype(str)
                     
-                    return agrupado
+                    # Aplicar renombrado de columnas para exportación
+                    return renombrar_columnas_exportacion(agrupado)
             
             # LÓGICA FALLBACK: Si no se puede evaluar gaps, usar método original
             # Preparar diccionario de agregación dinámicamente
@@ -207,12 +269,14 @@ def limpiar_programacion(archivo_o_df):
                 if 'hora_ini' in agrupado.columns and 'hora_fin' in agrupado.columns:
                     agrupado['horario'] = agrupado['hora_ini'].astype(str) + ' a ' + agrupado['hora_fin'].astype(str)
                 
-                return agrupado
+                # Aplicar renombrado de columnas para exportación
+                return renombrar_columnas_exportacion(agrupado)
             else:
-                return df
+                # Si no podemos agrupar, aplicar renombrado básico
+                return renombrar_columnas_exportacion(df)
         else:
-            # Si no podemos agrupar, devolver el DataFrame limpio básico
-            return df
+            # Si no podemos agrupar, devolver el DataFrame con columnas renombradas
+            return renombrar_columnas_exportacion(df)
             
     except Exception as e:
         print(f"Error al procesar programación: {e}")

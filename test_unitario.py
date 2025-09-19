@@ -34,7 +34,7 @@ class TestLimpiezaProgramacion(unittest.TestCase):
                         "Debería mantener 2 registros para grupos diferentes")
         
         # Verificar que los grupos se mantienen separados
-        grupos_resultado = sorted(resultado['grupo'].tolist())
+        grupos_resultado = sorted(resultado['Grupo'].tolist())
         self.assertEqual(grupos_resultado, ['GRUPO A', 'GRUPO B'],
                         "Los grupos deben mantenerse separados")
         
@@ -64,7 +64,7 @@ class TestLimpiezaProgramacion(unittest.TestCase):
                         "No debe unificar clases de grupos diferentes")
         
         # Verificar horarios específicos
-        horarios = sorted(resultado['horario'].tolist())
+        horarios = sorted(resultado['Horario'].tolist())
         # Verificar que contiene partes de los horarios originales (formato puede variar)
         self.assertTrue(any('07:00' in h or '7:00' in h for h in horarios),
                        f"Debe mantener el horario matutino. Horarios: {horarios}")
@@ -97,7 +97,7 @@ class TestLimpiezaProgramacion(unittest.TestCase):
                         f"Debe mantener 2 clases separadas por gap > 30min. Resultado: {len(resultado)}")
         
         # Verificar que NO se unifique en 10:00 a 16:00
-        horarios = resultado['horario'].tolist()
+        horarios = resultado['Horario'].tolist()
         no_unificado = not any('10:00' in h and '16:00' in h for h in horarios)
         self.assertTrue(no_unificado,
                        f"No debe unificar clases con gap > 30min. Horarios: {horarios}")
@@ -127,11 +127,42 @@ class TestLimpiezaProgramacion(unittest.TestCase):
                         f"Debe unificar clases continuas. Resultado: {len(resultado)}")
         
         # Verificar que se unifique correctamente
-        horario_unificado = resultado['horario'].iloc[0]
+        horario_unificado = resultado['Horario'].iloc[0]
         self.assertTrue('8:00' in horario_unificado and '12:00' in horario_unificado,
                        f"Debe unificar de 8:00 a 12:00. Resultado: {horario_unificado}")
         
         print(f"✅ Test clases continuas pasado: {horario_unificado}")
+    
+    def test_nombres_columnas_exportacion(self):
+        """
+        Test para verificar que las columnas tienen los nombres correctos
+        """
+        datos_prueba = pd.DataFrame({
+            'semestre': ['2024-1'],
+            'materia': ['MAT101'],
+            'inp': ['INP001'],
+            'grupo': ['01'],
+            'nroidenti': ['12345678'],
+            'profesor': ['JUAN PEREZ'],
+            'dia': ['LUNES'],
+            'horario': ['8:00 a 10:00'],
+            'aula': ['AULA 101']
+        })
+        
+        # Aplicar limpieza
+        resultado = limpiar_programacion(datos_prueba)
+        
+        # Verificar nombres de columnas específicos
+        columnas_esperadas = [
+            'Semestre', 'Código de la Materia', 'INP', 'Grupo',
+            'Número de Documento', 'Docente', 'Día', 'Horario', 'Aula', 'Observaciones'
+        ]
+        
+        for col_esperada in columnas_esperadas:
+            self.assertIn(col_esperada, resultado.columns,
+                         f"La columna '{col_esperada}' debería estar presente")
+        
+        print(f"✅ Test nombres de columnas pasado: {list(resultado.columns)}")
 
 if __name__ == "__main__":
     unittest.main()
