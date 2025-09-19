@@ -152,15 +152,21 @@ class TestLimpiezaProgramacion(unittest.TestCase):
         # Aplicar limpieza
         resultado = limpiar_programacion(datos_prueba)
         
-        # Verificar nombres de columnas específicos
+        # Verificar nombres de columnas específicos (sin las columnas excluidas)
         columnas_esperadas = [
-            'Semestre', 'Código de la Materia', 'INP', 'Grupo',
+            'Código de la Materia', 'Grupo',
             'Número de Documento', 'Docente', 'Día', 'Horario', 'Aula', 'Observaciones'
         ]
+        
+        columnas_no_deseadas = ['Semestre', 'INP', 'Semanas', 'Número de Horas', 'Fecha Inicio', 'Fecha Fin']
         
         for col_esperada in columnas_esperadas:
             self.assertIn(col_esperada, resultado.columns,
                          f"La columna '{col_esperada}' debería estar presente")
+        
+        for col_no_deseada in columnas_no_deseadas:
+            self.assertNotIn(col_no_deseada, resultado.columns,
+                           f"La columna '{col_no_deseada}' NO debería estar presente")
         
         print(f"✅ Test nombres de columnas pasado: {list(resultado.columns)}")
 

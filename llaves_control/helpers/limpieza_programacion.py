@@ -45,20 +45,21 @@ def renombrar_columnas_exportacion(df):
     if 'Observaciones' not in df_renamed.columns:
         df_renamed['Observaciones'] = ''
     
-    # Definir orden de columnas deseado
+    # Definir orden de columnas deseado (sin las columnas que se deben ocultar)
     orden_columnas = [
-        'Semestre', 'Código de la Materia', 'INP', 'Grupo', 'Nivel del Grupo', 
-        'Semanas', 'Número de Horas', 'Fecha Inicio', 'Fecha Fin',
+        'Código de la Materia', 'Grupo', 'Nivel del Grupo', 
         'Estudiantes Prematriculados', 'Estudiantes Matriculados', 'Total de Estudiantes',
         'Número de Documento', 'Docente', 'Día', 'Hora Inicio', 'Hora Fin', 'Horario',
         'Aula', 'Facultad', 'Materia de la Clase', 'Observaciones'
     ]
     
-    # Reordenar columnas (solo las que existan)
+    # Reordenar columnas (solo las que existan y no estén en la lista de exclusión)
+    columnas_excluidas = ['Semestre', 'INP', 'Semanas', 'Número de Horas', 'Fecha Inicio', 'Fecha Fin']
     columnas_existentes = [col for col in orden_columnas if col in df_renamed.columns]
-    columnas_extra = [col for col in df_renamed.columns if col not in columnas_existentes]
+    columnas_extra = [col for col in df_renamed.columns 
+                     if col not in columnas_existentes and col not in columnas_excluidas]
     
-    # Combinar columnas en el orden deseado
+    # Combinar columnas en el orden deseado (excluyendo las no deseadas)
     orden_final = columnas_existentes + columnas_extra
     
     return df_renamed[orden_final]
