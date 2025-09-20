@@ -9,7 +9,6 @@ from helpers.limpieza_programacion import (
     verificar_programacion_guardada, 
     guardar_programacion_actual
 )
-from .detalle_programacion import VentanaDetalleProgramacion
 
 class VistaProgramacion:
     def __init__(self, notebook, app):
@@ -76,11 +75,14 @@ class VistaProgramacion:
 
     def verificar_programacion_guardada(self):
         """Verificar si existe una programación limpia guardada y cargarla automáticamente"""
-        ruta_programacion = os.path.join("llaves_control", "data", "programacion_limpia_actual.xlsx")
+        # Usar ruta absoluta para evitar problemas
+        ruta_base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        ruta_programacion = os.path.join(ruta_base, "data", "programacion_limpia_actual.xlsx")
         
         if os.path.exists(ruta_programacion):
             try:
                 df = pd.read_excel(ruta_programacion)
+                
                 self.app.programacion = df
                 self.datos_completos = df.copy()
                 self.datos_filtrados = df.copy()
@@ -92,8 +94,18 @@ class VistaProgramacion:
                 
                 self.mostrar_programacion_en_vista()
                 
+                # Notificar a otras vistas que los datos están listos
+                self.notificar_datos_cargados()
+                
             except Exception as e:
-                print(f"Error al cargar programación guardada: {e}")
+                # Error silencioso, mantener funcionamiento
+                pass
+    
+    def notificar_datos_cargados(self):
+        """Notificar a otras vistas que los datos están cargados"""
+        # Verificar si vista_entrega existe y tiene el método
+        if hasattr(self.app, 'vista_entrega') and hasattr(self.app.vista_entrega, 'cargar_clases_del_dia'):
+            self.app.vista_entrega.cargar_clases_del_dia()
 
     # ============ FUNCIONES VISTA PROGRAMACIÓN ============
     def cargar_programacion(self):
