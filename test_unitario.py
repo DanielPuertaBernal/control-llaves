@@ -169,6 +169,96 @@ class TestLimpiezaProgramacion(unittest.TestCase):
                            f"La columna '{col_no_deseada}' NO debería estar presente")
         
         print(f"✅ Test nombres de columnas pasado: {list(resultado.columns)}")
+    
+    def test_valores_estudiantes(self):
+        """
+        Test para verificar que se muestran correctamente los valores de estudiantes
+        """
+        datos_estudiantes = pd.DataFrame({
+            'nroidenti': ['12345678'],
+            'profesor': ['MARIA LOPEZ'],
+            'materia': ['FIS101'],
+            'grupo': ['01'],
+            'aula': ['LAB 201'],
+            'dia': ['MARTES'],
+            'horario': ['10:00 a 12:00'],
+            'nro_estudiantes_premat': [15],  # Prematriculados
+            'nro_estudiantes': [12],         # Matriculados 
+            'TOTAL': [27]                    # Total
+        })
+        
+        # Aplicar limpieza
+        resultado = limpiar_programacion(datos_estudiantes)
+        
+        # Verificar que las columnas de estudiantes existen
+        self.assertIn('Estudiantes Prematriculados', resultado.columns)
+        self.assertIn('Estudiantes Matriculados', resultado.columns)
+        self.assertIn('Total de Estudiantes', resultado.columns)
+        
+        # Verificar los valores específicos
+        fila = resultado.iloc[0]
+        premat_val = int(fila['Estudiantes Prematriculados'])
+        matric_val = int(fila['Estudiantes Matriculados'])  
+        total_val = int(fila['Total de Estudiantes'])
+        
+        self.assertEqual(premat_val, 15, 
+                        "Debe mostrar 15 estudiantes prematriculados")
+        self.assertEqual(matric_val, 12, 
+                        "Debe mostrar 12 estudiantes matriculados")
+        self.assertEqual(total_val, 27, 
+                        "Debe mostrar 27 estudiantes en total")
+        
+        print(f"✅ Test valores estudiantes pasado:")
+        print(f"   - Prematriculados: {premat_val}")
+        print(f"   - Matriculados: {matric_val}")  
+        print(f"   - Total: {total_val}")
+    
+    def test_calculo_total_estudiantes(self):
+        """
+        Test para verificar que el total se calcula correctamente sumando 
+        prematriculados + matriculados (NO usando columna TOTAL externa)
+        """
+        datos_calculo = pd.DataFrame({
+            'semestre': ['2024-1'],
+            'materia': ['MAT101'], 
+            'inp': ['001'],
+            'grupo': ['01'],
+            'nivel_grupo': ['PREGRADO'],
+            'nroidenti': ['87654321'],
+            'profesor': ['CARLOS MARTINEZ'],
+            'dia': ['MIERCOLES'],
+            'horario': ['14:00 a 16:00'],
+            'aula': ['AULA 303'],
+            'nro_estudiantes_premat': [8],    # Prematriculados
+            'nro_estudiantes': [17],          # Matriculados
+            'descripcion': ['ALGEBRA LINEAL'] # Descripción de la materia
+        })
+        
+        # Aplicar limpieza
+        resultado = limpiar_programacion(datos_calculo)
+        
+        # Verificar que el cálculo es correcto
+        fila = resultado.iloc[0]
+        premat_val = int(fila['Estudiantes Prematriculados'])
+        matric_val = int(fila['Estudiantes Matriculados'])  
+        total_val = int(fila['Total de Estudiantes'])
+        
+        # El total debe ser la SUMA de prematriculados + matriculados
+        total_esperado = premat_val + matric_val
+        
+        self.assertEqual(premat_val, 8, "Debe mostrar 8 prematriculados")
+        self.assertEqual(matric_val, 17, "Debe mostrar 17 matriculados")
+        self.assertEqual(total_val, total_esperado, 
+                        f"Total debe ser {total_esperado} (8+17), pero fue {total_val}")
+        self.assertEqual(total_val, 25, "Total específico debe ser 25")
+        
+        # Verificar que descripción se mapea correctamente
+        self.assertIn('Materia de la Clase', resultado.columns)
+        
+        print(f"✅ Test cálculo total pasado:")
+        print(f"   - Prematriculados: {premat_val}")
+        print(f"   - Matriculados: {matric_val}")
+        print(f"   - Total calculado: {total_val} = {premat_val} + {matric_val}")
 
 if __name__ == "__main__":
     unittest.main()

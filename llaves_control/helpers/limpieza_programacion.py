@@ -18,6 +18,7 @@ def renombrar_columnas_exportacion(df):
         'fecha_fin': 'Fecha Fin', 
         'nro_estudiantes_premat': 'Estudiantes Prematriculados',
         'nro_estudiantes': 'Estudiantes Matriculados',
+        'total_estudiantes': 'Total de Estudiantes',
         'Total Estudiantes': 'Total de Estudiantes',
         'TOTAL': 'Total de Estudiantes',
         'nroidenti': 'Número de Documento',
@@ -30,7 +31,8 @@ def renombrar_columnas_exportacion(df):
         'Facultad': 'Facultad',
         'PROGRAMA': 'Facultad',
         'Materia de la clase': 'Materia de la Clase',
-        'MATERIA': 'Materia de la Clase'
+        'MATERIA': 'Materia de la Clase',
+        'descripcion': 'Materia de la Clase'
     }
     
     # Crear DataFrame con columnas renombradas
@@ -40,6 +42,24 @@ def renombrar_columnas_exportacion(df):
     for col_original, col_nuevo in mapeo_columnas.items():
         if col_original in df_renamed.columns:
             df_renamed.rename(columns={col_original: col_nuevo}, inplace=True)
+    
+    # IMPORTANTE: Eliminar columnas duplicadas que puedan causar conflictos
+    # Si hay múltiples columnas de total, conservar solo una
+    if 'Total de Estudiantes' in df_renamed.columns:
+        # Si hay duplicados de esta columna, eliminar los extras
+        cols_totales = [col for col in df_renamed.columns if col == 'Total de Estudiantes']
+        if len(cols_totales) > 1:
+            # Mantener solo la primera y eliminar las demás
+            indices_duplicados = []
+            primera_encontrada = False
+            for i, col in enumerate(df_renamed.columns):
+                if col == 'Total de Estudiantes':
+                    if primera_encontrada:
+                        indices_duplicados.append(i)
+                    else:
+                        primera_encontrada = True
+            # Eliminar columnas duplicadas por índice
+            df_renamed = df_renamed.iloc[:, [i for i in range(len(df_renamed.columns)) if i not in indices_duplicados]]
     
     # Agregar columna de observaciones si no existe
     if 'Observaciones' not in df_renamed.columns:
@@ -113,21 +133,21 @@ def limpiar_programacion(archivo_o_df):
         elif 'materia' not in df.columns:
             df['materia'] = df.get('materia', '').fillna('').str.strip()
 
-        # --- NUEVO: Calcular nro_estudiantes ---
-        if 'TOTAL' in df.columns:
-            df['nro_estudiantes'] = df['TOTAL']
-        else:
-            premat = df['nro_estudiantes_premat'] if 'nro_estudiantes_premat' in df.columns else 0
-            mat = df['nro_estudiantes'] if 'nro_estudiantes' in df.columns else 0
-            # Si ambos existen, sumarlos; si solo uno, usar ese
-            if isinstance(premat, pd.Series) and isinstance(mat, pd.Series):
-                df['nro_estudiantes'] = premat.fillna(0).astype(float) + mat.fillna(0).astype(float)
-            elif isinstance(premat, pd.Series):
-                df['nro_estudiantes'] = premat.fillna(0).astype(float)
-            elif isinstance(mat, pd.Series):
-                df['nro_estudiantes'] = mat.fillna(0).astype(float)
-            else:
-                df['nro_estudiantes'] = 0
+        # --- NUEVO: Procesar datos de estudiantes manteniendo columnas separadas ---
+        # Asegurar que existan las columnas base
+        if 'nro_estudiantes_premat' not in df.columns:
+            df['nro_estudiantes_premat'] = 0
+        if 'nro_estudiantes' not in df.columns:
+            df['nro_estudiantes'] = 0
+            
+        # Limpiar valores NaN y convertir a números
+        df['nro_estudiantes_premat'] = pd.to_numeric(df['nro_estudiantes_premat'], errors='coerce').fillna(0)
+        df['nro_estudiantes'] = pd.to_numeric(df['nro_estudiantes'], errors='coerce').fillna(0)
+        
+        # SIEMPRE calcular el total sumando prematriculados + matriculados
+        df['total_estudiantes'] = df['nro_estudiantes_premat'] + df['nro_estudiantes']
+        
+        # Si existe columna TOTAL en los datos originales, la ignoramos ya que calculamos nuestro propio total
 
         # Separar hora inicio y fin con diferentes formatos posibles
         if len(df) > 0 and ' A ' in str(df['horario'].iloc[0]).upper():
@@ -254,9 +274,10 @@ def limpiar_programacion(archivo_o_df):
             if 'hora_fin' in df.columns:
                 agg_dict['hora_fin'] = 'max'
             
-            # Agregar columnas opcionales solo si existen
-            if 'nro_estudiantes' in df.columns:
-                agg_dict['nro_estudiantes'] = 'first'
+            # Agregar columnas de estudiantes si existen
+            for col_estudiantes in ['nro_estudiantes_premat', 'nro_estudiantes', 'total_estudiantes']:
+                if col_estudiantes in df.columns:
+                    agg_dict[col_estudiantes] = 'first'
             
             # Agregar otras columnas opcionales (grupo ya está en columnas_agrupacion)
             for col in ['nivel_grupo', 'semestre', 'PROGRAMA']:
