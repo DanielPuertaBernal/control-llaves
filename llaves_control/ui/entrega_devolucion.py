@@ -257,7 +257,7 @@ class VistaEntregaDevolucion:
 
     def exportar_programacion_limpia(self):
         """Exporta la programación actualmente cargada y limpia"""
-        if not self.app.programacion or len(self.app.programacion) == 0:
+        if self.app.programacion is None or self.app.programacion.empty:
             messagebox.showwarning("Advertencia", "No hay programación cargada para exportar")
             return
         

@@ -30,13 +30,23 @@ def renombrar_columnas_exportacion(df):
         'aula': 'Aula',
         'Facultad': 'Facultad',
         'PROGRAMA': 'Facultad',
+        'descripcion': 'Facultad',
         'Materia de la clase': 'Materia de la Clase',
         'MATERIA': 'Materia de la Clase',
-        'descripcion': 'Materia de la Clase'
+        'descripcion.1': 'Materia de la Clase'
     }
+    
+    # Lista de columnas a eliminar porque causan problemas o son duplicadas
+    # NOTA: Ya no eliminamos descripcion.1 porque la necesitamos
+    columnas_a_eliminar = []
     
     # Crear DataFrame con columnas renombradas
     df_renamed = df.copy()
+    
+    # Eliminar columnas problemáticas PRIMERO
+    for col_eliminar in columnas_a_eliminar:
+        if col_eliminar in df_renamed.columns:
+            df_renamed.drop(columns=[col_eliminar], inplace=True)
     
     # Renombrar columnas que existan
     for col_original, col_nuevo in mapeo_columnas.items():
@@ -99,10 +109,40 @@ def limpiar_programacion(archivo_o_df):
     if isinstance(archivo_o_df, str):
         # Es una ruta de archivo
         try:
-            df = pd.read_excel(archivo_o_df)
+            # Intentar leer con pandas primero (más robusto)
+            if archivo_o_df.lower().endswith('.xlsx'):
+                # Para archivos Excel, usar engine openpyxl con configuraciones robustas
+                df = pd.read_excel(archivo_o_df, engine='openpyxl')
+            elif archivo_o_df.lower().endswith('.xls'):
+                # Para archivos Excel antiguos, usar xlrd
+                df = pd.read_excel(archivo_o_df, engine='xlrd')
+            else:
+                # Para otros formatos
+                df = pd.read_excel(archivo_o_df)
+                
         except Exception as e:
-            print(f"Error al leer archivo: {e}")
-            return pd.DataFrame()
+            print(f"Error al leer archivo Excel con pandas: {e}")
+            try:
+                # Intentar método alternativo con openpyxl directamente
+                import openpyxl
+                wb = openpyxl.load_workbook(archivo_o_df, data_only=True)
+                ws = wb.active
+                data = []
+                headers = []
+                
+                for i, row in enumerate(ws.iter_rows(values_only=True)):
+                    if i == 0:
+                        headers = [str(cell) if cell is not None else f'Col_{i}' for i, cell in enumerate(row)]
+                    else:
+                        data.append(row)
+                
+                df = pd.DataFrame(data, columns=headers)
+                wb.close()
+                
+            except Exception as e2:
+                print(f"Error con método alternativo: {e2}")
+                return pd.DataFrame()
+                
     elif isinstance(archivo_o_df, pd.DataFrame):
         # Es un DataFrame
         df = archivo_o_df.copy()
@@ -317,16 +357,23 @@ def guardar_programacion_limpia(df_original: pd.DataFrame, ruta_salida: str = No
     
     # Limpiar y guardar
     df_limpio = limpiar_programacion(df_original)
-    df_limpio.to_excel(ruta_salida, index=False)
+    
+    # Guardar con configuraciones robustas para evitar advertencias
+    try:
+        with pd.ExcelWriter(ruta_salida, engine='openpyxl', mode='w') as writer:
+            df_limpio.to_excel(writer, index=False, sheet_name='Programacion')
+        print(f"Programación guardada exitosamente en: {ruta_salida}")
+    except Exception as e:
+        print(f"Error al guardar programación: {e}")
+        # Intentar método alternativo
+        try:
+            df_limpio.to_excel(ruta_salida, index=False)
+            print(f"Programación guardada con método alternativo en: {ruta_salida}")
+        except Exception as e2:
+            print(f"Error con método alternativo: {e2}")
+            return ""
     
     return ruta_salida
-
-def verificar_programacion_guardada(ruta_base: str = "llaves_control/data") -> str:
-    """
-    Verifica si existe una programación limpia guardada previamente
-    """
-    ruta_actual = os.path.join(ruta_base, "programacion_limpia_actual.xlsx")
-    return ruta_actual if os.path.exists(ruta_actual) else None
 
 def guardar_programacion_actual(df_limpio: pd.DataFrame, ruta_base: str = "llaves_control/data") -> str:
     """
@@ -337,7 +384,26 @@ def guardar_programacion_actual(df_limpio: pd.DataFrame, ruta_base: str = "llave
     # Asegurar que el directorio existe
     os.makedirs(os.path.dirname(ruta_actual), exist_ok=True)
     
-    # Guardar como versión actual
-    df_limpio.to_excel(ruta_actual, index=False)
+    # Guardar como versión actual con configuraciones robustas
+    try:
+        with pd.ExcelWriter(ruta_actual, engine='openpyxl', mode='w') as writer:
+            df_limpio.to_excel(writer, index=False, sheet_name='Programacion')
+        print(f"Programación actual guardada exitosamente en: {ruta_actual}")
+    except Exception as e:
+        print(f"Error al guardar programación actual: {e}")
+        # Intentar método alternativo
+        try:
+            df_limpio.to_excel(ruta_actual, index=False)
+            print(f"Programación actual guardada con método alternativo")
+        except Exception as e2:
+            print(f"Error con método alternativo: {e2}")
+            return ""
     
     return ruta_actual
+
+def verificar_programacion_guardada(ruta_base: str = "llaves_control/data") -> str:
+    """
+    Verifica si existe una programación limpia guardada previamente
+    """
+    ruta_actual = os.path.join(ruta_base, "programacion_limpia_actual.xlsx")
+    return ruta_actual if os.path.exists(ruta_actual) else None
