@@ -114,6 +114,10 @@ class VistaEntregaDevolucion:
                 
             self.datos_filtrados = df[df['Día'] == dia_actual].copy()
             
+            # Ordenar por horario
+            if 'Horario' in self.datos_filtrados.columns:
+                self.datos_filtrados = self.datos_filtrados.sort_values(by='Horario')
+            
             # Reiniciar paginación
             self.pagina_actual = 1
             self.calcular_paginacion()
@@ -161,6 +165,10 @@ class VistaEntregaDevolucion:
             
             # Aplicar filtro
             self.datos_filtrados = datos_del_dia[mascara_documento].copy()
+            
+            # Ordenar por horario
+            if 'Horario' in self.datos_filtrados.columns:
+                self.datos_filtrados = self.datos_filtrados.sort_values(by='Horario')
             
             # Reiniciar paginación
             self.pagina_actual = 1
