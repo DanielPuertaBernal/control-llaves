@@ -20,7 +20,11 @@ class VistaEntregaDevolucion:
         self.datos_filtrados = []
         self.total_paginas = 1
         
+        # Variable para el temporizador de actualización automática
+        self.auto_update_job = None
+        
         self.crear_vista_entrega_devolucion()
+        self.iniciar_actualizacion_automatica()
 
     def crear_vista_entrega_devolucion(self):
         # Obtener día actual directamente en el formato que usa el archivo
@@ -86,6 +90,13 @@ class VistaEntregaDevolucion:
                                    command=self.cargar_clases_del_dia, style="Accent.TButton")
         btn_actualizar.pack(pady=(15, 0))
 
+        # Label de información de actualización automática
+        self.label_auto_update = ttk.Label(self.frame_entrega, 
+                                          text="⏰ Actualización automática cada 10 minutos", 
+                                          font=('Segoe UI', 9), 
+                                          foreground='gray')
+        self.label_auto_update.pack(pady=(5, 0))
+
         # NO cargar datos iniciales aquí - se cargará después de que la programación esté disponible
 
     # ============ FUNCIONES PRINCIPALES ============
@@ -109,19 +120,27 @@ class VistaEntregaDevolucion:
             # Filtrar por día actual directamente - sin complicaciones
             df = self.app.programacion
             if 'Día' not in df.columns:
-                messagebox.showerror("Error", "No se encontró la columna 'Día' en la programación")
-                return
+                messagebox.showwarning("Advertencia", f"Columnas disponibles: {list(df.columns)}")
+                # Buscar columnas que contengan 'día' (insensible a mayúsculas)
+                columna_dia = None
+                for col in df.columns:
+                    if 'día' in col.lower():
+                        columna_dia = col
+                        break
+                if columna_dia is None:
+                    messagebox.showerror("Error", "No se encontró ninguna columna de día en la programación")
+                    return
+            else:
+                columna_dia = 'Día'
                 
-            self.datos_filtrados = df[df['Día'] == dia_actual].copy()
+            self.datos_filtrados = df[df[columna_dia] == dia_actual].copy()
             
             # Ordenar por horario
             if 'Horario' in self.datos_filtrados.columns:
                 self.datos_filtrados = self.datos_filtrados.sort_values(by='Horario')
             
-            # Reiniciar paginación
-            self.pagina_actual = 1
-            self.calcular_paginacion()
-            self.mostrar_pagina_actual()
+            # Eliminar clases cuyo horario ya pasó
+            self.eliminar_clases_pasadas()
             
         except Exception as e:
             messagebox.showerror("Error", f"Error al cargar las clases del día: {str(e)}")
@@ -149,10 +168,19 @@ class VistaEntregaDevolucion:
             # Filtrar por día actual
             df = self.app.programacion
             if 'Día' not in df.columns:
-                messagebox.showerror("Error", "No se encontró la columna 'Día' en la programación")
-                return
+                # Buscar columnas que contengan 'día' (insensible a mayúsculas)
+                columna_dia = None
+                for col in df.columns:
+                    if 'día' in col.lower():
+                        columna_dia = col
+                        break
+                if columna_dia is None:
+                    messagebox.showerror("Error", "No se encontró ninguna columna de día en la programación")
+                    return
+            else:
+                columna_dia = 'Día'
                 
-            datos_del_dia = df[df['Día'] == dia_actual].copy()
+            datos_del_dia = df[df[columna_dia] == dia_actual].copy()
             
             # Verificar que existe la columna de documento
             if 'Número de Documento' not in datos_del_dia.columns:
@@ -177,6 +205,36 @@ class VistaEntregaDevolucion:
             
         except Exception as e:
             messagebox.showerror("Error", f"Error en la búsqueda: {str(e)}")
+    
+    def eliminar_clases_pasadas(self):
+        """Elimina de la tabla las clases que ya terminaron."""
+        try:
+            ahora = datetime.now()
+            
+            # Filtrar las clases que aún no han terminado
+            if 'Hora Fin' in self.datos_filtrados.columns:
+                def convertir_hora_fin(hora_fin):
+                    try:
+                        # Manejar formato HH:MM:SS
+                        if isinstance(hora_fin, str):
+                            if len(hora_fin.split(':')) == 3:
+                                return datetime.strptime(hora_fin, '%H:%M:%S').time()
+                            else:
+                                return datetime.strptime(hora_fin, '%H:%M').time()
+                        return None
+                    except ValueError:
+                        return None
+                
+                self.datos_filtrados['Hora_Fin_Convertida'] = self.datos_filtrados['Hora Fin'].apply(convertir_hora_fin)
+                self.datos_filtrados = self.datos_filtrados[self.datos_filtrados['Hora_Fin_Convertida'].notnull()]
+                self.datos_filtrados = self.datos_filtrados[self.datos_filtrados['Hora_Fin_Convertida'] > ahora.time()]
+                
+                # Reiniciar paginación y mostrar datos actualizados
+                self.pagina_actual = 1
+                self.calcular_paginacion()
+                self.mostrar_pagina_actual()
+        except Exception as e:
+            messagebox.showerror("Error", f"Error al eliminar clases pasadas: {str(e)}")
     
     def calcular_paginacion(self):
         """Calcula el número total de páginas"""
@@ -261,3 +319,29 @@ class VistaEntregaDevolucion:
         if self.pagina_actual < self.total_paginas:
             self.pagina_actual += 1
             self.mostrar_pagina_actual()
+    
+    def iniciar_actualizacion_automatica(self):
+        """Inicia la actualización automática cada 10 minutos"""
+        self.actualizar_automaticamente()
+    
+    def actualizar_automaticamente(self):
+        """Actualiza los datos automáticamente y programa la próxima actualización"""
+        try:
+            # Solo actualizar si hay datos cargados y no se está buscando
+            if (self.app.programacion is not None and 
+                not self.app.programacion.empty and 
+                not self.entry_busqueda.get().strip()):
+                
+                self.cargar_clases_del_dia()
+                
+        except Exception as e:
+            print(f"Error en actualización automática: {str(e)}")
+
+        # Programar la próxima actualización en 30 minutos (1,800,000 ms)
+        self.auto_update_job = self.frame_entrega.after(1800000, self.actualizar_automaticamente)
+
+    def detener_actualizacion_automatica(self):
+        """Detiene la actualización automática"""
+        if self.auto_update_job:
+            self.frame_entrega.after_cancel(self.auto_update_job)
+            self.auto_update_job = None
