@@ -27,7 +27,7 @@ class VistaEntregaDevolucion:
         self.search_job = None  # Para debounce en búsqueda
         self.cache_docentes_con_llaves = set()  # Cache de documentos con llaves entregadas
         self.cache_timestamp = None  # Timestamp del cache para invalidación
-        self.cache_valid_duration = 30  # Cache válido por 30 segundos
+        self.cache_valid_duration = 10  # Cache válido por 10 segundos (reducido para mayor consistencia)
         
         self.crear_vista_entrega_devolucion()
         self.iniciar_actualizacion_automatica()
@@ -99,13 +99,13 @@ class VistaEntregaDevolucion:
         self.tree_clases.bind('<Button-1>', self.on_click_tabla)
 
         # Botón para actualizar datos
-        btn_actualizar = ttk.Button(self.frame_entrega, text="🔄 Actualizar Datos", 
-                                   command=self.cargar_clases_del_dia, style="Accent.TButton")
+        btn_actualizar = ttk.Button(self.frame_entrega, text="🔄 Refrescar Datos", 
+                                   command=self.forzar_actualizacion, style="Accent.TButton")
         btn_actualizar.pack(pady=(15, 0))
 
         # Label de información de actualización automática
         self.label_auto_update = ttk.Label(self.frame_entrega, 
-                                          text="⏰ Actualización automática cada 10 minutos", 
+                                          text="⏰ Actualización automática cada 10 minutos | Cache 10 segundos", 
                                           font=('Segoe UI', 9), 
                                           foreground='gray')
         self.label_auto_update.pack(pady=(5, 0))
@@ -113,6 +113,19 @@ class VistaEntregaDevolucion:
         # NO cargar datos iniciales aquí - se cargará después de que la programación esté disponible
 
     # ============ FUNCIONES PRINCIPALES ============
+    
+    def forzar_actualizacion(self):
+        """Fuerza la actualización invalidando completamente el cache"""
+        # Invalidar cache completamente
+        self.cache_timestamp = None
+        self.cache_docentes_con_llaves = set()
+        
+        # Recargar según el estado de búsqueda
+        busqueda_texto = self.entry_busqueda.get().strip()
+        if busqueda_texto and busqueda_texto != "Ejemplo: 12345678 o A101 o Laboratorio...":
+            self.buscar_por_documento()
+        else:
+            self.cargar_clases_del_dia()
     
     def cargar_clases_del_dia(self):
         """Carga y muestra las clases del día actual desde programacion_limpia_actual.xlsx"""
@@ -502,13 +515,10 @@ class VistaEntregaDevolucion:
                     
                     messagebox.showinfo("Éxito", f"Llave entregada exitosamente a {docente}")
                     
-                    # Eliminar el registro de la tabla
-                    self.tree_clases.delete(item_seleccionado)
+                    # *** NO eliminar individualmente - recargar datos completos para consistencia ***
+                    # self.tree_clases.delete(item_seleccionado)  # COMENTADO: causa problemas
                     
-                    # Actualizar la información de paginación
-                    self.actualizar_info_pagina()
-                    
-                    # Recargar los datos para mantener la consistencia
+                    # Recargar los datos completamente para mantener la consistencia
                     busqueda_texto = self.entry_busqueda.get().strip()
                     if busqueda_texto and busqueda_texto != "Ejemplo: 12345678 o A101 o Laboratorio...":
                         self.buscar_por_documento()
