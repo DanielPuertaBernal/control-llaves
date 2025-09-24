@@ -23,6 +23,12 @@ class VistaEntregaDevolucion:
         # Variable para el temporizador de actualización automática
         self.auto_update_job = None
         
+        # Variables para optimización de rendimiento
+        self.search_job = None  # Para debounce en búsqueda
+        self.cache_docentes_con_llaves = set()  # Cache de documentos con llaves entregadas
+        self.cache_timestamp = None  # Timestamp del cache para invalidación
+        self.cache_valid_duration = 30  # Cache válido por 30 segundos
+        
         self.crear_vista_entrega_devolucion()
         self.iniciar_actualizacion_automatica()
 
@@ -42,11 +48,12 @@ class VistaEntregaDevolucion:
         frame_busqueda = ttk.Frame(self.frame_entrega)
         frame_busqueda.pack(fill='x', pady=(0, 20))
         
-        ttk.Label(frame_busqueda, text="Buscar por Número de Documento:").pack(anchor='w', pady=(0, 5))
+        ttk.Label(frame_busqueda, text="Buscar por Número de Documento o Salón:").pack(anchor='w', pady=(0, 5))
         
         self.entry_busqueda = ttk.Entry(frame_busqueda, font=('Segoe UI', 11))
         self.entry_busqueda.pack(fill='x')
-        self.entry_busqueda.bind('<KeyRelease>', self.buscar_por_documento)
+        self.entry_busqueda.bind('<KeyRelease>', self.on_search_keyrelease)  # Cambiar a función de debounce
+        
 
         # Frame para controles de paginación (movido más arriba)
         frame_paginacion = ttk.Frame(self.frame_entrega)
@@ -69,12 +76,12 @@ class VistaEntregaDevolucion:
         frame_tabla = ttk.Frame(self.frame_entrega)
         frame_tabla.pack(fill='both', expand=True, pady=(0, 15))
 
-        # Configurar tabla con las columnas requeridas
-        columnas = ('Documento', 'Docente', 'Aula', 'Horario', 'Materia')
+        # Configurar tabla con las columnas requeridas incluyendo el botón de confirmación
+        columnas = ('Documento', 'Docente', 'Aula', 'Horario', 'Materia', 'Acción')
         self.tree_clases = ttk.Treeview(frame_tabla, columns=columnas, show='headings', height=15)
         
         # Configurar encabezados y anchos de columnas
-        anchos = [120, 180, 80, 120, 200]
+        anchos = [120, 180, 80, 120, 200, 100]
         for col, ancho in zip(columnas, anchos):
             self.tree_clases.heading(col, text=col, anchor='center')  # Centrar encabezados
             self.tree_clases.column(col, width=ancho, anchor='center')  # Centrar contenido
@@ -84,6 +91,12 @@ class VistaEntregaDevolucion:
         self.tree_clases.configure(yscrollcommand=scrollbar.set)
         self.tree_clases.pack(side='left', fill='both', expand=True)
         scrollbar.pack(side='right', fill='y')
+
+        # Configurar evento de doble clic para confirmar entrega
+        self.tree_clases.bind('<Double-1>', self.confirmar_entrega_llave)
+        
+        # También configurar evento de clic simple en la columna de Acción
+        self.tree_clases.bind('<Button-1>', self.on_click_tabla)
 
         # Botón para actualizar datos
         btn_actualizar = ttk.Button(self.frame_entrega, text="🔄 Actualizar Datos", 
@@ -146,10 +159,11 @@ class VistaEntregaDevolucion:
             messagebox.showerror("Error", f"Error al cargar las clases del día: {str(e)}")
     
     def buscar_por_documento(self, event=None):
-        """Busca clases por número de documento del docente"""
+        """Busca clases por número de documento del docente o por nombre del salón/aula"""
         termino = self.entry_busqueda.get().strip()
         
-        if not termino:
+        # Ignorar el texto del placeholder
+        if not termino or termino == "Ejemplo: 12345678 o A101 o Laboratorio...":
             # Si no hay término, mostrar todas las clases del día
             self.cargar_clases_del_dia()
             return
@@ -182,32 +196,40 @@ class VistaEntregaDevolucion:
                 
             datos_del_dia = df[df[columna_dia] == dia_actual].copy()
             
-            # Verificar que existe la columna de documento
-            if 'Número de Documento' not in datos_del_dia.columns:
-                messagebox.showerror("Error", "No se encontró la columna 'Número de Documento' en la programación")
+            # Verificar que existen las columnas necesarias
+            columnas_requeridas = ['Número de Documento', 'Aula']
+            columnas_faltantes = [col for col in columnas_requeridas if col not in datos_del_dia.columns]
+            if columnas_faltantes:
+                messagebox.showerror("Error", f"No se encontraron las columnas: {', '.join(columnas_faltantes)}")
                 return
             
-            # Limpiar números de documento y buscar
+            # Limpiar números de documento y crear máscaras de búsqueda
             datos_del_dia['nroidenti_limpio'] = datos_del_dia['Número de Documento'].astype(str).apply(limpiar_numero_documento)
+            
+            # Buscar por número de documento
             mascara_documento = datos_del_dia['nroidenti_limpio'].str.contains(termino, na=False, case=False)
             
-            # Aplicar filtro
-            self.datos_filtrados = datos_del_dia[mascara_documento].copy()
+            # Buscar por aula/salón
+            mascara_aula = datos_del_dia['Aula'].astype(str).str.contains(termino, na=False, case=False)
+            
+            # Combinar ambas búsquedas con OR (cualquiera de las dos condiciones)
+            mascara_combinada = mascara_documento | mascara_aula
+            
+            # Aplicar filtro combinado
+            self.datos_filtrados = datos_del_dia[mascara_combinada].copy()
             
             # Ordenar por horario
             if 'Horario' in self.datos_filtrados.columns:
                 self.datos_filtrados = self.datos_filtrados.sort_values(by='Horario')
             
-            # Reiniciar paginación
-            self.pagina_actual = 1
-            self.calcular_paginacion()
-            self.mostrar_pagina_actual()
+            # *** IMPORTANTE: Aplicar filtros adicionales después de la búsqueda ***
+            self.eliminar_clases_pasadas()
             
         except Exception as e:
             messagebox.showerror("Error", f"Error en la búsqueda: {str(e)}")
     
     def eliminar_clases_pasadas(self):
-        """Elimina de la tabla las clases que ya terminaron."""
+        """Elimina de la tabla las clases que ya terminaron y las que ya tienen llaves entregadas."""
         try:
             ahora = datetime.now()
             
@@ -228,11 +250,25 @@ class VistaEntregaDevolucion:
                 self.datos_filtrados['Hora_Fin_Convertida'] = self.datos_filtrados['Hora Fin'].apply(convertir_hora_fin)
                 self.datos_filtrados = self.datos_filtrados[self.datos_filtrados['Hora_Fin_Convertida'].notnull()]
                 self.datos_filtrados = self.datos_filtrados[self.datos_filtrados['Hora_Fin_Convertida'] > ahora.time()]
+            
+            # Filtrar clases cuyos docentes ya tienen llaves entregadas (OPTIMIZADO)
+            if not self.datos_filtrados.empty and 'Número de Documento' in self.datos_filtrados.columns:
+                # Actualizar cache de docentes con llaves entregadas
+                self.actualizar_cache_docentes()
                 
-                # Reiniciar paginación y mostrar datos actualizados
-                self.pagina_actual = 1
-                self.calcular_paginacion()
-                self.mostrar_pagina_actual()
+                # Usar vectorización para filtrar más eficientemente
+                def docente_sin_llave(documento):
+                    documento_limpio = limpiar_numero_documento(str(documento))
+                    return documento_limpio not in self.cache_docentes_con_llaves
+                
+                # Aplicar filtro vectorizado (mucho más rápido que un loop)
+                mascara_sin_llaves = self.datos_filtrados['Número de Documento'].apply(docente_sin_llave)
+                self.datos_filtrados = self.datos_filtrados[mascara_sin_llaves]
+            
+            # Reiniciar paginación y mostrar datos actualizados
+            self.pagina_actual = 1
+            self.calcular_paginacion()
+            self.mostrar_pagina_actual()
         except Exception as e:
             messagebox.showerror("Error", f"Error al eliminar clases pasadas: {str(e)}")
     
@@ -283,7 +319,8 @@ class VistaEntregaDevolucion:
                 docente,
                 aula,
                 horario,
-                materia
+                materia,
+                "🔑 Entregar"
             ))
         
         self.actualizar_info_pagina()
@@ -328,20 +365,159 @@ class VistaEntregaDevolucion:
         """Actualiza los datos automáticamente y programa la próxima actualización"""
         try:
             # Solo actualizar si hay datos cargados y no se está buscando
+            busqueda_texto = self.entry_busqueda.get().strip()
+            esta_buscando = busqueda_texto and busqueda_texto != "Ejemplo: 12345678 o A101 o Laboratorio..."
+            
             if (self.app.programacion is not None and 
                 not self.app.programacion.empty and 
-                not self.entry_busqueda.get().strip()):
+                not esta_buscando):
+                
+                # Invalidar cache antes de actualización automática
+                self.cache_timestamp = None
                 
                 self.cargar_clases_del_dia()
                 
         except Exception as e:
             print(f"Error en actualización automática: {str(e)}")
 
-        # Programar la próxima actualización en 30 minutos (1,800,000 ms)
-        self.auto_update_job = self.frame_entrega.after(1800000, self.actualizar_automaticamente)
+        # Programar la próxima actualización en 10 minutos (600,000 ms) - cambiado de 30 a 10 minutos
+        self.auto_update_job = self.frame_entrega.after(600000, self.actualizar_automaticamente)
 
     def detener_actualizacion_automatica(self):
         """Detiene la actualización automática"""
         if self.auto_update_job:
             self.frame_entrega.after_cancel(self.auto_update_job)
             self.auto_update_job = None
+
+    def on_entry_focus_in(self, event):
+        """Maneja cuando el campo de búsqueda recibe el foco"""
+        if self.entry_busqueda.get() == "Ejemplo: 12345678 o A101 o Laboratorio...":
+            self.entry_busqueda.delete(0, tk.END)
+            self.entry_busqueda.config(foreground='black')
+
+    def on_entry_focus_out(self, event):
+        """Maneja cuando el campo de búsqueda pierde el foco"""
+        if not self.entry_busqueda.get():
+            self.entry_busqueda.insert(0, "Ejemplo: 12345678 o A101 o Laboratorio...")
+            self.entry_busqueda.config(foreground='gray')
+
+    def on_search_keyrelease(self, event):
+        """Implementa debounce para la búsqueda - retrasa la búsqueda hasta que el usuario pare de escribir"""
+        # Cancelar búsqueda anterior si existe
+        if self.search_job is not None:
+            self.frame_entrega.after_cancel(self.search_job)
+        
+        # Programar nueva búsqueda después de 300ms de inactividad
+        self.search_job = self.frame_entrega.after(300, self.buscar_por_documento)
+
+    def actualizar_cache_docentes(self):
+        """Actualiza el cache de docentes que tienen llaves entregadas"""
+        try:
+            ahora = datetime.now()
+            
+            # Verificar si el cache necesita actualización
+            if (self.cache_timestamp is None or 
+                (ahora - self.cache_timestamp).total_seconds() > self.cache_valid_duration):
+                
+                # Obtener lista de docentes con llaves pendientes (más eficiente que verificar uno por uno)
+                llaves_pendientes = obtener_llaves_pendientes()
+                
+                # Crear set con los documentos que tienen llaves entregadas
+                self.cache_docentes_con_llaves = {
+                    limpiar_numero_documento(str(registro.get('Número de Documento', ''))) 
+                    for registro in llaves_pendientes
+                }
+                
+                # Actualizar timestamp del cache
+                self.cache_timestamp = ahora
+                
+        except Exception as e:
+            print(f"Error al actualizar cache de docentes: {e}")
+            # En caso de error, limpiar cache para evitar datos incorrectos
+            self.cache_docentes_con_llaves = set()
+
+    def on_click_tabla(self, event):
+        """Maneja el clic en la tabla para detectar clic en la columna de Acción"""
+        try:
+            # Identificar qué columna se clickeó
+            columna = self.tree_clases.identify_column(event.x)
+            item = self.tree_clases.identify_row(event.y)
+            
+            # Si es la columna 6 (Acción) y hay un item seleccionado
+            if columna == '#6' and item:  # #6 corresponde a la columna "Acción"
+                # Simular el evento de doble clic
+                self.tree_clases.selection_set(item)
+                self.confirmar_entrega_llave(event)
+        except Exception as e:
+            print(f"Error en click tabla: {e}")
+
+    def confirmar_entrega_llave(self, event):
+        """Confirma la entrega de llave al docente cuando se hace doble clic"""
+        try:
+            # Obtener el item seleccionado
+            item_seleccionado = self.tree_clases.selection()[0]
+            valores = self.tree_clases.item(item_seleccionado, 'values')
+            
+            if not valores:
+                return
+            
+            # Extraer información del registro seleccionado
+            documento = valores[0]
+            docente = valores[1]
+            aula = valores[2]
+            horario = valores[3]
+            materia = valores[4]
+            
+            # Obtener el día actual
+            dia_numero = datetime.now().weekday()
+            dias_espanol = ['LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO', 'DOMINGO']
+            dia_actual = dias_espanol[dia_numero]
+            
+            # Confirmar la acción con el usuario
+            resultado = messagebox.askyesno(
+                "Confirmar Entrega", 
+                f"¿Confirmar entrega de llave para:\n\n"
+                f"Docente: {docente}\n"
+                f"Documento: {documento}\n"
+                f"Aula: {aula}\n"
+                f"Horario: {horario}\n"
+                f"Materia: {materia}"
+            )
+            
+            if resultado:
+                # Preparar información para el registro
+                info_clase = {
+                    'nroidenti': documento,
+                    'profesor': docente,
+                    'dia': dia_actual,
+                    'horario': horario,
+                    'aula': aula,
+                    'materia': materia
+                }
+                
+                # Registrar la entrega
+                if registrar_entrega(info_clase):
+                    # *** INVALIDAR CACHE después de entrega exitosa ***
+                    self.cache_timestamp = None  # Forzar actualización del cache en próxima consulta
+                    
+                    messagebox.showinfo("Éxito", f"Llave entregada exitosamente a {docente}")
+                    
+                    # Eliminar el registro de la tabla
+                    self.tree_clases.delete(item_seleccionado)
+                    
+                    # Actualizar la información de paginación
+                    self.actualizar_info_pagina()
+                    
+                    # Recargar los datos para mantener la consistencia
+                    busqueda_texto = self.entry_busqueda.get().strip()
+                    if busqueda_texto and busqueda_texto != "Ejemplo: 12345678 o A101 o Laboratorio...":
+                        self.buscar_por_documento()
+                    else:
+                        self.cargar_clases_del_dia()
+                else:
+                    messagebox.showerror("Error", "No se pudo registrar la entrega de la llave.\nEs posible que el docente ya tenga una llave entregada.")
+        
+        except IndexError:
+            messagebox.showwarning("Advertencia", "Por favor, seleccione un registro de la tabla primero.")
+        except Exception as e:
+            messagebox.showerror("Error", f"Error al confirmar entrega: {str(e)}")
