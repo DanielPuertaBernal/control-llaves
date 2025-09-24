@@ -2,12 +2,24 @@ from datetime import datetime
 import os
 from openpyxl import Workbook, load_workbook
 
-RUTA_REGISTRO = 'data/registros_llaves.xlsx'
+# Obtener la ruta del directorio llaves_control
+def obtener_ruta_data():
+    """Obtiene la ruta correcta del directorio data dentro de llaves_control"""
+    ruta_actual = os.path.dirname(os.path.abspath(__file__))  # helpers
+    ruta_llaves_control = os.path.dirname(ruta_actual)  # llaves_control
+    return os.path.join(ruta_llaves_control, "data")
+
+def obtener_ruta_archivo(nombre_archivo):
+    """Obtiene la ruta completa de un archivo en el directorio data"""
+    return os.path.join(obtener_ruta_data(), nombre_archivo)
+
+RUTA_REGISTRO = obtener_ruta_archivo('registros_llaves.xlsx')
 
 def inicializar_registro():
     """Inicializa el archivo de registro si no existe"""
-    if not os.path.exists('data'):
-        os.makedirs('data')
+    directorio_data = obtener_ruta_data()
+    if not os.path.exists(directorio_data):
+        os.makedirs(directorio_data)
     
     if not os.path.exists(RUTA_REGISTRO):
         wb = Workbook()
@@ -207,7 +219,7 @@ def generar_respaldo():
     try:
         if os.path.exists(RUTA_REGISTRO):
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-            ruta_respaldo = f'data/respaldo_registros_{timestamp}.xlsx'
+            ruta_respaldo = obtener_ruta_archivo(f'respaldo_registros_{timestamp}.xlsx')
             
             # Copiar archivo usando openpyxl
             wb = load_workbook(RUTA_REGISTRO)

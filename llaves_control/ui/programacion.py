@@ -10,6 +10,17 @@ from helpers.limpieza_programacion import (
     guardar_programacion_actual
 )
 
+# Obtener la ruta del directorio llaves_control
+def obtener_ruta_data():
+    """Obtiene la ruta correcta del directorio data dentro de llaves_control"""
+    ruta_actual = os.path.dirname(os.path.abspath(__file__))  # ui
+    ruta_llaves_control = os.path.dirname(ruta_actual)  # llaves_control
+    return os.path.join(ruta_llaves_control, "data")
+
+def obtener_ruta_archivo(nombre_archivo):
+    """Obtiene la ruta completa de un archivo en el directorio data"""
+    return os.path.join(obtener_ruta_data(), nombre_archivo)
+
 class VistaProgramacion:
     def __init__(self, notebook, app):
         self.app = app
@@ -75,9 +86,7 @@ class VistaProgramacion:
 
     def verificar_programacion_guardada(self):
         """Verificar si existe una programación limpia guardada y cargarla automáticamente"""
-        # Usar ruta absoluta para evitar problemas
-        ruta_base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        ruta_programacion = os.path.join(ruta_base, "data", "programacion_limpia_actual.xlsx")
+        ruta_programacion = obtener_ruta_archivo("programacion_limpia_actual.xlsx")
         
         if os.path.exists(ruta_programacion):
             try:
@@ -135,7 +144,7 @@ class VistaProgramacion:
                 programacion_limpia = limpiar_programacion(df)
                 
                 # Guardar automáticamente la programación limpia
-                ruta_guardado = os.path.join("llaves_control", "data", "programacion_limpia_actual.xlsx")
+                ruta_guardado = obtener_ruta_archivo("programacion_limpia_actual.xlsx")
                 os.makedirs(os.path.dirname(ruta_guardado), exist_ok=True)
                 programacion_limpia.to_excel(ruta_guardado, index=False)
                 

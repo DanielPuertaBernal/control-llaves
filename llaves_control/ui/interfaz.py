@@ -7,6 +7,17 @@ from assets.estilo_tkinter import aplicar_estilo
 from .entrega_devolucion import VistaEntregaDevolucion
 from .programacion import VistaProgramacion
 
+# Obtener la ruta del directorio llaves_control
+def obtener_ruta_data():
+    """Obtiene la ruta correcta del directorio data dentro de llaves_control"""
+    ruta_actual = os.path.dirname(os.path.abspath(__file__))  # ui
+    ruta_llaves_control = os.path.dirname(ruta_actual)  # llaves_control
+    return os.path.join(ruta_llaves_control, "data")
+
+def obtener_ruta_archivo(nombre_archivo):
+    """Obtiene la ruta completa de un archivo en el directorio data"""
+    return os.path.join(obtener_ruta_data(), nombre_archivo)
+
 class App:
     def __init__(self, root):
         self.root = root
@@ -25,7 +36,7 @@ class App:
     
     def cargar_programacion_inicial(self):
         """Cargar la programación desde el archivo guardado"""
-        ruta_programacion = os.path.join("llaves_control", "data", "programacion_limpia_actual.xlsx")
+        ruta_programacion = obtener_ruta_archivo("programacion_limpia_actual.xlsx")
         
         if os.path.exists(ruta_programacion):
             try:

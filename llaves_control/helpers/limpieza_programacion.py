@@ -2,6 +2,17 @@ import pandas as pd
 from datetime import datetime
 import os
 
+# Obtener la ruta del directorio llaves_control
+def obtener_ruta_data():
+    """Obtiene la ruta correcta del directorio data dentro de llaves_control"""
+    ruta_actual = os.path.dirname(os.path.abspath(__file__))  # helpers
+    ruta_llaves_control = os.path.dirname(ruta_actual)  # llaves_control
+    return os.path.join(ruta_llaves_control, "data")
+
+def obtener_ruta_archivo(nombre_archivo):
+    """Obtiene la ruta completa de un archivo en el directorio data"""
+    return os.path.join(obtener_ruta_data(), nombre_archivo)
+
 def renombrar_columnas_exportacion(df):
     """
     Renombra las columnas para la exportación final con nombres descriptivos y buena ortografía
@@ -350,7 +361,7 @@ def guardar_programacion_limpia(df_original: pd.DataFrame, ruta_salida: str = No
     """
     if ruta_salida is None:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        ruta_salida = f"data/programacion_limpia_{timestamp}.xlsx"
+        ruta_salida = obtener_ruta_archivo(f"programacion_limpia_{timestamp}.xlsx")
     
     # Asegurar que el directorio existe
     os.makedirs(os.path.dirname(ruta_salida), exist_ok=True)
