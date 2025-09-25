@@ -64,7 +64,7 @@ def registrar_entrega(info_clase):
         
         # Verificar si ya tiene una llave prestada - buscar en la columna correcta del estado
         for row in ws.iter_rows(min_row=2, values_only=True):
-            if row and str(row[0]) == nroidenti_limpio and row[10] == 'Entregado':  # Columna 10 es 'Estado'
+            if row and str(row[0]) == nroidenti_limpio and row[10] == 'En Préstamo':  # Columna 10 es 'Estado'
                 return False  # Ya tiene una llave prestada
         
         # Preparar nuevo registro con la nueva estructura
@@ -80,7 +80,7 @@ def registrar_entrega(info_clase):
             ahora.strftime('%H:%M:%S'),                         # Hora de entrega
             '',                                                 # Fecha de devolución
             '',                                                 # Hora de devolución
-            'Entregado'                                         # Estado
+            'En Préstamo'                                       # Estado
         ]
         
         # Agregar registro
@@ -111,20 +111,20 @@ def registrar_devolucion(nroidenti):
         # Limpiar el número de documento
         nroidenti_limpio = limpiar_numero_documento(nroidenti)
         
-        # Buscar la llave entregada más reciente para este documento
+        # Buscar la llave entregada más reciente para este documento (sin fecha de devolución)
         fila_encontrada = None
         for row_idx, row in enumerate(ws.iter_rows(min_row=2, values_only=False), start=2):
-            if row and str(row[0].value) == nroidenti_limpio and row[10].value == 'Entregado':  # Columna 10 es 'Estado'
+            if (row and str(row[0].value) == nroidenti_limpio and row[10].value == 'En Préstamo' and 
+                (row[8].value is None or row[8].value == '' or row[8].value == 'N/A')):  # Sin fecha de devolución
                 fila_encontrada = row_idx
-        
+
         if fila_encontrada:
-            # Actualizar registro
+            # Actualizar registro con indexación base 1 (Excel)
             ahora = datetime.now()
-            ws.cell(row=fila_encontrada, column=11, value='No entregado')          # Estado
-            ws.cell(row=fila_encontrada, column=9, value=ahora.strftime('%Y-%m-%d'))  # Fecha de devolución
-            ws.cell(row=fila_encontrada, column=10, value=ahora.strftime('%H:%M:%S')) # Hora de devolución
-            
-            # Guardar
+            # Cambiar estado a "Devuelta" y registrar fecha/hora de devolución
+            ws.cell(row=fila_encontrada, column=11, value='Devuelta')                     # Columna K: Estado
+            ws.cell(row=fila_encontrada, column=9, value=ahora.strftime('%Y-%m-%d'))      # Columna I: Fecha de devolución
+            ws.cell(row=fila_encontrada, column=10, value=ahora.strftime('%H:%M:%S'))     # Columna J: Hora de devolución            # Guardar
             wb.save(RUTA_REGISTRO)
             wb.close()
             return True
@@ -148,9 +148,9 @@ def verificar_llave_entregada(nroidenti):
         # Limpiar el número de documento
         nroidenti_limpio = limpiar_numero_documento(nroidenti)
         
-        # Verificar si tiene llaves entregadas - columna 10 es 'Estado'
+        # Verificar si tiene llaves en préstamo - columna 10 es 'Estado'
         for row in ws.iter_rows(min_row=2, values_only=True):
-            if row and str(row[0]) == nroidenti_limpio and row[10] == 'Entregado':
+            if (row and str(row[0]) == nroidenti_limpio and row[10] == 'En Préstamo'):
                 wb.close()
                 return True
         
@@ -174,7 +174,8 @@ def obtener_llaves_pendientes():
         headers = [cell.value for cell in ws[1]]
         
         for row in ws.iter_rows(min_row=2, values_only=True):
-            if row and row[10] == 'Entregado':  # Columna 10 es 'Estado'
+            # Solo incluir registros que estén "En Préstamo"
+            if (row and row[10] == 'En Préstamo'):  # Columna 10 es 'Estado'
                 registro = dict(zip(headers, row))
                 registro['Número de Documento'] = limpiar_numero_documento(registro['Número de Documento'])
                 pendientes.append(registro)
@@ -272,7 +273,12 @@ def migrar_estructura_registro():
         
         # Migrar datos existentes
         for registro in datos_existentes:
-            # Mapear campos antiguos a nuevos
+            # Determinar estado basado en si tiene fecha de devolución
+            fecha_devolucion = registro.get('fecha_devolucion', '')
+            estado_actual = 'En Préstamo'  # Por defecto, las entregas están "En Préstamo"
+            if fecha_devolucion and fecha_devolucion != '' and fecha_devolucion != 'N/A':
+                estado_actual = 'Devuelta'  # Si tiene fecha de devolución, está "Devuelta"
+            
             nuevo_registro = [
                 limpiar_numero_documento(registro.get('nroidenti', '')),  # Número de Documento
                 registro.get('profesor', ''),                             # Docente
@@ -282,9 +288,9 @@ def migrar_estructura_registro():
                 registro.get('materia', ''),                             # Materia de la Clase
                 registro.get('fecha_entrega', ''),                       # Fecha de entrega
                 registro.get('hora_entrega', ''),                        # Hora de entrega
-                registro.get('fecha_devolucion', ''),                    # Fecha de devolución
+                fecha_devolucion,                                        # Fecha de devolución
                 registro.get('hora_devolucion', ''),                     # Hora de devolución
-                'Entregado' if registro.get('estado') == 'Entregada' else 'No entregado'  # Estado
+                estado_actual                                            # Estado
             ]
             
             ws_nuevo.append(nuevo_registro)

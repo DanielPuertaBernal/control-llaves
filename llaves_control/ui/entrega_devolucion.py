@@ -54,24 +54,30 @@ class VistaEntregaDevolucion:
         self.entry_busqueda.pack(fill='x')
         self.entry_busqueda.bind('<KeyRelease>', self.on_search_keyrelease)  # Cambiar a función de debounce
         
-
-        # Frame para controles de paginación (movido más arriba)
+        # Frame para paginación (movido arriba de la tabla)
         frame_paginacion = ttk.Frame(self.frame_entrega)
         frame_paginacion.pack(fill='x', pady=(15, 10))
         
-        # Botones de navegación
         self.btn_anterior = ttk.Button(frame_paginacion, text="◀ Anterior", 
                                       command=self.pagina_anterior, state='disabled')
         self.btn_anterior.pack(side='left')
         
+        self.label_pagina = ttk.Label(frame_paginacion, text="Página 1 de 1")
+        self.label_pagina.pack(side='left', padx=(20, 20))
+        
         self.btn_siguiente = ttk.Button(frame_paginacion, text="Siguiente ▶", 
                                        command=self.pagina_siguiente, state='disabled')
-        self.btn_siguiente.pack(side='right')
+        self.btn_siguiente.pack(side='left')
         
-        # Label de información de página
-        self.label_pagina = ttk.Label(frame_paginacion, text="Página 1 de 1 (0 registros)")
-        self.label_pagina.pack(expand=True)
-
+        # Información adicional
+        self.label_info = ttk.Label(frame_paginacion, text="0 registros encontrados")
+        self.label_info.pack(side='right', padx=(0, 5))
+        
+        # Botón actualizar al lado del paginador
+        btn_actualizar = ttk.Button(frame_paginacion, text="🔄 Refrescar", 
+                                   command=self.forzar_actualizacion)
+        btn_actualizar.pack(side='right')
+        
         # Frame para la tabla principal
         frame_tabla = ttk.Frame(self.frame_entrega)
         frame_tabla.pack(fill='both', expand=True, pady=(0, 15))
@@ -98,17 +104,12 @@ class VistaEntregaDevolucion:
         # También configurar evento de clic simple en la columna de Acción
         self.tree_clases.bind('<Button-1>', self.on_click_tabla)
 
-        # Botón para actualizar datos
-        btn_actualizar = ttk.Button(self.frame_entrega, text="🔄 Refrescar Datos", 
-                                   command=self.forzar_actualizacion, style="Accent.TButton")
-        btn_actualizar.pack(pady=(15, 0))
-
         # Label de información de actualización automática
         self.label_auto_update = ttk.Label(self.frame_entrega, 
                                           text="⏰ Actualización automática cada 10 minutos | Cache 10 segundos", 
                                           font=('Segoe UI', 9), 
                                           foreground='gray')
-        self.label_auto_update.pack(pady=(5, 0))
+        self.label_auto_update.pack(pady=(15, 0))
 
         # NO cargar datos iniciales aquí - se cargará después de que la programación esté disponible
 
@@ -171,6 +172,13 @@ class VistaEntregaDevolucion:
         except Exception as e:
             messagebox.showerror("Error", f"Error al cargar las clases del día: {str(e)}")
     
+    def normalizar_busqueda_salon(self, texto):
+        """Normaliza el texto para búsqueda de salones eliminando guiones y espacios"""
+        if not texto:
+            return ""
+        # Convertir a minúsculas, eliminar guiones, espacios y otros caracteres especiales
+        return texto.lower().replace('-', '').replace('_', '').replace(' ', '').strip()
+    
     def buscar_por_documento(self, event=None):
         """Busca clases por número de documento del docente o por nombre del salón/aula"""
         termino = self.entry_busqueda.get().strip()
@@ -222,14 +230,26 @@ class VistaEntregaDevolucion:
             # Buscar por número de documento
             mascara_documento = datos_del_dia['nroidenti_limpio'].str.contains(termino, na=False, case=False)
             
-            # Buscar por aula/salón
-            mascara_aula = datos_del_dia['Aula'].astype(str).str.contains(termino, na=False, case=False)
+            # Buscar por aula/salón con normalización mejorada
+            termino_normalizado = self.normalizar_busqueda_salon(termino)
+            
+            # Crear columna temporal con aulas normalizadas para comparación
+            datos_del_dia['aula_normalizada'] = datos_del_dia['Aula'].astype(str).apply(self.normalizar_busqueda_salon)
+            
+            # Buscar tanto en el aula original (para búsquedas exactas) como en la normalizada (para búsquedas flexibles)
+            mascara_aula_exacta = datos_del_dia['Aula'].astype(str).str.contains(termino, na=False, case=False)
+            mascara_aula_normalizada = datos_del_dia['aula_normalizada'].str.contains(termino_normalizado, na=False, case=False)
+            mascara_aula = mascara_aula_exacta | mascara_aula_normalizada
             
             # Combinar ambas búsquedas con OR (cualquiera de las dos condiciones)
             mascara_combinada = mascara_documento | mascara_aula
             
             # Aplicar filtro combinado
             self.datos_filtrados = datos_del_dia[mascara_combinada].copy()
+            
+            # Limpiar columna temporal
+            if 'aula_normalizada' in self.datos_filtrados.columns:
+                self.datos_filtrados = self.datos_filtrados.drop('aula_normalizada', axis=1)
             
             # Ordenar por horario
             if 'Horario' in self.datos_filtrados.columns:
@@ -342,7 +362,8 @@ class VistaEntregaDevolucion:
     def actualizar_info_pagina(self):
         """Actualiza la información de paginación"""
         total_items = len(self.datos_filtrados)
-        self.label_pagina.config(text=f"Página {self.pagina_actual} de {self.total_paginas} ({total_items} registros)")
+        self.label_pagina.config(text=f"Página {self.pagina_actual} de {self.total_paginas}")
+        self.label_info.config(text=f"{total_items} registros encontrados")
     
     def actualizar_botones_navegacion(self):
         """Actualiza el estado de los botones de navegación"""
@@ -513,8 +534,6 @@ class VistaEntregaDevolucion:
                     # *** INVALIDAR CACHE después de entrega exitosa ***
                     self.cache_timestamp = None  # Forzar actualización del cache en próxima consulta
                     
-                    messagebox.showinfo("Éxito", f"Llave entregada exitosamente a {docente}")
-                    
                     # *** NO eliminar individualmente - recargar datos completos para consistencia ***
                     # self.tree_clases.delete(item_seleccionado)  # COMENTADO: causa problemas
                     
@@ -524,6 +543,13 @@ class VistaEntregaDevolucion:
                         self.buscar_por_documento()
                     else:
                         self.cargar_clases_del_dia()
+                    
+                    # *** ACTUALIZAR VISTA HISTORIAL AUTOMÁTICAMENTE ***
+                    if hasattr(self.app, 'vista_historial') and hasattr(self.app.vista_historial, 'cargar_historial'):
+                        try:
+                            self.app.vista_historial.cargar_historial()
+                        except Exception:
+                            pass  # Error silencioso si no se puede actualizar el historial
                 else:
                     messagebox.showerror("Error", "No se pudo registrar la entrega de la llave.\nEs posible que el docente ya tenga una llave entregada.")
         

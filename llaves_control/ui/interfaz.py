@@ -6,6 +6,9 @@ from helpers.gestion_excel import inicializar_registro
 from assets.estilo_tkinter import aplicar_estilo
 from .entrega_devolucion import VistaEntregaDevolucion
 from .programacion import VistaProgramacion
+from ui.programacion import VistaProgramacion
+from ui.entrega_devolucion import VistaEntregaDevolucion
+from ui.historial_llaves import VistaHistorialLlaves
 
 # Obtener la ruta del directorio llaves_control
 def obtener_ruta_data():
@@ -60,7 +63,25 @@ class App:
         # Instanciar las vistas modulares - PROGRAMACIÓN PRIMERO para cargar datos
         self.vista_programacion = VistaProgramacion(self.notebook, self)
         self.vista_entrega = VistaEntregaDevolucion(self.notebook, self)
+        self.vista_historial = VistaHistorialLlaves(self.notebook, self)
+        
+        # Agregar evento para actualizar vista al cambiar de pestaña
+        self.notebook.bind("<<NotebookTabChanged>>", self.on_tab_changed)
         
         # Notificar que los datos están listos después de crear ambas vistas
         if self.programacion is not None and not self.programacion.empty:
             self.vista_entrega.cargar_clases_del_dia()
+
+    def on_tab_changed(self, event):
+        """Evento que se ejecuta cuando se cambia de pestaña"""
+        try:
+            # Obtener la pestaña seleccionada
+            tab_seleccionada = self.notebook.select()
+            tab_text = self.notebook.tab(tab_seleccionada, "text")
+            
+            # Si se selecciona la pestaña del historial, actualizar los datos
+            if "Préstamo" in tab_text and hasattr(self, 'vista_historial'):
+                self.vista_historial.cargar_historial()
+                
+        except Exception:
+            pass  # Error silencioso
