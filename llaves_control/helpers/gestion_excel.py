@@ -174,11 +174,14 @@ def obtener_llaves_pendientes():
         headers = [cell.value for cell in ws[1]]
         
         for row in ws.iter_rows(min_row=2, values_only=True):
-            # Solo incluir registros que estén "En Préstamo"
-            if (row and row[10] == 'En Préstamo'):  # Columna 10 es 'Estado'
-                registro = dict(zip(headers, row))
-                registro['Número de Documento'] = limpiar_numero_documento(registro['Número de Documento'])
-                pendientes.append(registro)
+            if row and any(row):  # Si la fila no está completamente vacía
+                estado = row[10] if len(row) > 10 else None  # Columna 10 es 'Estado'
+                
+                # Solo incluir registros que estén "En Préstamo"
+                if estado == 'En Préstamo':
+                    registro = dict(zip(headers, row))
+                    registro['Número de Documento'] = limpiar_numero_documento(registro['Número de Documento'])
+                    pendientes.append(registro)
         
         wb.close()
         return pendientes

@@ -69,13 +69,14 @@ class VistaHistorialLlaves:
         frame_tabla = ttk.Frame(self.frame_historial)
         frame_tabla.pack(fill='both', expand=True, pady=(0, 20))
 
-        # Crear Treeview (sin columnas de fecha/hora de devolución)
-        columnas = ('documento', 'docente', 'aula', 'materia', 'fecha_entrega', 'hora_entrega')
+        # Crear Treeview (incluyendo columna de horario)
+        columnas = ('documento', 'docente', 'horario', 'aula', 'materia', 'fecha_entrega', 'hora_entrega')
         self.tree_historial = ttk.Treeview(frame_tabla, columns=columnas, show='headings', height=15)
         
         # Configurar encabezados (centrados)
         self.tree_historial.heading('documento', text='Documento', anchor='center')
         self.tree_historial.heading('docente', text='Docente', anchor='center')
+        self.tree_historial.heading('horario', text='Horario', anchor='center')
         self.tree_historial.heading('aula', text='Aula', anchor='center')
         self.tree_historial.heading('materia', text='Materia', anchor='center')
         self.tree_historial.heading('fecha_entrega', text='Fecha Entrega', anchor='center')
@@ -83,9 +84,10 @@ class VistaHistorialLlaves:
         
         # Configurar anchos de columna y centrar contenido
         self.tree_historial.column('documento', width=120, anchor='center')
-        self.tree_historial.column('docente', width=250, anchor='center')
-        self.tree_historial.column('aula', width=100, anchor='center')
-        self.tree_historial.column('materia', width=200, anchor='center')
+        self.tree_historial.column('docente', width=200, anchor='center')
+        self.tree_historial.column('horario', width=150, anchor='center')
+        self.tree_historial.column('aula', width=80, anchor='center')
+        self.tree_historial.column('materia', width=180, anchor='center')
         self.tree_historial.column('fecha_entrega', width=120, anchor='center')
         self.tree_historial.column('hora_entrega', width=120, anchor='center')
         
@@ -127,6 +129,7 @@ class VistaHistorialLlaves:
                 registro for registro in self.datos_historial
                 if (termino in str(registro.get('Número de Documento', '')).lower() or
                     termino in registro.get('Docente', '').lower() or
+                    termino in registro.get('Horario', '').lower() or
                     termino in registro.get('Aula', '').lower() or
                     termino in registro.get('Materia de la Clase', '').lower())
             ]
@@ -165,6 +168,7 @@ class VistaHistorialLlaves:
         for i, registro in enumerate(self.datos_filtrados[inicio:fin]):
             documento = registro.get('Número de Documento', '')
             docente = registro.get('Docente', '')
+            horario = registro.get('Horario', '')
             aula = registro.get('Aula', '')
             materia = registro.get('Materia de la Clase', '')
             fecha_entrega = registro.get('Fecha de entrega', '')
@@ -172,7 +176,7 @@ class VistaHistorialLlaves:
             
             # Insertar con fondo de color para destacar que están en préstamo
             item_id = self.tree_historial.insert('', 'end', 
-                values=(documento, docente, aula, materia, fecha_entrega, hora_entrega),
+                values=(documento, docente, horario, aula, materia, fecha_entrega, hora_entrega),
                 tags=('prestamo',))
         
         # Configurar el color de fondo para items en préstamo
