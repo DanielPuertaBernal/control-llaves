@@ -2,24 +2,24 @@ from tkinter import ttk
 import tkinter as tk
 import pandas as pd
 import os
-from helpers.gestion_excel import inicializar_registro
-from assets.estilo_tkinter import aplicar_estilo
-from .entrega_devolucion import VistaEntregaDevolucion
+from helpers.gestionExcel import InicializarRegistro
+from assets.estiloTkinter import aplicar_estilo
+from .entregaDevolucion import VistaEntregaDevolucion
 from .programacion import VistaProgramacion
 from ui.programacion import VistaProgramacion
-from ui.entrega_devolucion import VistaEntregaDevolucion
-from ui.historial_llaves import VistaHistorialLlaves
+from ui.entregaDevolucion import VistaEntregaDevolucion
+from ui.historialLlaves import VistaHistorialLlaves
 
 # Obtener la ruta del directorio llaves_control
-def obtener_ruta_data():
+def ObtenerRutaData():
     """Obtiene la ruta correcta del directorio data dentro de llaves_control"""
     ruta_actual = os.path.dirname(os.path.abspath(__file__))  # ui
     ruta_llaves_control = os.path.dirname(ruta_actual)  # llaves_control
     return os.path.join(ruta_llaves_control, "data")
 
-def obtener_ruta_archivo(nombre_archivo):
+def ObtenerRutaArchivo(nombre_archivo):
     """Obtiene la ruta completa de un archivo en el directorio data"""
-    return os.path.join(obtener_ruta_data(), nombre_archivo)
+    return os.path.join(ObtenerRutaData(), nombre_archivo)
 
 class App:
     def __init__(self, root):
@@ -29,17 +29,17 @@ class App:
         self.programacion = None
         self.programacion_original = None
         
-        inicializar_registro()
+        InicializarRegistro()
         aplicar_estilo(root)
         
         # Cargar programación antes de crear la interfaz
-        self.cargar_programacion_inicial()
+        self.CargarProgramacionInicial()
         
-        self.crear_interfaz_principal()
+        self.CrearInterfazPrincipal()
     
-    def cargar_programacion_inicial(self):
+    def CargarProgramacionInicial(self):
         """Cargar la programación desde el archivo guardado"""
-        ruta_programacion = obtener_ruta_archivo("programacion_limpia_actual.xlsx")
+        ruta_programacion = ObtenerRutaArchivo("programacion_limpia_actual.xlsx")
         
         if os.path.exists(ruta_programacion):
             try:
@@ -48,7 +48,7 @@ class App:
             except Exception as e:
                 pass  # Error silencioso, la aplicación continuará funcionando
 
-    def crear_interfaz_principal(self):
+    def CrearInterfazPrincipal(self):
         """Crea la interfaz principal con pestañas"""
         main_frame = ttk.Frame(self.root, padding="10")
         main_frame.pack(fill=tk.BOTH, expand=True)
@@ -66,13 +66,13 @@ class App:
         self.vista_historial = VistaHistorialLlaves(self.notebook, self)
         
         # Agregar evento para actualizar vista al cambiar de pestaña
-        self.notebook.bind("<<NotebookTabChanged>>", self.on_tab_changed)
+        self.notebook.bind("<<NotebookTabChanged>>", self.OnTabChanged)
         
         # Notificar que los datos están listos después de crear ambas vistas
         if self.programacion is not None and not self.programacion.empty:
             self.vista_entrega.cargar_clases_del_dia()
 
-    def on_tab_changed(self, event):
+    def OnTabChanged(self, event):
         """Evento que se ejecuta cuando se cambia de pestaña"""
         try:
             # Obtener la pestaña seleccionada

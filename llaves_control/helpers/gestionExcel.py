@@ -3,21 +3,21 @@ import os
 from openpyxl import Workbook, load_workbook
 
 # Obtener la ruta del directorio llaves_control
-def obtener_ruta_data():
+def ObtenerRutaData():
     """Obtiene la ruta correcta del directorio data dentro de llaves_control"""
     ruta_actual = os.path.dirname(os.path.abspath(__file__))  # helpers
     ruta_llaves_control = os.path.dirname(ruta_actual)  # llaves_control
     return os.path.join(ruta_llaves_control, "data")
 
-def obtener_ruta_archivo(nombre_archivo):
+def ObtenerRutaArchivo(nombre_archivo):
     """Obtiene la ruta completa de un archivo en el directorio data"""
-    return os.path.join(obtener_ruta_data(), nombre_archivo)
+    return os.path.join(ObtenerRutaData(), nombre_archivo)
 
-RUTA_REGISTRO = obtener_ruta_archivo('registros_llaves.xlsx')
+RUTA_REGISTRO = ObtenerRutaArchivo('registros_llaves.xlsx')
 
-def inicializar_registro():
+def InicializarRegistro():
     """Inicializa el archivo de registro si no existe"""
-    directorio_data = obtener_ruta_data()
+    directorio_data = ObtenerRutaData()
     if not os.path.exists(directorio_data):
         os.makedirs(directorio_data)
     
@@ -35,19 +35,19 @@ def inicializar_registro():
         ws.append(headers)
         wb.save(RUTA_REGISTRO)
 
-def limpiar_numero_documento(doc):
+def LimpiarNumeroDocumento(doc):
     """Limpia el número de documento eliminando .0 si existe"""
     doc_str = str(doc)
     if doc_str.endswith('.0'):
         return doc_str[:-2]
     return doc_str
 
-def registrar_entrega(info_clase):
+def RegistrarEntrega(info_clase):
     """Registra la entrega de una llave con persistencia completa"""
     try:
         # Verificar si el archivo existe, si no crearlo
         if not os.path.exists(RUTA_REGISTRO):
-            inicializar_registro()
+            InicializarRegistro()
         
         # Cargar workbook
         try:
@@ -55,12 +55,12 @@ def registrar_entrega(info_clase):
             ws = wb.active
         except:
             # Si falla, crear uno nuevo
-            inicializar_registro()
+            InicializarRegistro()
             wb = load_workbook(RUTA_REGISTRO)
             ws = wb.active
         
         # Limpiar el número de documento
-        nroidenti_limpio = limpiar_numero_documento(info_clase['nroidenti'])
+        nroidenti_limpio = LimpiarNumeroDocumento(info_clase['nroidenti'])
         
         # Verificar si ya tiene una llave prestada - buscar en la columna correcta del estado
         for row in ws.iter_rows(min_row=2, values_only=True):
@@ -99,7 +99,7 @@ def registrar_entrega(info_clase):
         print(f"Error general en registrar_entrega: {e}")
         return False
 
-def registrar_devolucion(nroidenti):
+def RegistrarDevolucion(nroidenti):
     """Registra la devolución de una llave por número de documento"""
     try:
         if not os.path.exists(RUTA_REGISTRO):
@@ -109,7 +109,7 @@ def registrar_devolucion(nroidenti):
         ws = wb.active
         
         # Limpiar el número de documento
-        nroidenti_limpio = limpiar_numero_documento(nroidenti)
+        nroidenti_limpio = LimpiarNumeroDocumento(nroidenti)
         
         # Buscar la llave entregada más reciente para este documento (sin fecha de devolución)
         fila_encontrada = None
@@ -136,7 +136,7 @@ def registrar_devolucion(nroidenti):
         print(f"Error al registrar devolución: {e}")
         return False
 
-def verificar_llave_entregada(nroidenti):
+def VerificarLlaveEntregada(nroidenti):
     """Verifica si un profesor ya tiene una llave entregada"""
     try:
         if not os.path.exists(RUTA_REGISTRO):
@@ -146,7 +146,7 @@ def verificar_llave_entregada(nroidenti):
         ws = wb.active
         
         # Limpiar el número de documento
-        nroidenti_limpio = limpiar_numero_documento(nroidenti)
+        nroidenti_limpio = LimpiarNumeroDocumento(nroidenti)
         
         # Verificar si tiene llaves en préstamo - columna 10 es 'Estado'
         for row in ws.iter_rows(min_row=2, values_only=True):
@@ -161,7 +161,7 @@ def verificar_llave_entregada(nroidenti):
         print(f"Error al verificar llave entregada: {e}")
         return False
 
-def obtener_llaves_pendientes():
+def ObtenerLlavesPendientes():
     """Obtiene todas las llaves que están entregadas (pendientes de devolución)"""
     try:
         if not os.path.exists(RUTA_REGISTRO):
@@ -180,7 +180,7 @@ def obtener_llaves_pendientes():
                 # Solo incluir registros que estén "En Préstamo"
                 if estado == 'En Préstamo':
                     registro = dict(zip(headers, row))
-                    registro['Número de Documento'] = limpiar_numero_documento(registro['Número de Documento'])
+                    registro['Número de Documento'] = LimpiarNumeroDocumento(registro['Número de Documento'])
                     pendientes.append(registro)
         
         wb.close()
@@ -190,7 +190,7 @@ def obtener_llaves_pendientes():
         print(f"Error al obtener llaves pendientes: {e}")
         return []
 
-def obtener_historial_completo():
+def ObtenerHistorialCompleto():
     """Obtiene el historial completo de entregas y devoluciones"""
     try:
         if not os.path.exists(RUTA_REGISTRO):
@@ -205,7 +205,7 @@ def obtener_historial_completo():
         for row in ws.iter_rows(min_row=2, values_only=True):
             if row:
                 registro = dict(zip(headers, row))
-                registro['Número de Documento'] = limpiar_numero_documento(registro['Número de Documento'])
+                registro['Número de Documento'] = LimpiarNumeroDocumento(registro['Número de Documento'])
                 historial.append(registro)
         
         wb.close()
@@ -215,12 +215,12 @@ def obtener_historial_completo():
         print(f"Error al obtener historial: {e}")
         return []
 
-def generar_respaldo():
+def GenerarRespaldo():
     """Genera un respaldo del archivo de registros"""
     try:
         if os.path.exists(RUTA_REGISTRO):
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-            ruta_respaldo = obtener_ruta_archivo(f'respaldo_registros_{timestamp}.xlsx')
+            ruta_respaldo = ObtenerRutaArchivo(f'respaldo_registros_{timestamp}.xlsx')
             
             # Copiar archivo usando openpyxl
             wb = load_workbook(RUTA_REGISTRO)
@@ -234,7 +234,7 @@ def generar_respaldo():
         print(f"Error al generar respaldo: {e}")
         return None
 
-def migrar_estructura_registro():
+def MigrarEstructuraRegistro():
     """Migra el archivo de registros existente a la nueva estructura"""
     try:
         if not os.path.exists(RUTA_REGISTRO):
@@ -242,7 +242,7 @@ def migrar_estructura_registro():
             return True
         
         # Generar respaldo antes de migrar
-        respaldo = generar_respaldo()
+        respaldo = GenerarRespaldo()
         if respaldo:
             print(f"Respaldo generado en: {respaldo}")
         
@@ -283,7 +283,7 @@ def migrar_estructura_registro():
                 estado_actual = 'Devuelta'  # Si tiene fecha de devolución, está "Devuelta"
             
             nuevo_registro = [
-                limpiar_numero_documento(registro.get('nroidenti', '')),  # Número de Documento
+                LimpiarNumeroDocumento(registro.get('nroidenti', '')),  # Número de Documento
                 registro.get('profesor', ''),                             # Docente
                 registro.get('dia', ''),                                 # Día
                 registro.get('horario', ''),                             # Horario

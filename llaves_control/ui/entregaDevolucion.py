@@ -3,10 +3,10 @@ import tkinter as tk
 from datetime import datetime
 import locale
 from openpyxl import Workbook
-from helpers.gestion_excel import (registrar_entrega, registrar_devolucion, 
-                                 obtener_llaves_pendientes, limpiar_numero_documento, 
-                                 obtener_historial_completo, verificar_llave_entregada)
-from helpers.limpieza_programacion import limpiar_programacion
+from helpers.gestionExcel import (RegistrarEntrega, RegistrarDevolucion, 
+                                 ObtenerLlavesPendientes, LimpiarNumeroDocumento, 
+                                 ObtenerHistorialCompleto, VerificarLlaveEntregada)
+from helpers.limpiezaProgramacion import LimpiarProgramacion
 
 class VistaEntregaDevolucion:
     def __init__(self, notebook, app):
@@ -225,7 +225,7 @@ class VistaEntregaDevolucion:
                 return
             
             # Limpiar números de documento y crear máscaras de búsqueda
-            datos_del_dia['nroidenti_limpio'] = datos_del_dia['Número de Documento'].astype(str).apply(limpiar_numero_documento)
+            datos_del_dia['nroidenti_limpio'] = datos_del_dia['Número de Documento'].astype(str).apply(LimpiarNumeroDocumento)
             
             # Buscar por número de documento
             mascara_documento = datos_del_dia['nroidenti_limpio'].str.contains(termino, na=False, case=False)
@@ -291,7 +291,7 @@ class VistaEntregaDevolucion:
                 
                 # Usar vectorización para filtrar más eficientemente
                 def docente_sin_llave(documento):
-                    documento_limpio = limpiar_numero_documento(str(documento))
+                    documento_limpio = LimpiarNumeroDocumento(str(documento))
                     return documento_limpio not in self.cache_docentes_con_llaves
                 
                 # Aplicar filtro vectorizado (mucho más rápido que un loop)
@@ -333,7 +333,7 @@ class VistaEntregaDevolucion:
         for _, fila in datos_pagina.iterrows():
             # Obtener documento (columna exacta: "Número de Documento")
             documento = str(fila.get('Número de Documento', ''))
-            documento_limpio = limpiar_numero_documento(documento)
+            documento_limpio = LimpiarNumeroDocumento(documento)
             
             # Obtener docente (columna exacta: "Docente")
             docente = str(fila.get('Docente', 'N/A'))
@@ -454,11 +454,11 @@ class VistaEntregaDevolucion:
                 (ahora - self.cache_timestamp).total_seconds() > self.cache_valid_duration):
                 
                 # Obtener lista de docentes con llaves pendientes (más eficiente que verificar uno por uno)
-                llaves_pendientes = obtener_llaves_pendientes()
+                llaves_pendientes = ObtenerLlavesPendientes()
                 
                 # Crear set con los documentos que tienen llaves entregadas
                 self.cache_docentes_con_llaves = {
-                    limpiar_numero_documento(str(registro.get('Número de Documento', ''))) 
+                    LimpiarNumeroDocumento(str(registro.get('Número de Documento', ''))) 
                     for registro in llaves_pendientes
                 }
                 
@@ -530,7 +530,7 @@ class VistaEntregaDevolucion:
                 }
                 
                 # Registrar la entrega
-                if registrar_entrega(info_clase):
+                if RegistrarEntrega(info_clase):
                     # *** INVALIDAR CACHE después de entrega exitosa ***
                     self.cache_timestamp = None  # Forzar actualización del cache en próxima consulta
                     

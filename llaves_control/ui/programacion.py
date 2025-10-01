@@ -3,23 +3,23 @@ import tkinter as tk
 import pandas as pd
 from datetime import datetime
 import os
-from helpers.limpieza_programacion import (
-    limpiar_programacion, 
-    guardar_programacion_limpia, 
-    verificar_programacion_guardada, 
-    guardar_programacion_actual
+from helpers.limpiezaProgramacion import (
+    LimpiarProgramacion, 
+    GuardarProgramacionLimpia, 
+    VerificarProgramacionGuardada, 
+    GuardarProgramacionActual
 )
 
 # Obtener la ruta del directorio llaves_control
-def obtener_ruta_data():
+def ObtenerRutaData():
     """Obtiene la ruta correcta del directorio data dentro de llaves_control"""
     ruta_actual = os.path.dirname(os.path.abspath(__file__))  # ui
     ruta_llaves_control = os.path.dirname(ruta_actual)  # llaves_control
     return os.path.join(ruta_llaves_control, "data")
 
-def obtener_ruta_archivo(nombre_archivo):
+def ObtenerRutaArchivo(nombre_archivo):
     """Obtiene la ruta completa de un archivo en el directorio data"""
-    return os.path.join(obtener_ruta_data(), nombre_archivo)
+    return os.path.join(ObtenerRutaData(), nombre_archivo)
 
 class VistaProgramacion:
     def __init__(self, notebook, app):
@@ -86,7 +86,7 @@ class VistaProgramacion:
 
     def verificar_programacion_guardada(self):
         """Verificar si existe una programación limpia guardada y cargarla automáticamente"""
-        ruta_programacion = obtener_ruta_archivo("programacion_limpia_actual.xlsx")
+        ruta_programacion = ObtenerRutaArchivo("programacion_limpia_actual.xlsx")
         
         if os.path.exists(ruta_programacion):
             try:
@@ -141,10 +141,10 @@ class VistaProgramacion:
                     return
                 
                 # Limpiar y procesar programación
-                programacion_limpia = limpiar_programacion(df)
+                programacion_limpia = LimpiarProgramacion(df)
                 
                 # Guardar automáticamente la programación limpia
-                ruta_guardado = obtener_ruta_archivo("programacion_limpia_actual.xlsx")
+                ruta_guardado = ObtenerRutaArchivo("programacion_limpia_actual.xlsx")
                 os.makedirs(os.path.dirname(ruta_guardado), exist_ok=True)
                 programacion_limpia.to_excel(ruta_guardado, index=False)
                 

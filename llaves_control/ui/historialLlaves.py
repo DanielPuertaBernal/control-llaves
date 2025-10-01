@@ -1,8 +1,8 @@
 from tkinter import ttk, messagebox
 import tkinter as tk
 from datetime import datetime
-from helpers.gestion_excel import (obtener_llaves_pendientes, registrar_devolucion, 
-                                 limpiar_numero_documento)
+from helpers.gestionExcel import (ObtenerLlavesPendientes, RegistrarDevolucion, 
+                                 LimpiarNumeroDocumento)
 
 class VistaHistorialLlaves:
     def __init__(self, notebook, app):
@@ -108,7 +108,7 @@ class VistaHistorialLlaves:
         """Carga los datos del historial - SOLO llaves en préstamo"""
         try:
             # Obtener solo las llaves que están en préstamo (sin fecha de devolución)
-            self.datos_historial = obtener_llaves_pendientes()
+            self.datos_historial = ObtenerLlavesPendientes()
             
             self.aplicar_filtros()
             
@@ -235,7 +235,7 @@ class VistaHistorialLlaves:
             
             if resultado:
                 # Registrar devolución
-                if registrar_devolucion(documento):
+                if RegistrarDevolucion(documento):
                     
                     # Recargar historial (el registro desaparecerá porque ya no está "Entregado")
                     self.cargar_historial()

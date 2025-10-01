@@ -1,6 +1,6 @@
 from tkinter import Tk
 from ui.interfaz import App
-from assets.estilo_tkinter import configurar_ventana_principal
+from assets.estiloTkinter import configurar_ventana_principal
 
 def main():
     root = Tk()

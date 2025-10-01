@@ -3,17 +3,17 @@ from datetime import datetime
 import os
 
 # Obtener la ruta del directorio llaves_control
-def obtener_ruta_data():
+def ObtenerRutaData():
     """Obtiene la ruta correcta del directorio data dentro de llaves_control"""
     ruta_actual = os.path.dirname(os.path.abspath(__file__))  # helpers
     ruta_llaves_control = os.path.dirname(ruta_actual)  # llaves_control
     return os.path.join(ruta_llaves_control, "data")
 
-def obtener_ruta_archivo(nombre_archivo):
+def ObtenerRutaArchivo(nombre_archivo):
     """Obtiene la ruta completa de un archivo en el directorio data"""
-    return os.path.join(obtener_ruta_data(), nombre_archivo)
+    return os.path.join(ObtenerRutaData(), nombre_archivo)
 
-def renombrar_columnas_exportacion(df):
+def RenombrarColumnasExportacion(df):
     """
     Renombra las columnas para la exportación final con nombres descriptivos y buena ortografía
     """
@@ -105,7 +105,7 @@ def renombrar_columnas_exportacion(df):
     
     return df_renamed[orden_final]
 
-def limpiar_programacion(archivo_o_df):
+def LimpiarProgramacion(archivo_o_df):
     """
     Limpia y consolida la programación académica, unificando clases largas
     que están divididas en múltiples registros.
@@ -313,7 +313,7 @@ def limpiar_programacion(archivo_o_df):
                     agrupado['horario'] = agrupado['hora_ini'].astype(str) + ' a ' + agrupado['hora_fin'].astype(str)
                     
                     # Aplicar renombrado de columnas para exportación
-                    return renombrar_columnas_exportacion(agrupado)
+                    return RenombrarColumnasExportacion(agrupado)
             
             # LÓGICA FALLBACK: Si no se puede evaluar gaps, usar método original
             # Preparar diccionario de agregación dinámicamente
@@ -343,31 +343,31 @@ def limpiar_programacion(archivo_o_df):
                     agrupado['horario'] = agrupado['hora_ini'].astype(str) + ' a ' + agrupado['hora_fin'].astype(str)
                 
                 # Aplicar renombrado de columnas para exportación
-                return renombrar_columnas_exportacion(agrupado)
+                return RenombrarColumnasExportacion(agrupado)
             else:
                 # Si no podemos agrupar, aplicar renombrado básico
-                return renombrar_columnas_exportacion(df)
+                return RenombrarColumnasExportacion(df)
         else:
             # Si no podemos agrupar, devolver el DataFrame con columnas renombradas
-            return renombrar_columnas_exportacion(df)
+            return RenombrarColumnasExportacion(df)
             
     except Exception as e:
         print(f"Error al procesar programación: {e}")
         return df  # Devolver datos básicos si falla el procesamiento avanzado
 
-def guardar_programacion_limpia(df_original: pd.DataFrame, ruta_salida: str = None) -> str:
+def GuardarProgramacionLimpia(df_original: pd.DataFrame, ruta_salida: str = None) -> str:
     """
     Limpia la programación y guarda el archivo corregido
     """
     if ruta_salida is None:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        ruta_salida = obtener_ruta_archivo(f"programacion_limpia_{timestamp}.xlsx")
+        ruta_salida = ObtenerRutaArchivo(f"programacion_limpia_{timestamp}.xlsx")
     
     # Asegurar que el directorio existe
     os.makedirs(os.path.dirname(ruta_salida), exist_ok=True)
     
     # Limpiar y guardar
-    df_limpio = limpiar_programacion(df_original)
+    df_limpio = LimpiarProgramacion(df_original)
     
     # Guardar con configuraciones robustas para evitar advertencias
     try:
@@ -386,7 +386,7 @@ def guardar_programacion_limpia(df_original: pd.DataFrame, ruta_salida: str = No
     
     return ruta_salida
 
-def guardar_programacion_actual(df_limpio: pd.DataFrame, ruta_base: str = "llaves_control/data") -> str:
+def GuardarProgramacionActual(df_limpio: pd.DataFrame, ruta_base: str = "llaves_control/data") -> str:
     """
     Guarda la programación limpia como la versión actual para cargas posteriores
     """
@@ -412,7 +412,7 @@ def guardar_programacion_actual(df_limpio: pd.DataFrame, ruta_base: str = "llave
     
     return ruta_actual
 
-def verificar_programacion_guardada(ruta_base: str = "llaves_control/data") -> str:
+def VerificarProgramacionGuardada(ruta_base: str = "llaves_control/data") -> str:
     """
     Verifica si existe una programación limpia guardada previamente
     """
