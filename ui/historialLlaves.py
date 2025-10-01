@@ -3,6 +3,8 @@ import tkinter as tk
 from datetime import datetime
 from helpers.gestionExcel import (ObtenerLlavesPendientes, RegistrarDevolucion, 
                                  LimpiarNumeroDocumento)
+from helpers.busquedaTabla import BusquedaTabla
+import pandas as pd
 
 class VistaHistorialLlaves:
     def __init__(self, notebook, app):
@@ -19,6 +21,9 @@ class VistaHistorialLlaves:
         
         # Variable para el temporizador de actualización automática
         self.auto_update_job = None
+        
+        # Instanciar componente de búsqueda reutilizable
+        self.buscador = BusquedaTabla()
         
         self.CrearVistaHistorial()
         self.CargarHistorial()
@@ -119,20 +124,23 @@ class VistaHistorialLlaves:
             self.MostrarPaginaActual()
 
     def AplicarFiltros(self):
-        """Aplica filtros de búsqueda"""
-        termino = self.entry_busqueda.get().strip().lower()
+        """Aplica filtros de búsqueda usando el componente de búsqueda"""
+        termino = self.entry_busqueda.get().strip()
         
         if not termino:
             self.datos_filtrados = self.datos_historial.copy()
         else:
-            self.datos_filtrados = [
-                registro for registro in self.datos_historial
-                if (termino in str(registro.get('Número de Documento', '')).lower() or
-                    termino in registro.get('Docente', '').lower() or
-                    termino in registro.get('Horario', '').lower() or
-                    termino in registro.get('Aula', '').lower() or
-                    termino in registro.get('Materia de la Clase', '').lower())
-            ]
+            # Convertir lista de diccionarios a DataFrame para usar el componente de búsqueda
+            if self.datos_historial:
+                df_historial = pd.DataFrame(self.datos_historial)
+                
+                # Usar el componente de búsqueda para filtrar
+                df_filtrado = self.buscador.BuscarEnDataFrame(df_historial, termino)
+                
+                # Convertir de vuelta a lista de diccionarios
+                self.datos_filtrados = df_filtrado.to_dict('records')
+            else:
+                self.datos_filtrados = []
         
         # Reiniciar paginación
         self.pagina_actual = 1
@@ -243,8 +251,8 @@ class VistaHistorialLlaves:
                     # *** ACTUALIZAR VISTA ENTREGA AUTOMÁTICAMENTE ***
                     if hasattr(self.app, 'vista_entrega') and hasattr(self.app.vista_entrega, 'CargarClasesDelDia'):
                         try:
-                            # Invalidar cache de la vista de entrega
-                            self.app.vista_entrega.cache_timestamp = None
+                            # Invalidar cache de la vista de entrega usando el componente
+                            self.app.vista_entrega.buscador.InvalidarCache()
                             # Recargar datos de la vista de entrega
                             busqueda_texto = self.app.vista_entrega.entry_busqueda.get().strip()
                             if busqueda_texto and busqueda_texto != "Ejemplo: 12345678 o A101 o Laboratorio...":

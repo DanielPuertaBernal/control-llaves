@@ -7,6 +7,7 @@ from helpers.gestionExcel import (RegistrarEntrega, RegistrarDevolucion,
                                  ObtenerLlavesPendientes, LimpiarNumeroDocumento, 
                                  ObtenerHistorialCompleto, VerificarLlaveEntregada)
 from helpers.limpiezaProgramacion import LimpiarProgramacion
+from helpers.busquedaTabla import BusquedaTabla
 
 class VistaEntregaDevolucion:
     def __init__(self, notebook, app):
@@ -23,11 +24,11 @@ class VistaEntregaDevolucion:
         # Variable para el temporizador de actualización automática
         self.auto_update_job = None
         
-        # Variables para optimización de rendimiento
+        # Variables para optimización de rendimiento - ELIMINAR cache local, usar componente
         self.search_job = None  # Para debounce en búsqueda
-        self.cache_docentes_con_llaves = set()  # Cache de documentos con llaves entregadas
-        self.cache_timestamp = None  # Timestamp del cache para invalidación
-        self.cache_valid_duration = 10  # Cache válido por 10 segundos (reducido para mayor consistencia)
+        
+        # Instanciar componente de búsqueda reutilizable
+        self.buscador = BusquedaTabla()
         
         self.CrearVistaEntregaDevolucion()
         self.IniciarActualizacionAutomatica()
@@ -117,9 +118,8 @@ class VistaEntregaDevolucion:
     
     def ForzarActualizacion(self):
         """Fuerza la actualización invalidando completamente el cache"""
-        # Invalidar cache completamente
-        self.cache_timestamp = None
-        self.cache_docentes_con_llaves = set()
+        # Invalidar cache del componente de búsqueda
+        self.buscador.InvalidarCache()
         
         # Recargar según el estado de búsqueda
         busqueda_texto = self.entry_busqueda.get().strip()
@@ -136,48 +136,28 @@ class VistaEntregaDevolucion:
             return
 
         try:
-            # Obtener día actual directamente en el formato del archivo (MAYÚSCULAS, español)
-            dia_numero = datetime.now().weekday()  # 0=Monday, 6=Sunday
-            dias_espanol = ['LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO', 'DOMINGO']
-            dia_actual = dias_espanol[dia_numero]
+            # Usar el componente de búsqueda para filtrar por día actual
+            df = self.app.programacion
+            self.datos_filtrados = self.buscador.FiltrarPorDiaActual(df)
             
             # Actualizar label del día
+            dia_numero = datetime.now().weekday()
+            dias_espanol = ['LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO', 'DOMINGO']
+            dia_actual = dias_espanol[dia_numero]
             self.label_dia.config(text=f"CLASES DEL DÍA: {dia_actual}")
             
-            # Filtrar por día actual directamente - sin complicaciones
-            df = self.app.programacion
-            if 'Día' not in df.columns:
-                messagebox.showwarning("Advertencia", f"Columnas disponibles: {list(df.columns)}")
-                # Buscar columnas que contengan 'día' (insensible a mayúsculas)
-                columna_dia = None
-                for col in df.columns:
-                    if 'día' in col.lower():
-                        columna_dia = col
-                        break
-                if columna_dia is None:
-                    messagebox.showerror("Error", "No se encontró ninguna columna de día en la programación")
-                    return
-            else:
-                columna_dia = 'Día'
-                
-            self.datos_filtrados = df[df[columna_dia] == dia_actual].copy()
+            # Aplicar filtros adicionales
+            self.datos_filtrados = self.buscador.OrdenarPorHorario(self.datos_filtrados)
+            self.datos_filtrados = self.buscador.EliminarClasesPasadas(self.datos_filtrados)
+            self.datos_filtrados = self.buscador.FiltrarDocentesSinLlaves(self.datos_filtrados)
             
-            # Ordenar por horario
-            if 'Horario' in self.datos_filtrados.columns:
-                self.datos_filtrados = self.datos_filtrados.sort_values(by='Horario')
-            
-            # Eliminar clases cuyo horario ya pasó
-            self.EliminarClasesPasadas()
+            # Reiniciar paginación y mostrar datos
+            self.pagina_actual = 1
+            self.CalcularPaginacion()
+            self.MostrarPaginaActual()
             
         except Exception as e:
             messagebox.showerror("Error", f"Error al cargar las clases del día: {str(e)}")
-    
-    def NormalizarBusquedaSalon(self, texto):
-        """Normaliza el texto para búsqueda de salones eliminando guiones y espacios"""
-        if not texto:
-            return ""
-        # Convertir a minúsculas, eliminar guiones, espacios y otros caracteres especiales
-        return texto.lower().replace('-', '').replace('_', '').replace(' ', '').strip()
     
     def BuscarPorDocumento(self, event=None):
         """Busca clases por número de documento del docente o por nombre del salón/aula"""
@@ -195,115 +175,25 @@ class VistaEntregaDevolucion:
             return
         
         try:
-            # Obtener día actual directamente en el formato del archivo
-            dia_numero = datetime.now().weekday()  # 0=Monday, 6=Sunday
-            dias_espanol = ['LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO', 'DOMINGO']
-            dia_actual = dias_espanol[dia_numero]
-            
-            # Filtrar por día actual
+            # Usar el componente de búsqueda para filtrar por día actual
             df = self.app.programacion
-            if 'Día' not in df.columns:
-                # Buscar columnas que contengan 'día' (insensible a mayúsculas)
-                columna_dia = None
-                for col in df.columns:
-                    if 'día' in col.lower():
-                        columna_dia = col
-                        break
-                if columna_dia is None:
-                    messagebox.showerror("Error", "No se encontró ninguna columna de día en la programación")
-                    return
-            else:
-                columna_dia = 'Día'
-                
-            datos_del_dia = df[df[columna_dia] == dia_actual].copy()
+            datos_del_dia = self.buscador.FiltrarPorDiaActual(df)
             
-            # Verificar que existen las columnas necesarias
-            columnas_requeridas = ['Número de Documento', 'Aula']
-            columnas_faltantes = [col for col in columnas_requeridas if col not in datos_del_dia.columns]
-            if columnas_faltantes:
-                messagebox.showerror("Error", f"No se encontraron las columnas: {', '.join(columnas_faltantes)}")
-                return
+            # Usar el componente de búsqueda para buscar por término
+            self.datos_filtrados = self.buscador.BuscarEnDataFrame(datos_del_dia, termino)
             
-            # Limpiar números de documento y crear máscaras de búsqueda
-            datos_del_dia['nroidenti_limpio'] = datos_del_dia['Número de Documento'].astype(str).apply(LimpiarNumeroDocumento)
+            # Aplicar filtros adicionales
+            self.datos_filtrados = self.buscador.OrdenarPorHorario(self.datos_filtrados)
+            self.datos_filtrados = self.buscador.EliminarClasesPasadas(self.datos_filtrados)
+            self.datos_filtrados = self.buscador.FiltrarDocentesSinLlaves(self.datos_filtrados)
             
-            # Buscar por número de documento
-            mascara_documento = datos_del_dia['nroidenti_limpio'].str.contains(termino, na=False, case=False)
-            
-            # Buscar por aula/salón con normalización mejorada
-            termino_normalizado = self.NormalizarBusquedaSalon(termino)
-            
-            # Crear columna temporal con aulas normalizadas para comparación
-            datos_del_dia['aula_normalizada'] = datos_del_dia['Aula'].astype(str).apply(self.NormalizarBusquedaSalon)
-            
-            # Buscar tanto en el aula original (para búsquedas exactas) como en la normalizada (para búsquedas flexibles)
-            mascara_aula_exacta = datos_del_dia['Aula'].astype(str).str.contains(termino, na=False, case=False)
-            mascara_aula_normalizada = datos_del_dia['aula_normalizada'].str.contains(termino_normalizado, na=False, case=False)
-            mascara_aula = mascara_aula_exacta | mascara_aula_normalizada
-            
-            # Combinar ambas búsquedas con OR (cualquiera de las dos condiciones)
-            mascara_combinada = mascara_documento | mascara_aula
-            
-            # Aplicar filtro combinado
-            self.datos_filtrados = datos_del_dia[mascara_combinada].copy()
-            
-            # Limpiar columna temporal
-            if 'aula_normalizada' in self.datos_filtrados.columns:
-                self.datos_filtrados = self.datos_filtrados.drop('aula_normalizada', axis=1)
-            
-            # Ordenar por horario
-            if 'Horario' in self.datos_filtrados.columns:
-                self.datos_filtrados = self.datos_filtrados.sort_values(by='Horario')
-            
-            # *** IMPORTANTE: Aplicar filtros adicionales después de la búsqueda ***
-            self.EliminarClasesPasadas()
-            
-        except Exception as e:
-            messagebox.showerror("Error", f"Error en la búsqueda: {str(e)}")
-    
-    def EliminarClasesPasadas(self):
-        """Elimina de la tabla las clases que ya terminaron y las que ya tienen llaves entregadas."""
-        try:
-            ahora = datetime.now()
-            
-            # Filtrar las clases que aún no han terminado
-            if 'Hora Fin' in self.datos_filtrados.columns:
-                def ConvertirHoraFin(hora_fin):
-                    try:
-                        # Manejar formato HH:MM:SS
-                        if isinstance(hora_fin, str):
-                            if len(hora_fin.split(':')) == 3:
-                                return datetime.strptime(hora_fin, '%H:%M:%S').time()
-                            else:
-                                return datetime.strptime(hora_fin, '%H:%M').time()
-                        return None
-                    except ValueError:
-                        return None
-                
-                self.datos_filtrados['Hora_Fin_Convertida'] = self.datos_filtrados['Hora Fin'].apply(ConvertirHoraFin)
-                self.datos_filtrados = self.datos_filtrados[self.datos_filtrados['Hora_Fin_Convertida'].notnull()]
-                self.datos_filtrados = self.datos_filtrados[self.datos_filtrados['Hora_Fin_Convertida'] > ahora.time()]
-            
-            # Filtrar clases cuyos docentes ya tienen llaves entregadas (OPTIMIZADO)
-            if not self.datos_filtrados.empty and 'Número de Documento' in self.datos_filtrados.columns:
-                # Actualizar cache de docentes con llaves entregadas
-                self.ActualizarCacheDocentes()
-                
-                # Usar vectorización para filtrar más eficientemente
-                def DocenteSinLlave(documento):
-                    documento_limpio = LimpiarNumeroDocumento(str(documento))
-                    return documento_limpio not in self.cache_docentes_con_llaves
-                
-                # Aplicar filtro vectorizado (mucho más rápido que un loop)
-                mascara_sin_llaves = self.datos_filtrados['Número de Documento'].apply(DocenteSinLlave)
-                self.datos_filtrados = self.datos_filtrados[mascara_sin_llaves]
-            
-            # Reiniciar paginación y mostrar datos actualizados
+            # Reiniciar paginación y mostrar datos
             self.pagina_actual = 1
             self.CalcularPaginacion()
             self.MostrarPaginaActual()
+            
         except Exception as e:
-            messagebox.showerror("Error", f"Error al eliminar clases pasadas: {str(e)}")
+            messagebox.showerror("Error", f"Error en la búsqueda: {str(e)}")
     
     def CalcularPaginacion(self):
         """Calcula el número total de páginas"""
@@ -407,7 +297,7 @@ class VistaEntregaDevolucion:
                 not esta_buscando):
                 
                 # Invalidar cache antes de actualización automática
-                self.cache_timestamp = None
+                self.buscador.InvalidarCache()
                 
                 self.CargarClasesDelDia()
                 
@@ -443,32 +333,6 @@ class VistaEntregaDevolucion:
         
         # Programar nueva búsqueda después de 300ms de inactividad
         self.search_job = self.frame_entrega.after(300, self.BuscarPorDocumento)
-
-    def ActualizarCacheDocentes(self):
-        """Actualiza el cache de docentes que tienen llaves entregadas"""
-        try:
-            ahora = datetime.now()
-            
-            # Verificar si el cache necesita actualización
-            if (self.cache_timestamp is None or 
-                (ahora - self.cache_timestamp).total_seconds() > self.cache_valid_duration):
-                
-                # Obtener lista de docentes con llaves pendientes (más eficiente que verificar uno por uno)
-                llaves_pendientes = ObtenerLlavesPendientes()
-                
-                # Crear set con los documentos que tienen llaves entregadas
-                self.cache_docentes_con_llaves = {
-                    LimpiarNumeroDocumento(str(registro.get('Número de Documento', ''))) 
-                    for registro in llaves_pendientes
-                }
-                
-                # Actualizar timestamp del cache
-                self.cache_timestamp = ahora
-                
-        except Exception as e:
-            print(f"Error al actualizar cache de docentes: {e}")
-            # En caso de error, limpiar cache para evitar datos incorrectos
-            self.cache_docentes_con_llaves = set()
 
     def OnClickTabla(self, event):
         """Maneja el clic en la tabla para detectar clic en la columna de Acción"""
@@ -532,10 +396,7 @@ class VistaEntregaDevolucion:
                 # Registrar la entrega
                 if RegistrarEntrega(info_clase):
                     # *** INVALIDAR CACHE después de entrega exitosa ***
-                    self.cache_timestamp = None  # Forzar actualización del cache en próxima consulta
-                    
-                    # *** NO eliminar individualmente - recargar datos completos para consistencia ***
-                    # self.tree_clases.delete(item_seleccionado)  # COMENTADO: causa problemas
+                    self.buscador.InvalidarCache()  # Usar el componente de búsqueda
                     
                     # Recargar los datos completamente para mantener la consistencia
                     busqueda_texto = self.entry_busqueda.get().strip()
