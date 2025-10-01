@@ -158,9 +158,9 @@ cython_debug/
 #  project, it is typically recommended to include this file in version control.
 .idea/
 
-# VS Code
-.vscode/
-*.code-workspace
+# VS Code (ya no usado en el proyecto)
+# .vscode/
+# *.code-workspace
 
 # Operating System Files
 # Windows
