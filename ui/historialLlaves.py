@@ -4,6 +4,7 @@ from datetime import datetime
 from helpers.gestionExcel import (ObtenerLlavesPendientes, RegistrarDevolucion, 
                                  LimpiarNumeroDocumento)
 from helpers.busquedaTabla import BusquedaTabla
+from helpers.paginacionTabla import PaginacionTabla
 import pandas as pd
 
 class VistaHistorialLlaves:
@@ -12,18 +13,18 @@ class VistaHistorialLlaves:
         self.frame_historial = ttk.Frame(notebook, padding="20")
         notebook.add(self.frame_historial, text="📋 Llaves en Préstamo")
         
-        # Variables para paginación
-        self.pagina_actual = 1
-        self.items_por_pagina = 20
+        # Variables para datos
         self.datos_historial = []
         self.datos_filtrados = []
-        self.total_paginas = 1
         
         # Variable para el temporizador de actualización automática
         self.auto_update_job = None
         
         # Instanciar componente de búsqueda reutilizable
         self.buscador = BusquedaTabla()
+        
+        # Instanciar componente de paginación reutilizable
+        self.paginador = PaginacionTabla(items_por_pagina=20)
         
         self.CrearVistaHistorial()
         self.CargarHistorial()
@@ -55,20 +56,11 @@ class VistaHistorialLlaves:
         frame_paginacion = ttk.Frame(self.frame_historial)
         frame_paginacion.pack(fill='x', pady=(0, 10))
         
-        self.btn_anterior = ttk.Button(frame_paginacion, text="◀ Anterior", 
-                                      command=self.PaginaAnterior, state='disabled')
-        self.btn_anterior.pack(side='left')
+        # Crear widgets de paginación usando el componente
+        self.paginador.CrearWidgetsPaginacion(frame_paginacion)
         
-        self.label_pagina = ttk.Label(frame_paginacion, text="Página 1 de 1")
-        self.label_pagina.pack(side='left', padx=(20, 20))
-        
-        self.btn_siguiente = ttk.Button(frame_paginacion, text="Siguiente ▶", 
-                                       command=self.PaginaSiguiente, state='disabled')
-        self.btn_siguiente.pack(side='left')
-        
-        # Información adicional
-        self.label_info = ttk.Label(frame_paginacion, text="0 registros encontrados")
-        self.label_info.pack(side='right')
+        # Configurar callback para mostrar datos
+        self.paginador.ConfigurarCallback(self.MostrarDatosEnTabla)
 
         # Frame para la tabla
         frame_tabla = ttk.Frame(self.frame_historial)
@@ -121,7 +113,7 @@ class VistaHistorialLlaves:
             messagebox.showerror("Error", f"Error al cargar historial: {str(e)}")
             self.datos_historial = []
             self.datos_filtrados = []
-            self.MostrarPaginaActual()
+            self.paginador.ActualizarDatos([])
 
     def AplicarFiltros(self):
         """Aplica filtros de búsqueda usando el componente de búsqueda"""
@@ -142,38 +134,27 @@ class VistaHistorialLlaves:
             else:
                 self.datos_filtrados = []
         
-        # Reiniciar paginación
-        self.pagina_actual = 1
-        self.CalcularPaginacion()
-        self.MostrarPaginaActual()
-
-    def CalcularPaginacion(self):
-        """Calcula el número total de páginas"""
-        total_items = len(self.datos_filtrados)
-        self.total_paginas = max(1, (total_items + self.items_por_pagina - 1) // self.items_por_pagina)
+        # Actualizar paginación con nuevos datos
+        self.paginador.ActualizarDatos(self.datos_filtrados)
+    
+    def MostrarDatosEnTabla(self, datos_pagina, inicio, fin):
+        """
+        Callback para mostrar datos en la tabla (usado por el componente de paginación)
         
-        if self.pagina_actual > self.total_paginas:
-            self.pagina_actual = self.total_paginas
-
-    def MostrarPaginaActual(self):
-        """Muestra los datos de la página actual"""
+        Args:
+            datos_pagina: Lista con los datos de la página actual
+            inicio: Índice de inicio
+            fin: Índice de fin
+        """
         # Limpiar tabla
         for item in self.tree_historial.get_children():
             self.tree_historial.delete(item)
         
-        if not self.datos_filtrados:
-            self.label_info.config(text="0 registros encontrados")
-            self.label_pagina.config(text="Página 1 de 1")
-            self.btn_anterior.config(state='disabled')
-            self.btn_siguiente.config(state='disabled')
+        if not datos_pagina:
             return
         
-        # Calcular índices para la página actual
-        inicio = (self.pagina_actual - 1) * self.items_por_pagina
-        fin = min(inicio + self.items_por_pagina, len(self.datos_filtrados))
-        
         # Mostrar datos de la página actual
-        for i, registro in enumerate(self.datos_filtrados[inicio:fin]):
+        for registro in datos_pagina:
             documento = registro.get('Número de Documento', '')
             docente = registro.get('Docente', '')
             horario = registro.get('Horario', '')
@@ -189,26 +170,6 @@ class VistaHistorialLlaves:
         
         # Configurar el color de fondo para items en préstamo
         self.tree_historial.tag_configure('prestamo', background='#FFF3CD', foreground='#856404')
-        
-        # Actualizar información de paginación
-        self.label_pagina.config(text=f"Página {self.pagina_actual} de {self.total_paginas}")
-        self.label_info.config(text=f"{len(self.datos_filtrados)} registros encontrados")
-        
-        # Actualizar estado de botones
-        self.btn_anterior.config(state='normal' if self.pagina_actual > 1 else 'disabled')
-        self.btn_siguiente.config(state='normal' if self.pagina_actual < self.total_paginas else 'disabled')
-
-    def PaginaAnterior(self):
-        """Va a la página anterior"""
-        if self.pagina_actual > 1:
-            self.pagina_actual -= 1
-            self.MostrarPaginaActual()
-
-    def PaginaSiguiente(self):
-        """Va a la página siguiente"""
-        if self.pagina_actual < self.total_paginas:
-            self.pagina_actual += 1
-            self.MostrarPaginaActual()
 
     def OnBusquedaChanged(self, event):
         """Maneja el evento de cambio en el campo de búsqueda"""
