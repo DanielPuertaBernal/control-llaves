@@ -20,11 +20,11 @@ class VistaHistorialLlaves:
         # Variable para el temporizador de actualización automática
         self.auto_update_job = None
         
-        self.crear_vista_historial()
-        self.cargar_historial()
-        self.iniciar_actualizacion_automatica()
+        self.CrearVistaHistorial()
+        self.CargarHistorial()
+        self.IniciarActualizacionAutomatica()
 
-    def crear_vista_historial(self):
+    def CrearVistaHistorial(self):
         # Título
         titulo = ttk.Label(self.frame_historial, 
                           text="LLAVES ACTUALMENTE EN PRÉSTAMO", 
@@ -39,11 +39,11 @@ class VistaHistorialLlaves:
         ttk.Label(frame_controles, text="Buscar:").pack(side='left', padx=(0, 5))
         self.entry_busqueda = ttk.Entry(frame_controles, width=40)
         self.entry_busqueda.pack(side='left', padx=(0, 10))
-        self.entry_busqueda.bind('<KeyRelease>', self.on_busqueda_changed)
+        self.entry_busqueda.bind('<KeyRelease>', self.OnBusquedaChanged)
         
         # Botón actualizar
         btn_actualizar = ttk.Button(frame_controles, text="🔄 Actualizar", 
-                                   command=self.cargar_historial)
+                                   command=self.CargarHistorial)
         btn_actualizar.pack(side='left')
 
         # Frame para paginación (movido arriba de la tabla)
@@ -51,14 +51,14 @@ class VistaHistorialLlaves:
         frame_paginacion.pack(fill='x', pady=(0, 10))
         
         self.btn_anterior = ttk.Button(frame_paginacion, text="◀ Anterior", 
-                                      command=self.pagina_anterior, state='disabled')
+                                      command=self.PaginaAnterior, state='disabled')
         self.btn_anterior.pack(side='left')
         
         self.label_pagina = ttk.Label(frame_paginacion, text="Página 1 de 1")
         self.label_pagina.pack(side='left', padx=(20, 20))
         
         self.btn_siguiente = ttk.Button(frame_paginacion, text="Siguiente ▶", 
-                                       command=self.pagina_siguiente, state='disabled')
+                                       command=self.PaginaSiguiente, state='disabled')
         self.btn_siguiente.pack(side='left')
         
         # Información adicional
@@ -102,23 +102,23 @@ class VistaHistorialLlaves:
         scrollbar_h.pack(side='bottom', fill='x')
         
         # Evento doble clic para devolver llave
-        self.tree_historial.bind('<Double-1>', self.confirmar_devolucion)
+        self.tree_historial.bind('<Double-1>', self.ConfirmarDevolucion)
 
-    def cargar_historial(self):
+    def CargarHistorial(self):
         """Carga los datos del historial - SOLO llaves en préstamo"""
         try:
             # Obtener solo las llaves que están en préstamo (sin fecha de devolución)
             self.datos_historial = ObtenerLlavesPendientes()
             
-            self.aplicar_filtros()
+            self.AplicarFiltros()
             
         except Exception as e:
             messagebox.showerror("Error", f"Error al cargar historial: {str(e)}")
             self.datos_historial = []
             self.datos_filtrados = []
-            self.mostrar_pagina_actual()
+            self.MostrarPaginaActual()
 
-    def aplicar_filtros(self):
+    def AplicarFiltros(self):
         """Aplica filtros de búsqueda"""
         termino = self.entry_busqueda.get().strip().lower()
         
@@ -136,10 +136,10 @@ class VistaHistorialLlaves:
         
         # Reiniciar paginación
         self.pagina_actual = 1
-        self.calcular_paginacion()
-        self.mostrar_pagina_actual()
+        self.CalcularPaginacion()
+        self.MostrarPaginaActual()
 
-    def calcular_paginacion(self):
+    def CalcularPaginacion(self):
         """Calcula el número total de páginas"""
         total_items = len(self.datos_filtrados)
         self.total_paginas = max(1, (total_items + self.items_por_pagina - 1) // self.items_por_pagina)
@@ -147,7 +147,7 @@ class VistaHistorialLlaves:
         if self.pagina_actual > self.total_paginas:
             self.pagina_actual = self.total_paginas
 
-    def mostrar_pagina_actual(self):
+    def MostrarPaginaActual(self):
         """Muestra los datos de la página actual"""
         # Limpiar tabla
         for item in self.tree_historial.get_children():
@@ -190,28 +190,28 @@ class VistaHistorialLlaves:
         self.btn_anterior.config(state='normal' if self.pagina_actual > 1 else 'disabled')
         self.btn_siguiente.config(state='normal' if self.pagina_actual < self.total_paginas else 'disabled')
 
-    def pagina_anterior(self):
+    def PaginaAnterior(self):
         """Va a la página anterior"""
         if self.pagina_actual > 1:
             self.pagina_actual -= 1
-            self.mostrar_pagina_actual()
+            self.MostrarPaginaActual()
 
-    def pagina_siguiente(self):
+    def PaginaSiguiente(self):
         """Va a la página siguiente"""
         if self.pagina_actual < self.total_paginas:
             self.pagina_actual += 1
-            self.mostrar_pagina_actual()
+            self.MostrarPaginaActual()
 
-    def on_busqueda_changed(self, event):
+    def OnBusquedaChanged(self, event):
         """Maneja el evento de cambio en el campo de búsqueda"""
         # Cancelar búsqueda anterior si existe
         if hasattr(self, 'search_job') and self.search_job:
             self.frame_historial.after_cancel(self.search_job)
         
         # Programar nueva búsqueda con retraso
-        self.search_job = self.frame_historial.after(300, self.aplicar_filtros)
+        self.search_job = self.frame_historial.after(300, self.AplicarFiltros)
 
-    def confirmar_devolucion(self, event):
+    def ConfirmarDevolucion(self, event):
         """Confirma la devolución de una llave"""
         try:
             # Obtener el item seleccionado
@@ -238,19 +238,19 @@ class VistaHistorialLlaves:
                 if RegistrarDevolucion(documento):
                     
                     # Recargar historial (el registro desaparecerá porque ya no está "Entregado")
-                    self.cargar_historial()
+                    self.CargarHistorial()
                     
                     # *** ACTUALIZAR VISTA ENTREGA AUTOMÁTICAMENTE ***
-                    if hasattr(self.app, 'vista_entrega') and hasattr(self.app.vista_entrega, 'cargar_clases_del_dia'):
+                    if hasattr(self.app, 'vista_entrega') and hasattr(self.app.vista_entrega, 'CargarClasesDelDia'):
                         try:
                             # Invalidar cache de la vista de entrega
                             self.app.vista_entrega.cache_timestamp = None
                             # Recargar datos de la vista de entrega
                             busqueda_texto = self.app.vista_entrega.entry_busqueda.get().strip()
                             if busqueda_texto and busqueda_texto != "Ejemplo: 12345678 o A101 o Laboratorio...":
-                                self.app.vista_entrega.buscar_por_documento()
+                                self.app.vista_entrega.BuscarPorDocumento()
                             else:
-                                self.app.vista_entrega.cargar_clases_del_dia()
+                                self.app.vista_entrega.CargarClasesDelDia()
                         except Exception:
                             pass  # Error silencioso si no se puede actualizar la vista de entrega
                 else:
@@ -261,23 +261,23 @@ class VistaHistorialLlaves:
         except Exception as e:
             messagebox.showerror("Error", f"Error al procesar devolución: {str(e)}")
 
-    def iniciar_actualizacion_automatica(self):
+    def IniciarActualizacionAutomatica(self):
         """Inicia actualización automática cada 30 segundos"""
-        self.actualizar_automaticamente()
+        self.ActualizarAutomaticamente()
 
-    def actualizar_automaticamente(self):
+    def ActualizarAutomaticamente(self):
         """Actualiza datos automáticamente"""
         try:
             # Solo actualizar si no hay filtros de búsqueda activos
             if not self.entry_busqueda.get().strip():
-                self.cargar_historial()
+                self.CargarHistorial()
         except Exception:
             pass  # Error silencioso
         finally:
             # Programar próxima actualización
-            self.auto_update_job = self.frame_historial.after(30000, self.actualizar_automaticamente)
+            self.auto_update_job = self.frame_historial.after(30000, self.ActualizarAutomaticamente)
 
-    def detener_actualizacion_automatica(self):
+    def DetenerActualizacionAutomatica(self):
         """Detiene la actualización automática"""
         if self.auto_update_job:
             self.frame_historial.after_cancel(self.auto_update_job)

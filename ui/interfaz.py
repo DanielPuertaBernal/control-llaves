@@ -3,7 +3,7 @@ import tkinter as tk
 import pandas as pd
 import os
 from helpers.gestionExcel import InicializarRegistro
-from assets.estiloTkinter import aplicar_estilo
+from assets.estiloTkinter import AplicarEstilo
 from .entregaDevolucion import VistaEntregaDevolucion
 from .programacion import VistaProgramacion
 from ui.programacion import VistaProgramacion
@@ -30,7 +30,7 @@ class App:
         self.programacion_original = None
         
         InicializarRegistro()
-        aplicar_estilo(root)
+        AplicarEstilo(root)
         
         # Cargar programación antes de crear la interfaz
         self.CargarProgramacionInicial()
@@ -70,7 +70,7 @@ class App:
         
         # Notificar que los datos están listos después de crear ambas vistas
         if self.programacion is not None and not self.programacion.empty:
-            self.vista_entrega.cargar_clases_del_dia()
+            self.vista_entrega.CargarClasesDelDia()
 
     def OnTabChanged(self, event):
         """Evento que se ejecuta cuando se cambia de pestaña"""
@@ -81,7 +81,7 @@ class App:
             
             # Si se selecciona la pestaña del historial, actualizar los datos
             if "Préstamo" in tab_text and hasattr(self, 'vista_historial'):
-                self.vista_historial.cargar_historial()
+                self.vista_historial.CargarHistorial()
                 
         except Exception:
             pass  # Error silencioso

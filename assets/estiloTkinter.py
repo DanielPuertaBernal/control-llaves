@@ -1,7 +1,7 @@
 import tkinter as tk
 from tkinter import ttk
 
-def aplicar_estilo(root):
+def AplicarEstilo(root):
     """Aplica estilos personalizados a la aplicación"""
     style = ttk.Style(root)
     
@@ -112,7 +112,7 @@ def aplicar_estilo(root):
               focuscolor=[('!focus', color_secundario)],
               bordercolor=[('focus', color_primario)])
 
-def configurar_ventana_principal(root):
+def ConfigurarVentanaPrincipal(root):
     """Configuración adicional para la ventana principal"""
     # Centrar la ventana en la pantalla
     root.update_idletasks()

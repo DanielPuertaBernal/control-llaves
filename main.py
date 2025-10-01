@@ -1,6 +1,6 @@
 from tkinter import Tk
 from ui.interfaz import App
-from assets.estiloTkinter import configurar_ventana_principal
+from assets.estiloTkinter import ConfigurarVentanaPrincipal
 
 def main():
     root = Tk()
@@ -9,7 +9,7 @@ def main():
     
     # Aplicar configuración de ventana
     try:
-        configurar_ventana_principal(root)
+        ConfigurarVentanaPrincipal(root)
     except:
         pass  # Si falla la configuración, continuar sin ella
     

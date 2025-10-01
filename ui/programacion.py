@@ -27,10 +27,10 @@ class VistaProgramacion:
         self.frame_programacion = ttk.Frame(notebook, padding="20")
         notebook.add(self.frame_programacion, text="📅 Programación")
         
-        self.crear_vista_programacion()
-        self.verificar_programacion_guardada()
+        self.CrearVistaProgramacion()
+        self.VerificarProgramacionGuardada()
 
-    def crear_vista_programacion(self):
+    def CrearVistaProgramacion(self):
         # Frame principal con padding mejorado
         main_frame = ttk.Frame(self.frame_programacion, padding="15")
         main_frame.pack(fill='both', expand=True)
@@ -84,7 +84,7 @@ class VistaProgramacion:
                                  style="Success.TButton")
         btn_exportar.pack(pady=(0, 5))
 
-    def verificar_programacion_guardada(self):
+    def VerificarProgramacionGuardada(self):
         """Verificar si existe una programación limpia guardada y cargarla automáticamente"""
         ruta_programacion = ObtenerRutaArchivo("programacionLimpiaActual.xlsx")
         
@@ -101,23 +101,23 @@ class VistaProgramacion:
                     foreground="#2e7d32", font=('Segoe UI', 10, 'bold')
                 )
                 
-                self.mostrar_programacion_en_vista()
+                self.MostrarProgramacionEnVista()
                 
                 # Notificar a otras vistas que los datos están listos
-                self.notificar_datos_cargados()
+                self.NotificarDatosCargados()
                 
             except Exception as e:
                 # Error silencioso, mantener funcionamiento
                 pass
     
-    def notificar_datos_cargados(self):
+    def NotificarDatosCargados(self):
         """Notificar a otras vistas que los datos están cargados"""
         # Verificar si vista_entrega existe y tiene el método
-        if hasattr(self.app, 'vista_entrega') and hasattr(self.app.vista_entrega, 'cargar_clases_del_dia'):
-            self.app.vista_entrega.cargar_clases_del_dia()
+        if hasattr(self.app, 'vista_entrega') and hasattr(self.app.vista_entrega, 'CargarClasesDelDia'):
+            self.app.vista_entrega.CargarClasesDelDia()
 
     # ============ FUNCIONES VISTA PROGRAMACIÓN ============
-    def cargar_programacion(self):
+    def CargarProgramacion(self):
         """Cargar archivo de programación"""
         archivo = filedialog.askopenfilename(
             title="Seleccionar archivo de programación",
@@ -157,7 +157,7 @@ class VistaProgramacion:
                     foreground="#2e7d32", font=('Segoe UI', 10, 'bold')
                 )
                 
-                self.mostrar_programacion_en_vista()
+                self.MostrarProgramacionEnVista()
                 
                 messagebox.showinfo("✅ Carga Exitosa", 
                                   f"📊 Programación cargada y limpia guardada automáticamente\n\n" +
@@ -167,11 +167,11 @@ class VistaProgramacion:
             except Exception as e:
                 messagebox.showerror("Error", f"Error al cargar archivo: {str(e)}")
 
-    def mostrar_programacion_en_vista(self):
+    def MostrarProgramacionEnVista(self):
         """Función simplificada - ya no necesita procesar datos para mostrar"""
         pass
 
-    def exportar_programacion_limpia(self):
+    def ExportarProgramacionLimpia(self):
         """Exportar la programación limpia actual"""
         if self.app.programacion is None or self.app.programacion.empty:
             messagebox.showwarning("⚠️ Sin Datos", "No hay programación cargada para exportar\n\nPor favor, cargue primero un archivo de programación.")
@@ -200,7 +200,7 @@ class VistaProgramacion:
         except Exception as e:
             messagebox.showerror("Error", f"Error al exportar: {str(e)}")
 
-    def mostrar_detalle_fila(self, event):
+    def MostrarDetalleFila(self, event):
         """Función eliminada - ya no hay tabla para hacer clic"""
         pass
 

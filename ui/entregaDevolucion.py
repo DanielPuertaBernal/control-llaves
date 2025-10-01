@@ -29,10 +29,10 @@ class VistaEntregaDevolucion:
         self.cache_timestamp = None  # Timestamp del cache para invalidación
         self.cache_valid_duration = 10  # Cache válido por 10 segundos (reducido para mayor consistencia)
         
-        self.crear_vista_entrega_devolucion()
-        self.iniciar_actualizacion_automatica()
+        self.CrearVistaEntregaDevolucion()
+        self.IniciarActualizacionAutomatica()
 
-    def crear_vista_entrega_devolucion(self):
+    def CrearVistaEntregaDevolucion(self):
         # Obtener día actual directamente en el formato que usa el archivo
         dia_numero = datetime.now().weekday()  # 0=Monday, 6=Sunday
         dias_espanol = ['LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO', 'DOMINGO']
@@ -115,7 +115,7 @@ class VistaEntregaDevolucion:
 
     # ============ FUNCIONES PRINCIPALES ============
     
-    def forzar_actualizacion(self):
+    def ForzarActualizacion(self):
         """Fuerza la actualización invalidando completamente el cache"""
         # Invalidar cache completamente
         self.cache_timestamp = None
@@ -124,11 +124,11 @@ class VistaEntregaDevolucion:
         # Recargar según el estado de búsqueda
         busqueda_texto = self.entry_busqueda.get().strip()
         if busqueda_texto and busqueda_texto != "Ejemplo: 12345678 o A101 o Laboratorio...":
-            self.buscar_por_documento()
+            self.BuscarPorDocumento()
         else:
-            self.cargar_clases_del_dia()
+            self.CargarClasesDelDia()
     
-    def cargar_clases_del_dia(self):
+    def CargarClasesDelDia(self):
         """Carga y muestra las clases del día actual desde programacionLimpiaActual.xlsx"""
         if self.app.programacion is None or self.app.programacion.empty:
             messagebox.showwarning("Advertencia", 
@@ -167,26 +167,26 @@ class VistaEntregaDevolucion:
                 self.datos_filtrados = self.datos_filtrados.sort_values(by='Horario')
             
             # Eliminar clases cuyo horario ya pasó
-            self.eliminar_clases_pasadas()
+            self.EliminarClasesPasadas()
             
         except Exception as e:
             messagebox.showerror("Error", f"Error al cargar las clases del día: {str(e)}")
     
-    def normalizar_busqueda_salon(self, texto):
+    def NormalizarBusquedaSalon(self, texto):
         """Normaliza el texto para búsqueda de salones eliminando guiones y espacios"""
         if not texto:
             return ""
         # Convertir a minúsculas, eliminar guiones, espacios y otros caracteres especiales
         return texto.lower().replace('-', '').replace('_', '').replace(' ', '').strip()
     
-    def buscar_por_documento(self, event=None):
+    def BuscarPorDocumento(self, event=None):
         """Busca clases por número de documento del docente o por nombre del salón/aula"""
         termino = self.entry_busqueda.get().strip()
         
         # Ignorar el texto del placeholder
         if not termino or termino == "Ejemplo: 12345678 o A101 o Laboratorio...":
             # Si no hay término, mostrar todas las clases del día
-            self.cargar_clases_del_dia()
+            self.CargarClasesDelDia()
             return
         
         if self.app.programacion is None or self.app.programacion.empty:
@@ -231,7 +231,7 @@ class VistaEntregaDevolucion:
             mascara_documento = datos_del_dia['nroidenti_limpio'].str.contains(termino, na=False, case=False)
             
             # Buscar por aula/salón con normalización mejorada
-            termino_normalizado = self.normalizar_busqueda_salon(termino)
+            termino_normalizado = self.NormalizarBusquedaSalon(termino)
             
             # Crear columna temporal con aulas normalizadas para comparación
             datos_del_dia['aula_normalizada'] = datos_del_dia['Aula'].astype(str).apply(self.normalizar_busqueda_salon)
@@ -256,19 +256,19 @@ class VistaEntregaDevolucion:
                 self.datos_filtrados = self.datos_filtrados.sort_values(by='Horario')
             
             # *** IMPORTANTE: Aplicar filtros adicionales después de la búsqueda ***
-            self.eliminar_clases_pasadas()
+            self.EliminarClasesPasadas()
             
         except Exception as e:
             messagebox.showerror("Error", f"Error en la búsqueda: {str(e)}")
     
-    def eliminar_clases_pasadas(self):
+    def EliminarClasesPasadas(self):
         """Elimina de la tabla las clases que ya terminaron y las que ya tienen llaves entregadas."""
         try:
             ahora = datetime.now()
             
             # Filtrar las clases que aún no han terminado
             if 'Hora Fin' in self.datos_filtrados.columns:
-                def convertir_hora_fin(hora_fin):
+                def ConvertirHoraFin(hora_fin):
                     try:
                         # Manejar formato HH:MM:SS
                         if isinstance(hora_fin, str):
@@ -280,32 +280,32 @@ class VistaEntregaDevolucion:
                     except ValueError:
                         return None
                 
-                self.datos_filtrados['Hora_Fin_Convertida'] = self.datos_filtrados['Hora Fin'].apply(convertir_hora_fin)
+                self.datos_filtrados['Hora_Fin_Convertida'] = self.datos_filtrados['Hora Fin'].apply(ConvertirHoraFin)
                 self.datos_filtrados = self.datos_filtrados[self.datos_filtrados['Hora_Fin_Convertida'].notnull()]
                 self.datos_filtrados = self.datos_filtrados[self.datos_filtrados['Hora_Fin_Convertida'] > ahora.time()]
             
             # Filtrar clases cuyos docentes ya tienen llaves entregadas (OPTIMIZADO)
             if not self.datos_filtrados.empty and 'Número de Documento' in self.datos_filtrados.columns:
                 # Actualizar cache de docentes con llaves entregadas
-                self.actualizar_cache_docentes()
+                self.ActualizarCacheDocentes()
                 
                 # Usar vectorización para filtrar más eficientemente
-                def docente_sin_llave(documento):
+                def DocenteSinLlave(documento):
                     documento_limpio = LimpiarNumeroDocumento(str(documento))
                     return documento_limpio not in self.cache_docentes_con_llaves
                 
                 # Aplicar filtro vectorizado (mucho más rápido que un loop)
-                mascara_sin_llaves = self.datos_filtrados['Número de Documento'].apply(docente_sin_llave)
+                mascara_sin_llaves = self.datos_filtrados['Número de Documento'].apply(DocenteSinLlave)
                 self.datos_filtrados = self.datos_filtrados[mascara_sin_llaves]
             
             # Reiniciar paginación y mostrar datos actualizados
             self.pagina_actual = 1
-            self.calcular_paginacion()
-            self.mostrar_pagina_actual()
+            self.CalcularPaginacion()
+            self.MostrarPaginaActual()
         except Exception as e:
             messagebox.showerror("Error", f"Error al eliminar clases pasadas: {str(e)}")
     
-    def calcular_paginacion(self):
+    def CalcularPaginacion(self):
         """Calcula el número total de páginas"""
         total_items = len(self.datos_filtrados)
         self.total_paginas = max(1, (total_items + self.items_por_pagina - 1) // self.items_por_pagina)
@@ -314,14 +314,14 @@ class VistaEntregaDevolucion:
         if self.pagina_actual > self.total_paginas:
             self.pagina_actual = self.total_paginas
     
-    def mostrar_pagina_actual(self):
+    def MostrarPaginaActual(self):
         """Muestra los datos de la página actual en la tabla"""
         # Limpiar tabla
         for item in self.tree_clases.get_children():
             self.tree_clases.delete(item)
         
         if self.datos_filtrados.empty:
-            self.actualizar_info_pagina()
+            self.ActualizarInfoPagina()
             return
         
         # Calcular índices para la página actual
@@ -356,16 +356,16 @@ class VistaEntregaDevolucion:
                 "🔑 Entregar"
             ))
         
-        self.actualizar_info_pagina()
-        self.actualizar_botones_navegacion()
+        self.ActualizarInfoPagina()
+        self.ActualizarBotonesNavegacion()
     
-    def actualizar_info_pagina(self):
+    def ActualizarInfoPagina(self):
         """Actualiza la información de paginación"""
         total_items = len(self.datos_filtrados)
         self.label_pagina.config(text=f"Página {self.pagina_actual} de {self.total_paginas}")
         self.label_info.config(text=f"{total_items} registros encontrados")
     
-    def actualizar_botones_navegacion(self):
+    def ActualizarBotonesNavegacion(self):
         """Actualiza el estado de los botones de navegación"""
         # Botón anterior
         if self.pagina_actual <= 1:
@@ -379,23 +379,23 @@ class VistaEntregaDevolucion:
         else:
             self.btn_siguiente.config(state='normal')
     
-    def pagina_anterior(self):
+    def PaginaAnterior(self):
         """Va a la página anterior"""
         if self.pagina_actual > 1:
             self.pagina_actual -= 1
-            self.mostrar_pagina_actual()
+            self.MostrarPaginaActual()
     
-    def pagina_siguiente(self):
+    def PaginaSiguiente(self):
         """Va a la página siguiente"""
         if self.pagina_actual < self.total_paginas:
             self.pagina_actual += 1
-            self.mostrar_pagina_actual()
+            self.MostrarPaginaActual()
     
-    def iniciar_actualizacion_automatica(self):
+    def IniciarActualizacionAutomatica(self):
         """Inicia la actualización automática cada 10 minutos"""
-        self.actualizar_automaticamente()
+        self.ActualizarAutomaticamente()
     
-    def actualizar_automaticamente(self):
+    def ActualizarAutomaticamente(self):
         """Actualiza los datos automáticamente y programa la próxima actualización"""
         try:
             # Solo actualizar si hay datos cargados y no se está buscando
@@ -409,7 +409,7 @@ class VistaEntregaDevolucion:
                 # Invalidar cache antes de actualización automática
                 self.cache_timestamp = None
                 
-                self.cargar_clases_del_dia()
+                self.CargarClasesDelDia()
                 
         except Exception as e:
             print(f"Error en actualización automática: {str(e)}")
@@ -417,25 +417,25 @@ class VistaEntregaDevolucion:
         # Programar la próxima actualización en 10 minutos (600,000 ms) - cambiado de 30 a 10 minutos
         self.auto_update_job = self.frame_entrega.after(600000, self.actualizar_automaticamente)
 
-    def detener_actualizacion_automatica(self):
+    def DetenerActualizacionAutomatica(self):
         """Detiene la actualización automática"""
         if self.auto_update_job:
             self.frame_entrega.after_cancel(self.auto_update_job)
             self.auto_update_job = None
 
-    def on_entry_focus_in(self, event):
+    def OnEntryFocusIn(self, event):
         """Maneja cuando el campo de búsqueda recibe el foco"""
         if self.entry_busqueda.get() == "Ejemplo: 12345678 o A101 o Laboratorio...":
             self.entry_busqueda.delete(0, tk.END)
             self.entry_busqueda.config(foreground='black')
 
-    def on_entry_focus_out(self, event):
+    def OnEntryFocusOut(self, event):
         """Maneja cuando el campo de búsqueda pierde el foco"""
         if not self.entry_busqueda.get():
             self.entry_busqueda.insert(0, "Ejemplo: 12345678 o A101 o Laboratorio...")
             self.entry_busqueda.config(foreground='gray')
 
-    def on_search_keyrelease(self, event):
+    def OnSearchKeyrelease(self, event):
         """Implementa debounce para la búsqueda - retrasa la búsqueda hasta que el usuario pare de escribir"""
         # Cancelar búsqueda anterior si existe
         if self.search_job is not None:
@@ -444,7 +444,7 @@ class VistaEntregaDevolucion:
         # Programar nueva búsqueda después de 300ms de inactividad
         self.search_job = self.frame_entrega.after(300, self.buscar_por_documento)
 
-    def actualizar_cache_docentes(self):
+    def ActualizarCacheDocentes(self):
         """Actualiza el cache de docentes que tienen llaves entregadas"""
         try:
             ahora = datetime.now()
@@ -470,7 +470,7 @@ class VistaEntregaDevolucion:
             # En caso de error, limpiar cache para evitar datos incorrectos
             self.cache_docentes_con_llaves = set()
 
-    def on_click_tabla(self, event):
+    def OnClickTabla(self, event):
         """Maneja el clic en la tabla para detectar clic en la columna de Acción"""
         try:
             # Identificar qué columna se clickeó
@@ -481,11 +481,11 @@ class VistaEntregaDevolucion:
             if columna == '#6' and item:  # #6 corresponde a la columna "Acción"
                 # Simular el evento de doble clic
                 self.tree_clases.selection_set(item)
-                self.confirmar_entrega_llave(event)
+                self.ConfirmarEntregaLlave(event)
         except Exception as e:
             print(f"Error en click tabla: {e}")
 
-    def confirmar_entrega_llave(self, event):
+    def ConfirmarEntregaLlave(self, event):
         """Confirma la entrega de llave al docente cuando se hace doble clic"""
         try:
             # Obtener el item seleccionado
@@ -540,14 +540,14 @@ class VistaEntregaDevolucion:
                     # Recargar los datos completamente para mantener la consistencia
                     busqueda_texto = self.entry_busqueda.get().strip()
                     if busqueda_texto and busqueda_texto != "Ejemplo: 12345678 o A101 o Laboratorio...":
-                        self.buscar_por_documento()
+                        self.BuscarPorDocumento()
                     else:
-                        self.cargar_clases_del_dia()
+                        self.CargarClasesDelDia()
                     
                     # *** ACTUALIZAR VISTA HISTORIAL AUTOMÁTICAMENTE ***
                     if hasattr(self.app, 'vista_historial') and hasattr(self.app.vista_historial, 'cargar_historial'):
                         try:
-                            self.app.vista_historial.cargar_historial()
+                            self.app.vista_historial.CargarHistorial()
                         except Exception:
                             pass  # Error silencioso si no se puede actualizar el historial
                 else:
