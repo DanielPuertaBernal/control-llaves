@@ -61,7 +61,7 @@ class VistaProgramacion:
                  font=('Segoe UI', 10)).pack(anchor='w', pady=(0, 8))
         
         btn_cargar = ttk.Button(area_archivo, text="📁 Seleccionar Archivo Excel/CSV", 
-                               command=self.cargar_programacion,
+                               command=self.CargarProgramacion,
                                style="Accent.TButton")
         btn_cargar.pack(pady=(0, 10))
         
@@ -80,7 +80,7 @@ class VistaProgramacion:
                  font=('Segoe UI', 10)).pack(anchor='w', pady=(0, 8))
         
         btn_exportar = ttk.Button(frame_acciones, text="💾 Exportar Programación Limpia", 
-                                 command=self.exportar_programacion_limpia,
+                                 command=self.ExportarProgramacionLimpia,
                                  style="Success.TButton")
         btn_exportar.pack(pady=(0, 5))
 

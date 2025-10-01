@@ -52,21 +52,21 @@ class VistaEntregaDevolucion:
         
         self.entry_busqueda = ttk.Entry(frame_busqueda, font=('Segoe UI', 11))
         self.entry_busqueda.pack(fill='x')
-        self.entry_busqueda.bind('<KeyRelease>', self.on_search_keyrelease)  # Cambiar a función de debounce
+        self.entry_busqueda.bind('<KeyRelease>', self.OnSearchKeyrelease)  # Cambiar a función de debounce
         
         # Frame para paginación (movido arriba de la tabla)
         frame_paginacion = ttk.Frame(self.frame_entrega)
         frame_paginacion.pack(fill='x', pady=(15, 10))
         
         self.btn_anterior = ttk.Button(frame_paginacion, text="◀ Anterior", 
-                                      command=self.pagina_anterior, state='disabled')
+                                      command=self.PaginaAnterior, state='disabled')
         self.btn_anterior.pack(side='left')
         
         self.label_pagina = ttk.Label(frame_paginacion, text="Página 1 de 1")
         self.label_pagina.pack(side='left', padx=(20, 20))
         
         self.btn_siguiente = ttk.Button(frame_paginacion, text="Siguiente ▶", 
-                                       command=self.pagina_siguiente, state='disabled')
+                                       command=self.PaginaSiguiente, state='disabled')
         self.btn_siguiente.pack(side='left')
         
         # Información adicional
@@ -75,7 +75,7 @@ class VistaEntregaDevolucion:
         
         # Botón actualizar al lado del paginador
         btn_actualizar = ttk.Button(frame_paginacion, text="🔄 Refrescar", 
-                                   command=self.forzar_actualizacion)
+                                   command=self.ForzarActualizacion)
         btn_actualizar.pack(side='right')
         
         # Frame para la tabla principal
@@ -99,10 +99,10 @@ class VistaEntregaDevolucion:
         scrollbar.pack(side='right', fill='y')
 
         # Configurar evento de doble clic para confirmar entrega
-        self.tree_clases.bind('<Double-1>', self.confirmar_entrega_llave)
+        self.tree_clases.bind('<Double-1>', self.ConfirmarEntregaLlave)
         
         # También configurar evento de clic simple en la columna de Acción
-        self.tree_clases.bind('<Button-1>', self.on_click_tabla)
+        self.tree_clases.bind('<Button-1>', self.OnClickTabla)
 
         # Label de información de actualización automática
         self.label_auto_update = ttk.Label(self.frame_entrega, 
@@ -234,7 +234,7 @@ class VistaEntregaDevolucion:
             termino_normalizado = self.NormalizarBusquedaSalon(termino)
             
             # Crear columna temporal con aulas normalizadas para comparación
-            datos_del_dia['aula_normalizada'] = datos_del_dia['Aula'].astype(str).apply(self.normalizar_busqueda_salon)
+            datos_del_dia['aula_normalizada'] = datos_del_dia['Aula'].astype(str).apply(self.NormalizarBusquedaSalon)
             
             # Buscar tanto en el aula original (para búsquedas exactas) como en la normalizada (para búsquedas flexibles)
             mascara_aula_exacta = datos_del_dia['Aula'].astype(str).str.contains(termino, na=False, case=False)
@@ -415,7 +415,7 @@ class VistaEntregaDevolucion:
             print(f"Error en actualización automática: {str(e)}")
 
         # Programar la próxima actualización en 10 minutos (600,000 ms) - cambiado de 30 a 10 minutos
-        self.auto_update_job = self.frame_entrega.after(600000, self.actualizar_automaticamente)
+        self.auto_update_job = self.frame_entrega.after(600000, self.ActualizarAutomaticamente)
 
     def DetenerActualizacionAutomatica(self):
         """Detiene la actualización automática"""
@@ -442,7 +442,7 @@ class VistaEntregaDevolucion:
             self.frame_entrega.after_cancel(self.search_job)
         
         # Programar nueva búsqueda después de 300ms de inactividad
-        self.search_job = self.frame_entrega.after(300, self.buscar_por_documento)
+        self.search_job = self.frame_entrega.after(300, self.BuscarPorDocumento)
 
     def ActualizarCacheDocentes(self):
         """Actualiza el cache de docentes que tienen llaves entregadas"""
