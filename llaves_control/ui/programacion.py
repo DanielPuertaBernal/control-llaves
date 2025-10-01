@@ -86,7 +86,7 @@ class VistaProgramacion:
 
     def verificar_programacion_guardada(self):
         """Verificar si existe una programación limpia guardada y cargarla automáticamente"""
-        ruta_programacion = ObtenerRutaArchivo("programacion_limpia_actual.xlsx")
+        ruta_programacion = ObtenerRutaArchivo("programacionLimpiaActual.xlsx")
         
         if os.path.exists(ruta_programacion):
             try:
@@ -144,7 +144,7 @@ class VistaProgramacion:
                 programacion_limpia = LimpiarProgramacion(df)
                 
                 # Guardar automáticamente la programación limpia
-                ruta_guardado = ObtenerRutaArchivo("programacion_limpia_actual.xlsx")
+                ruta_guardado = ObtenerRutaArchivo("programacionLimpiaActual.xlsx")
                 os.makedirs(os.path.dirname(ruta_guardado), exist_ok=True)
                 programacion_limpia.to_excel(ruta_guardado, index=False)
                 
@@ -162,7 +162,7 @@ class VistaProgramacion:
                 messagebox.showinfo("✅ Carga Exitosa", 
                                   f"📊 Programación cargada y limpia guardada automáticamente\n\n" +
                                   f"🔢 Total de registros procesados: {len(programacion_limpia)}\n" +
-                                  f"📁 Guardada en: programacion_limpia_actual.xlsx")
+                                  f"📁 Guardada en: programacionLimpiaActual.xlsx")
                 
             except Exception as e:
                 messagebox.showerror("Error", f"Error al cargar archivo: {str(e)}")
@@ -183,7 +183,7 @@ class VistaProgramacion:
                 title="💾 Exportar Programación Limpia - Seleccione ubicación",
                 defaultextension=".xlsx",
                 filetypes=[("Archivos Excel", "*.xlsx"), ("Todos los archivos", "*.*")],
-                initialfile=f"programacion_limpia_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+                initialfile=f"programacionLimpia_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
             )
             
             if archivo_salida:

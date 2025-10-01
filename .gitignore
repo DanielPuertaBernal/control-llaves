@@ -254,3 +254,12 @@ temp_*.xlsx
 # Archivos específicos del Control de Llaves
 registros_llaves_*.xlsx
 programacion_limpia_*.xlsx
+registrosLlaves*.xlsx
+programacionLimpia*.xlsx
+respaldoRegistros*.xlsx
+
+# Carpeta de datos - no subir al repositorio
+llaves_control/data/
+data/
+*.xlsx
+*.xls

@@ -129,7 +129,7 @@ class VistaEntregaDevolucion:
             self.cargar_clases_del_dia()
     
     def cargar_clases_del_dia(self):
-        """Carga y muestra las clases del día actual desde programacion_limpia_actual.xlsx"""
+        """Carga y muestra las clases del día actual desde programacionLimpiaActual.xlsx"""
         if self.app.programacion is None or self.app.programacion.empty:
             messagebox.showwarning("Advertencia", 
                                  "No hay programación cargada. Por favor, cargue la programación primero.")

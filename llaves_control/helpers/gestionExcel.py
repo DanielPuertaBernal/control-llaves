@@ -13,7 +13,7 @@ def ObtenerRutaArchivo(nombre_archivo):
     """Obtiene la ruta completa de un archivo en el directorio data"""
     return os.path.join(ObtenerRutaData(), nombre_archivo)
 
-RUTA_REGISTRO = ObtenerRutaArchivo('registros_llaves.xlsx')
+RUTA_REGISTRO = ObtenerRutaArchivo('registrosLlaves.xlsx')
 
 def InicializarRegistro():
     """Inicializa el archivo de registro si no existe"""
@@ -220,7 +220,7 @@ def GenerarRespaldo():
     try:
         if os.path.exists(RUTA_REGISTRO):
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-            ruta_respaldo = ObtenerRutaArchivo(f'respaldo_registros_{timestamp}.xlsx')
+            ruta_respaldo = ObtenerRutaArchivo(f'respaldoRegistros_{timestamp}.xlsx')
             
             # Copiar archivo usando openpyxl
             wb = load_workbook(RUTA_REGISTRO)

@@ -39,7 +39,7 @@ class App:
     
     def CargarProgramacionInicial(self):
         """Cargar la programación desde el archivo guardado"""
-        ruta_programacion = ObtenerRutaArchivo("programacion_limpia_actual.xlsx")
+        ruta_programacion = ObtenerRutaArchivo("programacionLimpiaActual.xlsx")
         
         if os.path.exists(ruta_programacion):
             try:

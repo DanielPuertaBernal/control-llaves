@@ -361,7 +361,7 @@ def GuardarProgramacionLimpia(df_original: pd.DataFrame, ruta_salida: str = None
     """
     if ruta_salida is None:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        ruta_salida = ObtenerRutaArchivo(f"programacion_limpia_{timestamp}.xlsx")
+        ruta_salida = ObtenerRutaArchivo(f"programacionLimpia_{timestamp}.xlsx")
     
     # Asegurar que el directorio existe
     os.makedirs(os.path.dirname(ruta_salida), exist_ok=True)
@@ -390,7 +390,7 @@ def GuardarProgramacionActual(df_limpio: pd.DataFrame, ruta_base: str = "llaves_
     """
     Guarda la programación limpia como la versión actual para cargas posteriores
     """
-    ruta_actual = os.path.join(ruta_base, "programacion_limpia_actual.xlsx")
+    ruta_actual = os.path.join(ruta_base, "programacionLimpiaActual.xlsx")
     
     # Asegurar que el directorio existe
     os.makedirs(os.path.dirname(ruta_actual), exist_ok=True)
@@ -416,5 +416,5 @@ def VerificarProgramacionGuardada(ruta_base: str = "llaves_control/data") -> str
     """
     Verifica si existe una programación limpia guardada previamente
     """
-    ruta_actual = os.path.join(ruta_base, "programacion_limpia_actual.xlsx")
+    ruta_actual = os.path.join(ruta_base, "programacionLimpiaActual.xlsx")
     return ruta_actual if os.path.exists(ruta_actual) else None
