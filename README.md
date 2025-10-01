@@ -26,7 +26,7 @@ pip install openpyxl pandas
 ```bash
 git clone https://github.com/DanielPuertaBernal/ControlDeLLaves.git
 cd ControlDeLLaves
-python llaves_control/main.py
+python main.py
 ```
 
 ## 📦 Dependencias
@@ -47,7 +47,7 @@ python llaves_control/main.py
 ## 📁 Estructura
 
 ```
-llaves_control/
+ControlDeLLaves/
 ├── main.py           # Archivo principal
 ├── assets/           # Estilos de interfaz
 ├── helpers/          # Lógica de negocio

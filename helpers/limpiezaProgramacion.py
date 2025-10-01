@@ -386,7 +386,7 @@ def GuardarProgramacionLimpia(df_original: pd.DataFrame, ruta_salida: str = None
     
     return ruta_salida
 
-def GuardarProgramacionActual(df_limpio: pd.DataFrame, ruta_base: str = "llaves_control/data") -> str:
+def GuardarProgramacionActual(df_limpio: pd.DataFrame, ruta_base: str = "data") -> str:
     """
     Guarda la programación limpia como la versión actual para cargas posteriores
     """
@@ -412,7 +412,7 @@ def GuardarProgramacionActual(df_limpio: pd.DataFrame, ruta_base: str = "llaves_
     
     return ruta_actual
 
-def VerificarProgramacionGuardada(ruta_base: str = "llaves_control/data") -> str:
+def VerificarProgramacionGuardada(ruta_base: str = "data") -> str:
     """
     Verifica si existe una programación limpia guardada previamente
     """
