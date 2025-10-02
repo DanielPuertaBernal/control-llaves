@@ -5,6 +5,7 @@ from helpers.gestionExcel import (ObtenerLlavesPendientes, RegistrarDevolucion,
                                  LimpiarNumeroDocumento)
 from helpers.busquedaTabla import BusquedaTabla
 from helpers.paginacionTabla import PaginacionTabla
+from helpers.actualizacionAutomatica import ActualizacionAutomatica, UtilTablas
 import pandas as pd
 
 class VistaHistorialLlaves:
@@ -17,18 +18,23 @@ class VistaHistorialLlaves:
         self.datos_historial = []
         self.datos_filtrados = []
         
-        # Variable para el temporizador de actualización automática
-        self.auto_update_job = None
-        
         # Instanciar componente de búsqueda reutilizable
         self.buscador = BusquedaTabla()
         
         # Instanciar componente de paginación reutilizable
         self.paginador = PaginacionTabla(items_por_pagina=20)
         
+        # Instanciar componente de actualización automática
+        self.actualizador = ActualizacionAutomatica(
+            frame_parent=self.frame_historial,
+            callback_actualizar=self._ActualizarSiNoHayBusqueda,
+            intervalo_ms=30000,  # 30 segundos
+            debounce_ms=300      # 300ms de debounce
+        )
+        
         self.CrearVistaHistorial()
         self.CargarHistorial()
-        self.IniciarActualizacionAutomatica()
+        self.actualizador.IniciarActualizacionAutomatica()
 
     def CrearVistaHistorial(self):
         # Título
@@ -45,11 +51,14 @@ class VistaHistorialLlaves:
         ttk.Label(frame_controles, text="Buscar:").pack(side='left', padx=(0, 5))
         self.entry_busqueda = ttk.Entry(frame_controles, width=40)
         self.entry_busqueda.pack(side='left', padx=(0, 10))
-        self.entry_busqueda.bind('<KeyRelease>', self.OnBusquedaChanged)
+        
+        # Configurar debounce de búsqueda usando el componente
+        self.actualizador.ConfigurarDebounce(self.AplicarFiltros)
+        self.entry_busqueda.bind('<KeyRelease>', self.actualizador.OnCambioBusqueda)
         
         # Botón actualizar
         btn_actualizar = ttk.Button(frame_controles, text="🔄 Actualizar", 
-                                   command=self.CargarHistorial)
+                                   command=self.actualizador.ForzarActualizacion)
         btn_actualizar.pack(side='left')
 
         # Frame para paginación (movido arriba de la tabla)
@@ -136,6 +145,15 @@ class VistaHistorialLlaves:
         
         # Actualizar paginación con nuevos datos
         self.paginador.ActualizarDatos(self.datos_filtrados)
+
+    def _ActualizarSiNoHayBusqueda(self):
+        """Callback para actualización automática - solo actualiza si no hay búsqueda activa"""
+        try:
+            # Solo actualizar si no hay filtros de búsqueda activos
+            if not self.entry_busqueda.get().strip():
+                self.CargarHistorial()
+        except Exception:
+            pass  # Error silencioso
     
     def MostrarDatosEnTabla(self, datos_pagina, inicio, fin):
         """
@@ -146,22 +164,22 @@ class VistaHistorialLlaves:
             inicio: Índice de inicio
             fin: Índice de fin
         """
-        # Limpiar tabla
-        for item in self.tree_historial.get_children():
-            self.tree_historial.delete(item)
+        # Limpiar tabla usando utilidad
+        UtilTablas.LimpiarTabla(self.tree_historial)
         
-        if not datos_pagina:
+        # Validar datos vacíos usando utilidad
+        if UtilTablas.ValidarDatosVacios(datos_pagina):
             return
         
         # Mostrar datos de la página actual
         for registro in datos_pagina:
-            documento = registro.get('Número de Documento', '')
-            docente = registro.get('Docente', '')
-            horario = registro.get('Horario', '')
-            aula = registro.get('Aula', '')
-            materia = registro.get('Materia de la Clase', '')
-            fecha_entrega = registro.get('Fecha de entrega', '')
-            hora_entrega = registro.get('Hora de entrega', '')
+            documento = UtilTablas.ExtraerValorSeguro(registro, 'Número de Documento')
+            docente = UtilTablas.ExtraerValorSeguro(registro, 'Docente')
+            horario = UtilTablas.ExtraerValorSeguro(registro, 'Horario')
+            aula = UtilTablas.ExtraerValorSeguro(registro, 'Aula')
+            materia = UtilTablas.ExtraerValorSeguro(registro, 'Materia de la Clase')
+            fecha_entrega = UtilTablas.ExtraerValorSeguro(registro, 'Fecha de entrega')
+            hora_entrega = UtilTablas.ExtraerValorSeguro(registro, 'Hora de entrega')
             
             # Insertar con fondo de color para destacar que están en préstamo
             item_id = self.tree_historial.insert('', 'end', 
@@ -170,15 +188,6 @@ class VistaHistorialLlaves:
         
         # Configurar el color de fondo para items en préstamo
         self.tree_historial.tag_configure('prestamo', background='#FFF3CD', foreground='#856404')
-
-    def OnBusquedaChanged(self, event):
-        """Maneja el evento de cambio en el campo de búsqueda"""
-        # Cancelar búsqueda anterior si existe
-        if hasattr(self, 'search_job') and self.search_job:
-            self.frame_historial.after_cancel(self.search_job)
-        
-        # Programar nueva búsqueda con retraso
-        self.search_job = self.frame_historial.after(300, self.AplicarFiltros)
 
     def ConfirmarDevolucion(self, event):
         """Confirma la devolución de una llave"""
@@ -229,25 +238,3 @@ class VistaHistorialLlaves:
             messagebox.showwarning("Advertencia", "Por favor, seleccione un registro de la tabla.")
         except Exception as e:
             messagebox.showerror("Error", f"Error al procesar devolución: {str(e)}")
-
-    def IniciarActualizacionAutomatica(self):
-        """Inicia actualización automática cada 30 segundos"""
-        self.ActualizarAutomaticamente()
-
-    def ActualizarAutomaticamente(self):
-        """Actualiza datos automáticamente"""
-        try:
-            # Solo actualizar si no hay filtros de búsqueda activos
-            if not self.entry_busqueda.get().strip():
-                self.CargarHistorial()
-        except Exception:
-            pass  # Error silencioso
-        finally:
-            # Programar próxima actualización
-            self.auto_update_job = self.frame_historial.after(30000, self.ActualizarAutomaticamente)
-
-    def DetenerActualizacionAutomatica(self):
-        """Detiene la actualización automática"""
-        if self.auto_update_job:
-            self.frame_historial.after_cancel(self.auto_update_job)
-            self.auto_update_job = None

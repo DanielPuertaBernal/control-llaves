@@ -9,6 +9,7 @@ from helpers.gestionExcel import (RegistrarEntrega, RegistrarDevolucion,
 from helpers.limpiezaProgramacion import LimpiarProgramacion
 from helpers.busquedaTabla import BusquedaTabla
 from helpers.paginacionTabla import PaginacionTabla
+from helpers.actualizacionAutomatica import ActualizacionAutomatica, UtilTablas
 
 class VistaEntregaDevolucion:
     def __init__(self, notebook, app):
@@ -16,20 +17,22 @@ class VistaEntregaDevolucion:
         self.frame_entrega = ttk.Frame(notebook, padding="20")
         notebook.add(self.frame_entrega, text="🔑 Devolución de Llaves")
         
-        # Variables para optimización de rendimiento
-        self.search_job = None  # Para debounce en búsqueda
-        
-        # Variable para el temporizador de actualización automática
-        self.auto_update_job = None
-        
         # Instanciar componente de búsqueda reutilizable
         self.buscador = BusquedaTabla()
         
         # Instanciar componente de paginación reutilizable
         self.paginador = PaginacionTabla(items_por_pagina=15)
         
+        # Instanciar componente de actualización automática
+        self.actualizador = ActualizacionAutomatica(
+            frame_parent=self.frame_entrega,
+            callback_actualizar=self._ActualizarSiNoHayBusqueda,
+            intervalo_ms=600000,  # 10 minutos
+            debounce_ms=300       # 300ms de debounce
+        )
+        
         self.CrearVistaEntregaDevolucion()
-        self.IniciarActualizacionAutomatica()
+        self.actualizador.IniciarActualizacionAutomatica()
 
     def CrearVistaEntregaDevolucion(self):
         # Obtener día actual directamente en el formato que usa el archivo
@@ -51,7 +54,10 @@ class VistaEntregaDevolucion:
         
         self.entry_busqueda = ttk.Entry(frame_busqueda, font=('Segoe UI', 11))
         self.entry_busqueda.pack(fill='x')
-        self.entry_busqueda.bind('<KeyRelease>', self.OnSearchKeyrelease)  # Cambiar a función de debounce
+        
+        # Configurar debounce de búsqueda usando el componente
+        self.actualizador.ConfigurarDebounce(self.BuscarPorDocumento)
+        self.entry_busqueda.bind('<KeyRelease>', self.actualizador.OnCambioBusqueda)
         
         # Frame para paginación (movido arriba de la tabla)
         frame_paginacion = ttk.Frame(self.frame_entrega)
@@ -65,7 +71,7 @@ class VistaEntregaDevolucion:
         
         # Botón actualizar al lado del paginador
         btn_actualizar = ttk.Button(frame_paginacion, text="🔄 Refrescar", 
-                                   command=self.ForzarActualizacion)
+                                   command=self.actualizador.ForzarActualizacion)
         btn_actualizar.pack(side='right')
         
         # Frame para la tabla principal
@@ -116,6 +122,24 @@ class VistaEntregaDevolucion:
             self.BuscarPorDocumento()
         else:
             self.CargarClasesDelDia()
+    
+    def _ActualizarSiNoHayBusqueda(self):
+        """Callback para actualización automática - solo actualiza si no hay búsqueda activa"""
+        try:
+            # Solo actualizar si hay datos cargados y no se está buscando
+            busqueda_texto = self.entry_busqueda.get().strip()
+            esta_buscando = busqueda_texto and busqueda_texto != "Ejemplo: 12345678 o A101 o Laboratorio..."
+            
+            if (self.app.programacion is not None and 
+                not self.app.programacion.empty and 
+                not esta_buscando):
+                
+                # Invalidar cache antes de actualización automática
+                self.buscador.InvalidarCache()
+                self.CargarClasesDelDia()
+                
+        except Exception as e:
+            print(f"Error en actualización automática: {str(e)}")
     
     def CargarClasesDelDia(self):
         """Carga y muestra las clases del día actual desde programacionLimpiaActual.xlsx"""
@@ -189,34 +213,24 @@ class VistaEntregaDevolucion:
             inicio: Índice de inicio
             fin: Índice de fin
         """
-        # Limpiar tabla
-        for item in self.tree_clases.get_children():
-            self.tree_clases.delete(item)
+        # Limpiar tabla usando utilidad
+        UtilTablas.LimpiarTabla(self.tree_clases)
         
-        # Verificación más robusta de datos vacíos
-        if (datos_pagina is None or 
-            (hasattr(datos_pagina, '__len__') and len(datos_pagina) == 0) or
-            (hasattr(datos_pagina, 'empty') and datos_pagina.empty)):
+        # Validar datos vacíos usando utilidad
+        if UtilTablas.ValidarDatosVacios(datos_pagina):
             return
         
         try:
             # Insertar datos en la tabla
             for _, fila in datos_pagina.iterrows():
-                # Obtener documento (columna exacta: "Número de Documento")
-                documento = str(fila.get('Número de Documento', ''))
+                # Usar utilidades para extraer valores de forma segura
+                documento = UtilTablas.ExtraerValorSeguro(fila, 'Número de Documento')
                 documento_limpio = LimpiarNumeroDocumento(documento)
                 
-                # Obtener docente (columna exacta: "Docente")
-                docente = str(fila.get('Docente', 'N/A'))
-                    
-                # Obtener aula (columna exacta: "Aula")
-                aula = str(fila.get('Aula', 'N/A'))
-                
-                # Obtener horario (columna exacta: "Horario")
-                horario = str(fila.get('Horario', 'N/A'))
-                
-                # Obtener materia (columna exacta: "Materia de la Clase")
-                materia = str(fila.get('Materia de la Clase', 'N/A'))
+                docente = UtilTablas.ExtraerValorSeguro(fila, 'Docente')
+                aula = UtilTablas.ExtraerValorSeguro(fila, 'Aula')
+                horario = UtilTablas.ExtraerValorSeguro(fila, 'Horario')
+                materia = UtilTablas.ExtraerValorSeguro(fila, 'Materia de la Clase')
                 
                 self.tree_clases.insert('', 'end', values=(
                     documento_limpio,
@@ -230,38 +244,6 @@ class VistaEntregaDevolucion:
             print(f"Error al mostrar datos en tabla: {e}")
             # En caso de error, simplemente no mostrar datos
     
-    def IniciarActualizacionAutomatica(self):
-        """Inicia la actualización automática cada 10 minutos"""
-        self.ActualizarAutomaticamente()
-    
-    def ActualizarAutomaticamente(self):
-        """Actualiza los datos automáticamente y programa la próxima actualización"""
-        try:
-            # Solo actualizar si hay datos cargados y no se está buscando
-            busqueda_texto = self.entry_busqueda.get().strip()
-            esta_buscando = busqueda_texto and busqueda_texto != "Ejemplo: 12345678 o A101 o Laboratorio..."
-            
-            if (self.app.programacion is not None and 
-                not self.app.programacion.empty and 
-                not esta_buscando):
-                
-                # Invalidar cache antes de actualización automática
-                self.buscador.InvalidarCache()
-                
-                self.CargarClasesDelDia()
-                
-        except Exception as e:
-            print(f"Error en actualización automática: {str(e)}")
-
-        # Programar la próxima actualización en 10 minutos (600,000 ms) - cambiado de 30 a 10 minutos
-        self.auto_update_job = self.frame_entrega.after(600000, self.ActualizarAutomaticamente)
-
-    def DetenerActualizacionAutomatica(self):
-        """Detiene la actualización automática"""
-        if self.auto_update_job:
-            self.frame_entrega.after_cancel(self.auto_update_job)
-            self.auto_update_job = None
-
     def OnEntryFocusIn(self, event):
         """Maneja cuando el campo de búsqueda recibe el foco"""
         if self.entry_busqueda.get() == "Ejemplo: 12345678 o A101 o Laboratorio...":
@@ -273,15 +255,6 @@ class VistaEntregaDevolucion:
         if not self.entry_busqueda.get():
             self.entry_busqueda.insert(0, "Ejemplo: 12345678 o A101 o Laboratorio...")
             self.entry_busqueda.config(foreground='gray')
-
-    def OnSearchKeyrelease(self, event):
-        """Implementa debounce para la búsqueda - retrasa la búsqueda hasta que el usuario pare de escribir"""
-        # Cancelar búsqueda anterior si existe
-        if self.search_job is not None:
-            self.frame_entrega.after_cancel(self.search_job)
-        
-        # Programar nueva búsqueda después de 300ms de inactividad
-        self.search_job = self.frame_entrega.after(300, self.BuscarPorDocumento)
 
     def OnClickTabla(self, event):
         """Maneja el clic en la tabla para detectar clic en la columna de Acción"""
