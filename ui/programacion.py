@@ -1,31 +1,14 @@
 from tkinter import ttk, messagebox, filedialog
-import tkinter as tk
-import pandas as pd
-from datetime import datetime
-import os
-from helpers.limpiezaProgramacion import (
-    LimpiarProgramacion, 
-    GuardarProgramacionLimpia, 
-    VerificarProgramacionGuardada, 
-    GuardarProgramacionActual
-)
-
-# Obtener la ruta del directorio llaves_control
-def ObtenerRutaData():
-    """Obtiene la ruta correcta del directorio data dentro de llaves_control"""
-    ruta_actual = os.path.dirname(os.path.abspath(__file__))  # ui
-    ruta_llaves_control = os.path.dirname(ruta_actual)  # llaves_control
-    return os.path.join(ruta_llaves_control, "data")
-
-def ObtenerRutaArchivo(nombre_archivo):
-    """Obtiene la ruta completa de un archivo en el directorio data"""
-    return os.path.join(ObtenerRutaData(), nombre_archivo)
+from helpers.gestorProgramacion import GestorProgramacion
 
 class VistaProgramacion:
     def __init__(self, notebook, app):
         self.app = app
         self.frame_programacion = ttk.Frame(notebook, padding="20")
         notebook.add(self.frame_programacion, text="📅 Programación")
+        
+        # Instanciar gestor de lógica de negocio
+        self.gestor = GestorProgramacion()
         
         self.CrearVistaProgramacion()
         self.VerificarProgramacionGuardada()
@@ -86,29 +69,27 @@ class VistaProgramacion:
 
     def VerificarProgramacionGuardada(self):
         """Verificar si existe una programación limpia guardada y cargarla automáticamente"""
-        ruta_programacion = ObtenerRutaArchivo("programacionLimpiaActual.xlsx")
+        existe, datos, mensaje = self.gestor.VerificarProgramacionExistente()
         
-        if os.path.exists(ruta_programacion):
-            try:
-                df = pd.read_excel(ruta_programacion)
-                
-                self.app.programacion = df
-                self.datos_completos = df.copy()
-                self.datos_filtrados = df.copy()
-                
-                self.label_archivo.config(
-                    text=f"✅ Programación cargada automáticamente: {len(df)} registros procesados", 
-                    foreground="#2e7d32", font=('Segoe UI', 10, 'bold')
-                )
-                
-                self.MostrarProgramacionEnVista()
-                
-                # Notificar a otras vistas que los datos están listos
-                self.NotificarDatosCargados()
-                
-            except Exception as e:
-                # Error silencioso, mantener funcionamiento
-                pass
+        if existe:
+            # Actualizar aplicación con datos cargados
+            self.app.programacion = datos
+            
+            # Actualizar interfaz
+            self.label_archivo.config(
+                text=mensaje, 
+                foreground="#2e7d32", 
+                font=('Segoe UI', 10, 'bold')
+            )
+            
+            # Notificar a otras vistas que los datos están listos
+            self.NotificarDatosCargados()
+        else:
+            self.label_archivo.config(
+                text=mensaje, 
+                foreground="#d32f2f", 
+                font=('Segoe UI', 10, 'bold')
+            )
     
     def NotificarDatosCargados(self):
         """Notificar a otras vistas que los datos están cargados"""
@@ -116,7 +97,6 @@ class VistaProgramacion:
         if hasattr(self.app, 'vista_entrega') and hasattr(self.app.vista_entrega, 'CargarClasesDelDia'):
             self.app.vista_entrega.CargarClasesDelDia()
 
-    # ============ FUNCIONES VISTA PROGRAMACIÓN ============
     def CargarProgramacion(self):
         """Cargar archivo de programación"""
         archivo = filedialog.askopenfilename(
@@ -125,83 +105,61 @@ class VistaProgramacion:
         )
         
         if archivo:
-            try:
-                if archivo.endswith('.csv'):
-                    df = pd.read_csv(archivo, encoding='utf-8')
-                else:
-                    df = pd.read_excel(archivo)
+            # Usar gestor para procesar archivo
+            exito, datos_procesados, mensaje = self.gestor.CargarYProcesarArchivo(archivo)
+            
+            if exito:
+                # Actualizar aplicación con datos procesados
+                self.app.programacion_original = self.gestor.programacion_original
+                self.app.programacion = datos_procesados
                 
-                # Verificar que tenga las columnas básicas
-                columnas_requeridas = ['nroidenti', 'profesor', 'aula']
-                columnas_faltantes = [col for col in columnas_requeridas if col not in df.columns]
-                
-                if columnas_faltantes:
-                    messagebox.showerror("Error", 
-                                       f"El archivo debe contener las columnas: {', '.join(columnas_faltantes)}")
-                    return
-                
-                # Limpiar y procesar programación
-                programacion_limpia = LimpiarProgramacion(df)
-                
-                # Guardar automáticamente la programación limpia
-                ruta_guardado = ObtenerRutaArchivo("programacionLimpiaActual.xlsx")
-                os.makedirs(os.path.dirname(ruta_guardado), exist_ok=True)
-                programacion_limpia.to_excel(ruta_guardado, index=False)
-                
-                # Guardar en la aplicación
-                self.app.programacion_original = df
-                self.app.programacion = programacion_limpia
-                
+                # Actualizar interfaz
                 self.label_archivo.config(
-                    text=f"✅ Archivo procesado exitosamente: {len(programacion_limpia)} registros listos", 
-                    foreground="#2e7d32", font=('Segoe UI', 10, 'bold')
+                    text=mensaje, 
+                    foreground="#2e7d32", 
+                    font=('Segoe UI', 10, 'bold')
                 )
                 
-                self.MostrarProgramacionEnVista()
-                
+                # Notificar éxito
                 messagebox.showinfo("✅ Carga Exitosa", 
                                   f"📊 Programación cargada y limpia guardada automáticamente\n\n" +
-                                  f"🔢 Total de registros procesados: {len(programacion_limpia)}\n" +
+                                  f"🔢 Total de registros procesados: {len(datos_procesados)}\n" +
                                   f"📁 Guardada en: programacionLimpiaActual.xlsx")
                 
-            except Exception as e:
-                messagebox.showerror("Error", f"Error al cargar archivo: {str(e)}")
-
-    def MostrarProgramacionEnVista(self):
-        """Función simplificada - ya no necesita procesar datos para mostrar"""
-        pass
+                # Notificar a otras vistas
+                self.NotificarDatosCargados()
+                
+            else:
+                # Mostrar error
+                messagebox.showerror("Error", mensaje)
 
     def ExportarProgramacionLimpia(self):
         """Exportar la programación limpia actual"""
-        if self.app.programacion is None or self.app.programacion.empty:
-            messagebox.showwarning("⚠️ Sin Datos", "No hay programación cargada para exportar\n\nPor favor, cargue primero un archivo de programación.")
+        if self.gestor.ObtenerProgramacionActual() is None:
+            messagebox.showwarning("⚠️ Sin Datos", 
+                                 "No hay programación cargada para exportar\n\n"
+                                 "Por favor, cargue primero un archivo de programación.")
             return
         
         try:
             # Permitir al usuario elegir dónde guardar
+            nombre_sugerido = self.gestor.GenerarNombreArchivoExportacion()
+            
             archivo_salida = filedialog.asksaveasfilename(
                 title="💾 Exportar Programación Limpia - Seleccione ubicación",
                 defaultextension=".xlsx",
                 filetypes=[("Archivos Excel", "*.xlsx"), ("Todos los archivos", "*.*")],
-                initialfile=f"programacionLimpia_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+                initialfile=nombre_sugerido
             )
             
             if archivo_salida:
-                # Exportar toda la programación cargada
-                total_registros = len(self.app.programacion)
-                self.app.programacion.to_excel(archivo_salida, index=False)
+                # Usar gestor para exportar
+                exito, mensaje = self.gestor.ExportarProgramacion(archivo_salida)
                 
-                messagebox.showinfo("✅ Exportación Exitosa", 
-                                   f"📊 Programación exportada correctamente\n\n" +
-                                   f"📁 Archivo: {os.path.basename(archivo_salida)}\n" +
-                                   f"📍 Ubicación: {os.path.dirname(archivo_salida)}\n" +
-                                   f"🔢 Registros exportados: {total_registros}")
+                if exito:
+                    messagebox.showinfo("✅ Exportación Exitosa", mensaje)
+                else:
+                    messagebox.showerror("Error", mensaje)
                 
         except Exception as e:
-            messagebox.showerror("Error", f"Error al exportar: {str(e)}")
-
-    def MostrarDetalleFila(self, event):
-        """Función eliminada - ya no hay tabla para hacer clic"""
-        pass
-
-
+            messagebox.showerror("Error", f"Error inesperado al exportar: {str(e)}")
