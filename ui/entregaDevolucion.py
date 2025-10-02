@@ -5,6 +5,7 @@ from helpers.gestionExcel import (RegistrarEntrega, LimpiarNumeroDocumento)
 from helpers.busquedaTabla import BusquedaTabla
 from helpers.paginacionTabla import PaginacionTabla
 from helpers.actualizacionAutomatica import ActualizacionAutomatica, UtilTablas
+from helpers.accionesTabla import AccionesTabla, ConfirmadorAcciones
 
 class VistaEntregaDevolucion:
     def __init__(self, notebook, app):
@@ -25,6 +26,9 @@ class VistaEntregaDevolucion:
             intervalo_ms=600000,  # 10 minutos
             debounce_ms=300       # 300ms de debounce
         )
+        
+        # Instanciar componente de acciones de tabla
+        self.gestor_acciones = None  # Se inicializará después de crear la tabla
         
         self.CrearVistaEntregaDevolucion()
         self.actualizador.IniciarActualizacionAutomatica()
@@ -87,10 +91,17 @@ class VistaEntregaDevolucion:
         scrollbar.pack(side='right', fill='y')
 
         # Configurar evento de doble clic para confirmar entrega
-        self.tree_clases.bind('<Double-1>', self.ConfirmarEntregaLlave)
+        # self.tree_clases.bind('<Double-1>', self.ConfirmarEntregaLlave)
         
         # También configurar evento de clic simple en la columna de Acción
-        self.tree_clases.bind('<Button-1>', self.OnClickTabla)
+        # self.tree_clases.bind('<Button-1>', self.OnClickTabla)
+        
+        # Configurar gestor de acciones de tabla
+        self.gestor_acciones = AccionesTabla(
+            treeview=self.tree_clases,
+            callback_accion=self._ProcesarEntregaLlave,
+            callback_recarga=self._RecargarDespuesDeAccion
+        )
 
         # Label de información de actualización automática
         self.label_auto_update = ttk.Label(self.frame_entrega, 
@@ -228,31 +239,19 @@ class VistaEntregaDevolucion:
             print(f"Error al mostrar datos en tabla: {e}")
             # En caso de error, simplemente no mostrar datos
     
-    def OnClickTabla(self, event):
-        """Maneja el clic en la tabla para detectar clic en la columna de Acción"""
+    # ============ CALLBACKS PARA ACCIONES DE TABLA ============
+    
+    def _ProcesarEntregaLlave(self, valores):
+        """
+        Procesa la entrega de llave (callback para AccionesTabla)
+        
+        Args:
+            valores: Tupla con los valores de la fila seleccionada
+            
+        Returns:
+            bool: True si la acción fue exitosa
+        """
         try:
-            # Identificar qué columna se clickeó
-            columna = self.tree_clases.identify_column(event.x)
-            item = self.tree_clases.identify_row(event.y)
-            
-            # Si es la columna 6 (Acción) y hay un item seleccionado
-            if columna == '#6' and item:  # #6 corresponde a la columna "Acción"
-                # Simular el evento de doble clic
-                self.tree_clases.selection_set(item)
-                self.ConfirmarEntregaLlave(event)
-        except Exception as e:
-            print(f"Error en click tabla: {e}")
-
-    def ConfirmarEntregaLlave(self, event):
-        """Confirma la entrega de llave al docente cuando se hace doble clic"""
-        try:
-            # Obtener el item seleccionado
-            item_seleccionado = self.tree_clases.selection()[0]
-            valores = self.tree_clases.item(item_seleccionado, 'values')
-            
-            if not valores:
-                return
-            
             # Extraer información del registro seleccionado
             documento = valores[0]
             docente = valores[1]
@@ -260,21 +259,11 @@ class VistaEntregaDevolucion:
             horario = valores[3]
             materia = valores[4]
             
-            # Obtener el día actual
-            dia_actual = self._ObtenerDiaActual()
-            
             # Confirmar la acción con el usuario
-            resultado = messagebox.askyesno(
-                "Confirmar Entrega", 
-                f"¿Confirmar entrega de llave para:\n\n"
-                f"Docente: {docente}\n"
-                f"Documento: {documento}\n"
-                f"Aula: {aula}\n"
-                f"Horario: {horario}\n"
-                f"Materia: {materia}"
-            )
-            
-            if resultado:
+            if ConfirmadorAcciones.ConfirmarEntregaLlave(documento, docente, aula, horario, materia):
+                # Obtener el día actual
+                dia_actual = self._ObtenerDiaActual()
+                
                 # Preparar información para el registro
                 info_clase = {
                     'nroidenti': documento,
@@ -287,26 +276,49 @@ class VistaEntregaDevolucion:
                 
                 # Registrar la entrega
                 if RegistrarEntrega(info_clase):
-                    # *** INVALIDAR CACHE después de entrega exitosa ***
-                    self.buscador.InvalidarCache()  # Usar el componente de búsqueda
-                    
-                    # Recargar los datos completamente para mantener la consistencia
-                    busqueda_texto = self.entry_busqueda.get().strip()
-                    if busqueda_texto and busqueda_texto != "Ejemplo: 12345678 o A101 o Laboratorio...":
-                        self.BuscarPorDocumento()
-                    else:
-                        self.CargarClasesDelDia()
-                    
-                    # *** ACTUALIZAR VISTA HISTORIAL AUTOMÁTICAMENTE ***
-                    if hasattr(self.app, 'vista_historial') and hasattr(self.app.vista_historial, 'cargar_historial'):
-                        try:
-                            self.app.vista_historial.CargarHistorial()
-                        except Exception:
-                            pass  # Error silencioso si no se puede actualizar el historial
+                    return True  # Éxito
                 else:
-                    messagebox.showerror("Error", "No se pudo registrar la entrega de la llave.\nEs posible que el docente ya tenga una llave entregada.")
-        
-        except IndexError:
-            messagebox.showwarning("Advertencia", "Por favor, seleccione un registro de la tabla primero.")
+                    ConfirmadorAcciones.MostrarError(
+                        "No se pudo registrar la entrega de la llave.\n"
+                        "Es posible que el docente ya tenga una llave entregada."
+                    )
+                    return False
+            
+            return False  # Usuario canceló
+            
         except Exception as e:
-            messagebox.showerror("Error", f"Error al confirmar entrega: {str(e)}")
+            ConfirmadorAcciones.MostrarError(f"Error al confirmar entrega: {str(e)}")
+            return False
+    
+    def _RecargarDespuesDeAccion(self):
+        """Recarga los datos después de una acción exitosa"""
+        try:
+            # Invalidar cache
+            self.buscador.InvalidarCache()
+            
+            # Recargar datos según el estado de búsqueda
+            busqueda_texto = self.entry_busqueda.get().strip()
+            if busqueda_texto and busqueda_texto != "Ejemplo: 12345678 o A101 o Laboratorio...":
+                self.BuscarPorDocumento()
+            else:
+                self.CargarClasesDelDia()
+            
+            # Actualizar vista historial si existe
+            if hasattr(self.app, 'vista_historial') and hasattr(self.app.vista_historial, 'CargarHistorial'):
+                try:
+                    self.app.vista_historial.CargarHistorial()
+                except Exception:
+                    pass  # Error silencioso
+                    
+        except Exception as e:
+            print(f"Error recargando después de acción: {e}")
+    
+    def OnClickTabla(self, event):
+        """MÉTODO LEGACY - mantenido por compatibilidad, usar gestor_acciones"""
+        # Este método ahora es manejado por AccionesTabla
+        pass
+
+    def ConfirmarEntregaLlave(self, event):
+        """MÉTODO LEGACY - mantenido por compatibilidad, usar gestor_acciones"""
+        # Este método ahora es manejado por AccionesTabla y _ProcesarEntregaLlave
+        pass

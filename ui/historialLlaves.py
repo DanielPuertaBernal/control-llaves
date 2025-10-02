@@ -6,6 +6,7 @@ from helpers.gestionExcel import (ObtenerLlavesPendientes, RegistrarDevolucion,
 from helpers.busquedaTabla import BusquedaTabla
 from helpers.paginacionTabla import PaginacionTabla
 from helpers.actualizacionAutomatica import ActualizacionAutomatica, UtilTablas
+from helpers.accionesTabla import AccionesTabla, ConfirmadorAcciones
 import pandas as pd
 
 class VistaHistorialLlaves:
@@ -31,6 +32,9 @@ class VistaHistorialLlaves:
             intervalo_ms=30000,  # 30 segundos
             debounce_ms=300      # 300ms de debounce
         )
+        
+        # Instanciar componente de acciones de tabla
+        self.gestor_acciones = None  # Se inicializará después de crear la tabla
         
         self.CrearVistaHistorial()
         self.CargarHistorial()
@@ -108,7 +112,14 @@ class VistaHistorialLlaves:
         scrollbar_h.pack(side='bottom', fill='x')
         
         # Evento doble clic para devolver llave
-        self.tree_historial.bind('<Double-1>', self.ConfirmarDevolucion)
+        # self.tree_historial.bind('<Double-1>', self.ConfirmarDevolucion)
+        
+        # Configurar gestor de acciones de tabla
+        self.gestor_acciones = AccionesTabla(
+            treeview=self.tree_historial,
+            callback_accion=self._ProcesarDevolucionLlave,
+            callback_recarga=self._RecargarDespuesDeAccion
+        )
 
     def CargarHistorial(self):
         """Carga los datos del historial - SOLO llaves en préstamo"""
@@ -189,52 +200,61 @@ class VistaHistorialLlaves:
         # Configurar el color de fondo para items en préstamo
         self.tree_historial.tag_configure('prestamo', background='#FFF3CD', foreground='#856404')
 
-    def ConfirmarDevolucion(self, event):
-        """Confirma la devolución de una llave"""
+    # ============ CALLBACKS PARA ACCIONES DE TABLA ============
+    
+    def _ProcesarDevolucionLlave(self, valores):
+        """
+        Procesa la devolución de llave (callback para AccionesTabla)
+        
+        Args:
+            valores: Tupla con los valores de la fila seleccionada
+            
+        Returns:
+            bool: True si la acción fue exitosa
+        """
         try:
-            # Obtener el item seleccionado
-            item_seleccionado = self.tree_historial.selection()[0]
-            valores = self.tree_historial.item(item_seleccionado, 'values')
-            
-            if not valores:
-                return
-            
             documento = valores[0]
             docente = valores[1]
             
-            # Confirmar acción
-            resultado = messagebox.askyesno(
-                "Confirmar Devolución",
-                f"¿Confirmar devolución de llave?\n\n"
-                f"Docente: {docente}\n"
-                f"Documento: {documento}\n\n"
-                f"Se registrará la fecha y hora de devolución."
-            )
-            
-            if resultado:
+            # Confirmar la acción con el usuario
+            if ConfirmadorAcciones.ConfirmarDevolucionLlave(documento, docente):
                 # Registrar devolución
                 if RegistrarDevolucion(documento):
-                    
-                    # Recargar historial (el registro desaparecerá porque ya no está "Entregado")
-                    self.CargarHistorial()
-                    
-                    # *** ACTUALIZAR VISTA ENTREGA AUTOMÁTICAMENTE ***
-                    if hasattr(self.app, 'vista_entrega') and hasattr(self.app.vista_entrega, 'CargarClasesDelDia'):
-                        try:
-                            # Invalidar cache de la vista de entrega usando el componente
-                            self.app.vista_entrega.buscador.InvalidarCache()
-                            # Recargar datos de la vista de entrega
-                            busqueda_texto = self.app.vista_entrega.entry_busqueda.get().strip()
-                            if busqueda_texto and busqueda_texto != "Ejemplo: 12345678 o A101 o Laboratorio...":
-                                self.app.vista_entrega.BuscarPorDocumento()
-                            else:
-                                self.app.vista_entrega.CargarClasesDelDia()
-                        except Exception:
-                            pass  # Error silencioso si no se puede actualizar la vista de entrega
+                    return True  # Éxito
                 else:
-                    messagebox.showerror("Error", "No se pudo registrar la devolución.")
-        
-        except IndexError:
-            messagebox.showwarning("Advertencia", "Por favor, seleccione un registro de la tabla.")
+                    ConfirmadorAcciones.MostrarError("No se pudo registrar la devolución.")
+                    return False
+            
+            return False  # Usuario canceló
+            
         except Exception as e:
-            messagebox.showerror("Error", f"Error al procesar devolución: {str(e)}")
+            ConfirmadorAcciones.MostrarError(f"Error al procesar devolución: {str(e)}")
+            return False
+    
+    def _RecargarDespuesDeAccion(self):
+        """Recarga los datos después de una acción exitosa"""
+        try:
+            # Recargar historial (el registro desaparecerá porque ya no está "Entregado")
+            self.CargarHistorial()
+            
+            # Actualizar vista entrega si existe
+            if hasattr(self.app, 'vista_entrega') and hasattr(self.app.vista_entrega, 'CargarClasesDelDia'):
+                try:
+                    # Invalidar cache de la vista de entrega
+                    self.app.vista_entrega.buscador.InvalidarCache()
+                    # Recargar datos de la vista de entrega
+                    busqueda_texto = self.app.vista_entrega.entry_busqueda.get().strip()
+                    if busqueda_texto and busqueda_texto != "Ejemplo: 12345678 o A101 o Laboratorio...":
+                        self.app.vista_entrega.BuscarPorDocumento()
+                    else:
+                        self.app.vista_entrega.CargarClasesDelDia()
+                except Exception:
+                    pass  # Error silencioso
+                    
+        except Exception as e:
+            print(f"Error recargando después de acción: {e}")
+
+    def ConfirmarDevolucion(self, event):
+        """MÉTODO LEGACY - mantenido por compatibilidad, usar gestor_acciones"""
+        # Este método ahora es manejado por AccionesTabla y _ProcesarDevolucionLlave
+        pass
