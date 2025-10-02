@@ -23,7 +23,6 @@ class AccionesTabla:
     def ConfigurarEventos(self):
         """Configura los eventos de la tabla"""
         self.treeview.bind('<Double-1>', self.OnDobleClick)
-        self.treeview.bind('<Button-1>', self.OnClickSimple)
     
     def OnDobleClick(self, event):
         """Maneja el evento de doble clic"""
@@ -46,22 +45,6 @@ class AccionesTabla:
             messagebox.showwarning("Advertencia", "Por favor, seleccione un registro de la tabla.")
         except Exception as e:
             messagebox.showerror("Error", f"Error al procesar la acción: {str(e)}")
-    
-    def OnClickSimple(self, event):
-        """Maneja el clic simple para detectar columnas especiales"""
-        try:
-            # Identificar qué columna se clickeó
-            columna = self.treeview.identify_column(event.x)
-            item = self.treeview.identify_row(event.y)
-            
-            # Si es la columna de acción (6) y hay un item seleccionado
-            if columna == '#6' and item:  # #6 corresponde a la columna "Acción"
-                # Seleccionar el item y simular doble clic
-                self.treeview.selection_set(item)
-                self.OnDobleClick(event)
-                
-        except Exception as e:
-            print(f"Error en click tabla: {e}")
     
     def _EjecutarAccion(self, valores):
         """

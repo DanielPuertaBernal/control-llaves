@@ -86,11 +86,6 @@ class VistaEntregaDevolucion:
         scrollbar.pack(side='right', fill='y')
 
         # Configurar evento de doble clic para confirmar entrega
-        # self.tree_clases.bind('<Double-1>', self.ConfirmarEntregaLlave)
-        
-        # También configurar evento de clic simple en la columna de Acción
-        # self.tree_clases.bind('<Button-1>', self.OnClickTabla)
-        
         # Configurar gestor de acciones de tabla
         self.gestor_acciones = AccionesTabla(
             treeview=self.tree_clases,
@@ -227,8 +222,7 @@ class VistaEntregaDevolucion:
                     docente,
                     aula,
                     horario,
-                    materia,
-                    "🔑 Entregar"
+                    materia
                 ))
         except Exception as e:
             print(f"Error al mostrar datos en tabla: {e}")
@@ -247,7 +241,7 @@ class VistaEntregaDevolucion:
             bool: True si la acción fue exitosa
         """
         try:
-            # Extraer información del registro seleccionado
+            # Extraer información del registro seleccionado (sin columna Acción)
             documento = valores[0]
             docente = valores[1]
             aula = valores[2]

@@ -21,7 +21,7 @@ class VistaHistorialLlaves:
         self.buscador = BusquedaTabla()
         
         # Instanciar componente de paginación reutilizable
-        self.paginador = PaginacionTabla(items_por_pagina=20)
+        self.paginador = PaginacionTabla(items_por_pagina=15)
         
         # Instanciar componente de actualización automática
         self.actualizador = ActualizacionAutomatica(
@@ -91,10 +91,7 @@ class VistaHistorialLlaves:
         scrollbar_v.pack(side='right', fill='y')
         scrollbar_h.pack(side='bottom', fill='x')
         
-        # Evento doble clic para devolver llave
-        # self.tree_historial.bind('<Double-1>', self.ConfirmarDevolucion)
-        
-        # Configurar gestor de acciones de tabla
+        # Configurar gestor de acciones de tabla para doble clic
         self.gestor_acciones = AccionesTabla(
             treeview=self.tree_historial,
             callback_accion=self._ProcesarDevolucionLlave,

@@ -7,7 +7,7 @@ class PaginacionTabla:
     Maneja la lógica de paginación y los controles de navegación
     """
     
-    def __init__(self, items_por_pagina=20):
+    def __init__(self, items_por_pagina=15):
         """
         Inicializa el componente de paginación
         

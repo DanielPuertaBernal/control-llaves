@@ -16,7 +16,7 @@ class ConfiguracionTablas:
     TABLA_HISTORIAL_LLAVES = {
         'columnas': ('documento', 'docente', 'horario', 'aula', 'materia', 'fecha_entrega', 'hora_entrega'),
         'nombres_mostrar': ('Documento', 'Docente', 'Horario', 'Aula', 'Materia', 'Fecha Entrega', 'Hora Entrega'),
-        'anchos': [120, 200, 150, 80, 180, 120, 120],
+        'anchos': [120, 180, 150, 80, 180, 120, 120],
         'alineacion': 'center',
         'altura': 15,
         'tag_prestamo': 'prestamo',
