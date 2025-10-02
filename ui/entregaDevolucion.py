@@ -6,6 +6,7 @@ from helpers.busquedaTabla import BusquedaTabla
 from helpers.paginacionTabla import PaginacionTabla
 from helpers.actualizacionAutomatica import ActualizacionAutomatica, UtilTablas
 from helpers.accionesTabla import AccionesTabla, ConfirmadorAcciones
+from helpers.configuracionTablas import ConfiguracionTablas
 
 class VistaEntregaDevolucion:
     def __init__(self, notebook, app):
@@ -74,15 +75,9 @@ class VistaEntregaDevolucion:
         frame_tabla = ttk.Frame(self.frame_entrega)
         frame_tabla.pack(fill='both', expand=True, pady=(0, 15))
 
-        # Configurar tabla con las columnas requeridas incluyendo el botón de confirmación
-        columnas = ('Documento', 'Docente', 'Aula', 'Horario', 'Materia', 'Acción')
-        self.tree_clases = ttk.Treeview(frame_tabla, columns=columnas, show='headings', height=15)
-        
-        # Configurar encabezados y anchos de columnas
-        anchos = [120, 180, 80, 120, 200, 100]
-        for col, ancho in zip(columnas, anchos):
-            self.tree_clases.heading(col, text=col, anchor='center')  # Centrar encabezados
-            self.tree_clases.column(col, width=ancho, anchor='center')  # Centrar contenido
+        # Configurar tabla usando configuración centralizada
+        self.tree_clases = ttk.Treeview(frame_tabla)
+        ConfiguracionTablas.ConfigurarTreeview(self.tree_clases, 'entrega')
 
         # Scrollbar para la tabla
         scrollbar = ttk.Scrollbar(frame_tabla, orient='vertical', command=self.tree_clases.yview)
@@ -312,13 +307,3 @@ class VistaEntregaDevolucion:
                     
         except Exception as e:
             print(f"Error recargando después de acción: {e}")
-    
-    def OnClickTabla(self, event):
-        """MÉTODO LEGACY - mantenido por compatibilidad, usar gestor_acciones"""
-        # Este método ahora es manejado por AccionesTabla
-        pass
-
-    def ConfirmarEntregaLlave(self, event):
-        """MÉTODO LEGACY - mantenido por compatibilidad, usar gestor_acciones"""
-        # Este método ahora es manejado por AccionesTabla y _ProcesarEntregaLlave
-        pass

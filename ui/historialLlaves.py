@@ -1,12 +1,10 @@
-from tkinter import ttk, messagebox
-import tkinter as tk
-from datetime import datetime
-from helpers.gestionExcel import (ObtenerLlavesPendientes, RegistrarDevolucion, 
-                                 LimpiarNumeroDocumento)
+from tkinter import ttk
+from helpers.gestionExcel import (ObtenerLlavesPendientes, RegistrarDevolucion)
 from helpers.busquedaTabla import BusquedaTabla
 from helpers.paginacionTabla import PaginacionTabla
 from helpers.actualizacionAutomatica import ActualizacionAutomatica, UtilTablas
 from helpers.accionesTabla import AccionesTabla, ConfirmadorAcciones
+from helpers.configuracionTablas import ConfiguracionTablas
 import pandas as pd
 
 class VistaHistorialLlaves:
@@ -79,27 +77,9 @@ class VistaHistorialLlaves:
         frame_tabla = ttk.Frame(self.frame_historial)
         frame_tabla.pack(fill='both', expand=True, pady=(0, 20))
 
-        # Crear Treeview (incluyendo columna de horario)
-        columnas = ('documento', 'docente', 'horario', 'aula', 'materia', 'fecha_entrega', 'hora_entrega')
-        self.tree_historial = ttk.Treeview(frame_tabla, columns=columnas, show='headings', height=15)
-        
-        # Configurar encabezados (centrados)
-        self.tree_historial.heading('documento', text='Documento', anchor='center')
-        self.tree_historial.heading('docente', text='Docente', anchor='center')
-        self.tree_historial.heading('horario', text='Horario', anchor='center')
-        self.tree_historial.heading('aula', text='Aula', anchor='center')
-        self.tree_historial.heading('materia', text='Materia', anchor='center')
-        self.tree_historial.heading('fecha_entrega', text='Fecha Entrega', anchor='center')
-        self.tree_historial.heading('hora_entrega', text='Hora Entrega', anchor='center')
-        
-        # Configurar anchos de columna y centrar contenido
-        self.tree_historial.column('documento', width=120, anchor='center')
-        self.tree_historial.column('docente', width=200, anchor='center')
-        self.tree_historial.column('horario', width=150, anchor='center')
-        self.tree_historial.column('aula', width=80, anchor='center')
-        self.tree_historial.column('materia', width=180, anchor='center')
-        self.tree_historial.column('fecha_entrega', width=120, anchor='center')
-        self.tree_historial.column('hora_entrega', width=120, anchor='center')
+        # Crear Treeview usando configuración centralizada
+        self.tree_historial = ttk.Treeview(frame_tabla)
+        ConfiguracionTablas.ConfigurarTreeview(self.tree_historial, 'historial')
         
         # Scrollbars
         scrollbar_v = ttk.Scrollbar(frame_tabla, orient='vertical', command=self.tree_historial.yview)
@@ -130,7 +110,7 @@ class VistaHistorialLlaves:
             self.AplicarFiltros()
             
         except Exception as e:
-            messagebox.showerror("Error", f"Error al cargar historial: {str(e)}")
+            ConfirmadorAcciones.MostrarError(f"Error al cargar historial: {str(e)}")
             self.datos_historial = []
             self.datos_filtrados = []
             self.paginador.ActualizarDatos([])
@@ -197,8 +177,8 @@ class VistaHistorialLlaves:
                 values=(documento, docente, horario, aula, materia, fecha_entrega, hora_entrega),
                 tags=('prestamo',))
         
-        # Configurar el color de fondo para items en préstamo
-        self.tree_historial.tag_configure('prestamo', background='#FFF3CD', foreground='#856404')
+        # Configurar estilos usando configuración centralizada
+        ConfiguracionTablas.ConfigurarEstilosTabla(self.tree_historial, 'historial')
 
     # ============ CALLBACKS PARA ACCIONES DE TABLA ============
     
@@ -253,8 +233,3 @@ class VistaHistorialLlaves:
                     
         except Exception as e:
             print(f"Error recargando después de acción: {e}")
-
-    def ConfirmarDevolucion(self, event):
-        """MÉTODO LEGACY - mantenido por compatibilidad, usar gestor_acciones"""
-        # Este método ahora es manejado por AccionesTabla y _ProcesarDevolucionLlave
-        pass
