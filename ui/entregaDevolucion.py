@@ -1,12 +1,7 @@
-from tkinter import ttk, messagebox, filedialog
+from tkinter import ttk, messagebox
 import tkinter as tk
 from datetime import datetime
-import locale
-from openpyxl import Workbook
-from helpers.gestionExcel import (RegistrarEntrega, RegistrarDevolucion, 
-                                 ObtenerLlavesPendientes, LimpiarNumeroDocumento, 
-                                 ObtenerHistorialCompleto, VerificarLlaveEntregada)
-from helpers.limpiezaProgramacion import LimpiarProgramacion
+from helpers.gestionExcel import (RegistrarEntrega, LimpiarNumeroDocumento)
 from helpers.busquedaTabla import BusquedaTabla
 from helpers.paginacionTabla import PaginacionTabla
 from helpers.actualizacionAutomatica import ActualizacionAutomatica, UtilTablas
@@ -35,12 +30,9 @@ class VistaEntregaDevolucion:
         self.actualizador.IniciarActualizacionAutomatica()
 
     def CrearVistaEntregaDevolucion(self):
-        # Obtener día actual directamente en el formato que usa el archivo
-        dia_numero = datetime.now().weekday()  # 0=Monday, 6=Sunday
-        dias_espanol = ['LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO', 'DOMINGO']
-        dia_actual = dias_espanol[dia_numero]
-        
         # Título único que incluye el día
+        dia_actual = self._ObtenerDiaActual()
+        
         self.label_dia = ttk.Label(self.frame_entrega, 
                                   text=f"CLASES DEL DÍA: {dia_actual}", 
                                   font=('Segoe UI', 16, 'bold'))
@@ -111,17 +103,11 @@ class VistaEntregaDevolucion:
 
     # ============ FUNCIONES PRINCIPALES ============
     
-    def ForzarActualizacion(self):
-        """Fuerza la actualización invalidando completamente el cache"""
-        # Invalidar cache del componente de búsqueda
-        self.buscador.InvalidarCache()
-        
-        # Recargar según el estado de búsqueda
-        busqueda_texto = self.entry_busqueda.get().strip()
-        if busqueda_texto and busqueda_texto != "Ejemplo: 12345678 o A101 o Laboratorio...":
-            self.BuscarPorDocumento()
-        else:
-            self.CargarClasesDelDia()
+    def _ObtenerDiaActual(self):
+        """Obtiene el día actual en español"""
+        dia_numero = datetime.now().weekday()  # 0=Monday, 6=Sunday
+        dias_espanol = ['LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO', 'DOMINGO']
+        return dias_espanol[dia_numero]
     
     def _ActualizarSiNoHayBusqueda(self):
         """Callback para actualización automática - solo actualiza si no hay búsqueda activa"""
@@ -154,9 +140,7 @@ class VistaEntregaDevolucion:
             self.datos_filtrados = self.buscador.FiltrarPorDiaActual(df)
             
             # Actualizar label del día
-            dia_numero = datetime.now().weekday()
-            dias_espanol = ['LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO', 'DOMINGO']
-            dia_actual = dias_espanol[dia_numero]
+            dia_actual = self._ObtenerDiaActual()
             self.label_dia.config(text=f"CLASES DEL DÍA: {dia_actual}")
             
             # Aplicar filtros adicionales
@@ -244,18 +228,6 @@ class VistaEntregaDevolucion:
             print(f"Error al mostrar datos en tabla: {e}")
             # En caso de error, simplemente no mostrar datos
     
-    def OnEntryFocusIn(self, event):
-        """Maneja cuando el campo de búsqueda recibe el foco"""
-        if self.entry_busqueda.get() == "Ejemplo: 12345678 o A101 o Laboratorio...":
-            self.entry_busqueda.delete(0, tk.END)
-            self.entry_busqueda.config(foreground='black')
-
-    def OnEntryFocusOut(self, event):
-        """Maneja cuando el campo de búsqueda pierde el foco"""
-        if not self.entry_busqueda.get():
-            self.entry_busqueda.insert(0, "Ejemplo: 12345678 o A101 o Laboratorio...")
-            self.entry_busqueda.config(foreground='gray')
-
     def OnClickTabla(self, event):
         """Maneja el clic en la tabla para detectar clic en la columna de Acción"""
         try:
@@ -289,9 +261,7 @@ class VistaEntregaDevolucion:
             materia = valores[4]
             
             # Obtener el día actual
-            dia_numero = datetime.now().weekday()
-            dias_espanol = ['LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO', 'DOMINGO']
-            dia_actual = dias_espanol[dia_numero]
+            dia_actual = self._ObtenerDiaActual()
             
             # Confirmar la acción con el usuario
             resultado = messagebox.askyesno(
