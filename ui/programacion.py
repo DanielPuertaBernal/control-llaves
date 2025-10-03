@@ -5,7 +5,7 @@ class VistaProgramacion:
     def __init__(self, notebook, app):
         self.app = app
         self.frame_programacion = ttk.Frame(notebook, padding="20")
-        notebook.add(self.frame_programacion, text="📅 Programación")
+        notebook.add(self.frame_programacion, text="Programación")
         
         # Instanciar gestor de lógica de negocio
         self.gestor = GestorProgramacion()

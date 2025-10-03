@@ -12,7 +12,7 @@ class VistaEntregaDevolucion:
     def __init__(self, notebook, app):
         self.app = app
         self.frame_entrega = ttk.Frame(notebook, padding="20")
-        notebook.add(self.frame_entrega, text="🔑 Devolución de Llaves")
+        notebook.add(self.frame_entrega, text="Programación del Día")
         
         # Instanciar componente de búsqueda reutilizable
         self.buscador = BusquedaTabla()
@@ -286,7 +286,7 @@ class VistaEntregaDevolucion:
             bool: True si la acción fue exitosa
         """
         try:
-            # Extraer información del registro seleccionado (sin columna Acción)
+            # Extraer información del registro seleccionado
             documento = valores[0]
             docente = valores[1]
             aula = valores[2]

@@ -6,8 +6,8 @@ class ConfiguracionTablas:
     
     # Configuración para la tabla de entrega/devolución de llaves
     TABLA_ENTREGA_LLAVES = {
-        'columnas': ('Documento', 'Docente', 'Aula', 'Horario', 'Materia', 'Acción'),
-        'anchos': [120, 180, 80, 120, 200, 100],
+        'columnas': ('Documento', 'Docente', 'Aula', 'Horario', 'Materia'),
+        'anchos': [120, 180, 80, 120, 200],
         'alineacion': 'center',
         'altura': 15
     }

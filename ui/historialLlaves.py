@@ -11,7 +11,7 @@ class VistaHistorialLlaves:
     def __init__(self, notebook, app):
         self.app = app
         self.frame_historial = ttk.Frame(notebook, padding="20")
-        notebook.add(self.frame_historial, text="📋 Llaves en Préstamo")
+        notebook.add(self.frame_historial, text="Llaves en Préstamo")
         
         # Variables para datos
         self.datos_historial = []

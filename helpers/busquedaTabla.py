@@ -209,15 +209,19 @@ class BusquedaTabla:
             print(f"Error al eliminar clases pasadas: {str(e)}")
             return df
     
-    def ActualizarCacheDocentes(self):
+    def ActualizarCacheDocentes(self, forzar_actualizacion=False):
         """
         Actualiza el cache de docentes que tienen llaves entregadas
+        
+        Args:
+            forzar_actualizacion (bool): Si True, fuerza la actualización sin importar el timestamp
         """
         try:
             ahora = datetime.now()
             
             # Verificar si el cache necesita actualización
-            if (self.cache_timestamp is None or 
+            if (forzar_actualizacion or
+                self.cache_timestamp is None or 
                 (ahora - self.cache_timestamp).total_seconds() > self.cache_valid_duration):
                 
                 # Obtener lista de docentes con llaves pendientes
@@ -239,30 +243,45 @@ class BusquedaTabla:
     
     def FiltrarDocentesSinLlaves(self, df, columna_documento='Número de Documento'):
         """
-        Filtra docentes que ya tienen llaves entregadas
+        Filtra docentes que ya tienen llaves entregadas O que ya entregaron llaves hoy
         
         Args:
             df (pd.DataFrame): DataFrame a filtrar
             columna_documento (str): Nombre de la columna que contiene el número de documento
             
         Returns:
-            pd.DataFrame: DataFrame sin docentes que ya tienen llaves
+            pd.DataFrame: DataFrame sin docentes que ya tienen llaves o ya entregaron hoy
         """
         if df.empty or columna_documento not in df.columns:
             return df
         
         try:
-            # Actualizar cache de docentes con llaves entregadas
-            self.ActualizarCacheDocentes()
+            from helpers.gestionExcel import ObtenerHistorialCompleto
+            from datetime import datetime
+            
+            # Obtener fecha actual
+            fecha_hoy = datetime.now().strftime('%Y-%m-%d')
+            
+            # Obtener historial completo (llaves en préstamo + llaves entregadas)
+            historial_completo = ObtenerHistorialCompleto()
+            
+            # Crear set con documentos que ya entregaron llaves HOY
+            documentos_con_entrega_hoy = set()
+            
+            for registro in historial_completo:
+                fecha_entrega = registro.get('Fecha de entrega', '')
+                if fecha_entrega == fecha_hoy:
+                    documento = LimpiarNumeroDocumento(str(registro.get('Número de Documento', '')))
+                    documentos_con_entrega_hoy.add(documento)
             
             # Usar vectorización para filtrar más eficientemente
-            def DocenteSinLlave(documento):
+            def DocenteSinEntregaHoy(documento):
                 documento_limpio = LimpiarNumeroDocumento(str(documento))
-                return documento_limpio not in self.cache_docentes_con_llaves
+                return documento_limpio not in documentos_con_entrega_hoy
             
             # Aplicar filtro vectorizado
-            mascara_sin_llaves = df[columna_documento].apply(DocenteSinLlave)
-            return df[mascara_sin_llaves].copy()
+            mascara_sin_entregas = df[columna_documento].apply(DocenteSinEntregaHoy)
+            return df[mascara_sin_entregas].copy()
             
         except Exception as e:
             print(f"Error al filtrar docentes sin llaves: {str(e)}")
