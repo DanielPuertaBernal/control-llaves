@@ -23,16 +23,25 @@ def InicializarRegistro():
     
     if not os.path.exists(RUTA_REGISTRO):
         wb = Workbook()
-        ws = wb.active
         
-        # Encabezados actualizados según los requerimientos
+        # Crear hoja "Llaves en Prestamo"
+        ws_prestamo = wb.active
+        ws_prestamo.title = "Llaves en Prestamo"
+        
+        # Crear hoja "Llaves Entregadas"
+        ws_entregadas = wb.create_sheet("Llaves Entregadas")
+        
+        # Encabezados actualizados con el campo Facultad en el orden correcto
         headers = [
-            'Número de Documento', 'Docente', 'Día', 'Horario', 'Aula', 'Materia de la Clase',
+            'Número de Documento', 'Docente', 'Día', 'Horario', 'Aula', 'Facultad', 'Materia de la Clase',
             'Fecha de entrega', 'Hora de entrega', 'Fecha de devolución', 'Hora de devolución',
             'Estado'
         ]
         
-        ws.append(headers)
+        # Agregar encabezados a ambas hojas
+        ws_prestamo.append(headers)
+        ws_entregadas.append(headers)
+        
         wb.save(RUTA_REGISTRO)
 
 def LimpiarNumeroDocumento(doc):
@@ -52,22 +61,26 @@ def RegistrarEntrega(info_clase):
         # Cargar workbook
         try:
             wb = load_workbook(RUTA_REGISTRO)
-            ws = wb.active
+            # Asegurarse de que existe la hoja "Llaves en Prestamo"
+            if "Llaves en Prestamo" not in wb.sheetnames:
+                InicializarRegistro()
+                wb = load_workbook(RUTA_REGISTRO)
+            ws = wb["Llaves en Prestamo"]
         except:
             # Si falla, crear uno nuevo
             InicializarRegistro()
             wb = load_workbook(RUTA_REGISTRO)
-            ws = wb.active
+            ws = wb["Llaves en Prestamo"]
         
         # Limpiar el número de documento
         nroidenti_limpio = LimpiarNumeroDocumento(info_clase['nroidenti'])
         
         # Verificar si ya tiene una llave prestada - buscar en la columna correcta del estado
         for row in ws.iter_rows(min_row=2, values_only=True):
-            if row and str(row[0]) == nroidenti_limpio and row[10] == 'En Préstamo':  # Columna 10 es 'Estado'
+            if row and str(row[0]) == nroidenti_limpio and row[11] == 'En Préstamo':  # Columna 11 es 'Estado' (Facultad después de Aula)
                 return False  # Ya tiene una llave prestada
         
-        # Preparar nuevo registro con la nueva estructura
+        # Preparar nuevo registro con la nueva estructura incluyendo Facultad en orden correcto
         ahora = datetime.now()
         nuevo_registro = [
             nroidenti_limpio,                                    # Número de Documento
@@ -75,6 +88,7 @@ def RegistrarEntrega(info_clase):
             info_clase.get('dia', ''),                          # Día
             info_clase.get('horario', ''),                      # Horario
             info_clase.get('aula', ''),                         # Aula
+            info_clase.get('facultad', 'No especificada'),       # Facultad
             info_clase.get('materia', ''),                      # Materia de la Clase
             ahora.strftime('%Y-%m-%d'),                         # Fecha de entrega
             ahora.strftime('%H:%M:%S'),                         # Hora de entrega
@@ -100,31 +114,71 @@ def RegistrarEntrega(info_clase):
         return False
 
 def RegistrarDevolucion(nroidenti):
-    """Registra la devolución de una llave por número de documento"""
+    """Registra la devolución de una llave por número de documento y la mueve a la hoja de Llaves Entregadas"""
     try:
         if not os.path.exists(RUTA_REGISTRO):
             return False
         
         wb = load_workbook(RUTA_REGISTRO)
-        ws = wb.active
+        
+        # Asegurarse de que ambas hojas existen
+        if "Llaves en Prestamo" not in wb.sheetnames or "Llaves Entregadas" not in wb.sheetnames:
+            # Si no existen las hojas nuevas, trabajar con la hoja activa (compatibilidad)
+            ws = wb.active
+            # Limpiar el número de documento
+            nroidenti_limpio = LimpiarNumeroDocumento(nroidenti)
+            
+            # Buscar la llave entregada más reciente para este documento (sin fecha de devolución)
+            fila_encontrada = None
+            for row_idx, row in enumerate(ws.iter_rows(min_row=2, values_only=False), start=2):
+                if (row and str(row[0].value) == nroidenti_limpio and 
+                    (len(row) > 10 and row[10].value == 'En Préstamo') and 
+                    (len(row) > 8 and (row[8].value is None or row[8].value == '' or row[8].value == 'N/A'))):
+                    fila_encontrada = row_idx
+
+            if fila_encontrada:
+                ahora = datetime.now()
+                ws.cell(row=fila_encontrada, column=11, value='Devuelta')
+                ws.cell(row=fila_encontrada, column=9, value=ahora.strftime('%Y-%m-%d'))
+                ws.cell(row=fila_encontrada, column=10, value=ahora.strftime('%H:%M:%S'))
+                wb.save(RUTA_REGISTRO)
+                wb.close()
+                return True
+            else:
+                wb.close()
+                return False
+        
+        ws_prestamo = wb["Llaves en Prestamo"]
+        ws_entregadas = wb["Llaves Entregadas"]
         
         # Limpiar el número de documento
         nroidenti_limpio = LimpiarNumeroDocumento(nroidenti)
         
         # Buscar la llave entregada más reciente para este documento (sin fecha de devolución)
         fila_encontrada = None
-        for row_idx, row in enumerate(ws.iter_rows(min_row=2, values_only=False), start=2):
-            if (row and str(row[0].value) == nroidenti_limpio and row[10].value == 'En Préstamo' and 
-                (row[8].value is None or row[8].value == '' or row[8].value == 'N/A')):  # Sin fecha de devolución
+        datos_fila = None
+        
+        for row_idx, row in enumerate(ws_prestamo.iter_rows(min_row=2, values_only=False), start=2):
+            if (row and str(row[0].value) == nroidenti_limpio and row[11].value == 'En Préstamo' and 
+                (row[9].value is None or row[9].value == '' or row[9].value == 'N/A')):  # Sin fecha de devolución (columna 9)
                 fila_encontrada = row_idx
+                datos_fila = [cell.value for cell in row]
+                break
 
-        if fila_encontrada:
-            # Actualizar registro con indexación base 1 (Excel)
+        if fila_encontrada and datos_fila:
+            # Actualizar registro con fecha/hora de devolución y estado
             ahora = datetime.now()
-            # Cambiar estado a "Devuelta" y registrar fecha/hora de devolución
-            ws.cell(row=fila_encontrada, column=11, value='Devuelta')                     # Columna K: Estado
-            ws.cell(row=fila_encontrada, column=9, value=ahora.strftime('%Y-%m-%d'))      # Columna I: Fecha de devolución
-            ws.cell(row=fila_encontrada, column=10, value=ahora.strftime('%H:%M:%S'))     # Columna J: Hora de devolución            # Guardar
+            datos_fila[9] = ahora.strftime('%Y-%m-%d')      # Fecha de devolución (columna 9)
+            datos_fila[10] = ahora.strftime('%H:%M:%S')     # Hora de devolución (columna 10)
+            datos_fila[11] = 'Devuelta'                     # Estado (columna 11)
+            
+            # Mover registro a la hoja "Llaves Entregadas"
+            ws_entregadas.append(datos_fila)
+            
+            # Eliminar fila de "Llaves en Prestamo"
+            ws_prestamo.delete_rows(fila_encontrada)
+            
+            # Guardar
             wb.save(RUTA_REGISTRO)
             wb.close()
             return True
@@ -143,14 +197,21 @@ def VerificarLlaveEntregada(nroidenti):
             return False
         
         wb = load_workbook(RUTA_REGISTRO, read_only=True)
-        ws = wb.active
+        
+        # Verificar en la hoja "Llaves en Prestamo" si existe, sino usar hoja activa
+        if "Llaves en Prestamo" in wb.sheetnames:
+            ws = wb["Llaves en Prestamo"]
+            estado_columna = 11  # Columna 11 es 'Estado' (con Facultad)
+        else:
+            ws = wb.active  # Fallback para compatibilidad
+            estado_columna = 10  # Columna 10 es 'Estado' (sin Facultad)
         
         # Limpiar el número de documento
         nroidenti_limpio = LimpiarNumeroDocumento(nroidenti)
         
-        # Verificar si tiene llaves en préstamo - columna 10 es 'Estado'
+        # Verificar si tiene llaves en préstamo
         for row in ws.iter_rows(min_row=2, values_only=True):
-            if (row and str(row[0]) == nroidenti_limpio and row[10] == 'En Préstamo'):
+            if (row and len(row) > estado_columna and str(row[0]) == nroidenti_limpio and row[estado_columna] == 'En Préstamo'):
                 wb.close()
                 return True
         
@@ -162,20 +223,27 @@ def VerificarLlaveEntregada(nroidenti):
         return False
 
 def ObtenerLlavesPendientes():
-    """Obtiene todas las llaves que están entregadas (pendientes de devolución)"""
+    """Obtiene todas las llaves que están entregadas (pendientes de devolución) desde la hoja Llaves en Prestamo"""
     try:
         if not os.path.exists(RUTA_REGISTRO):
             return []
         
         wb = load_workbook(RUTA_REGISTRO, read_only=True)
-        ws = wb.active
+        
+        # Verificar en la hoja "Llaves en Prestamo" si existe, sino usar hoja activa
+        if "Llaves en Prestamo" in wb.sheetnames:
+            ws = wb["Llaves en Prestamo"]
+            estado_columna = 11  # Columna 11 es 'Estado' (con Facultad)
+        else:
+            ws = wb.active  # Fallback para compatibilidad
+            estado_columna = 10  # Columna 10 es 'Estado' (sin Facultad)
         
         pendientes = []
         headers = [cell.value for cell in ws[1]]
         
         for row in ws.iter_rows(min_row=2, values_only=True):
             if row and any(row):  # Si la fila no está completamente vacía
-                estado = row[10] if len(row) > 10 else None  # Columna 10 es 'Estado'
+                estado = row[estado_columna] if len(row) > estado_columna else None
                 
                 # Solo incluir registros que estén "En Préstamo"
                 if estado == 'En Préstamo':
@@ -191,22 +259,46 @@ def ObtenerLlavesPendientes():
         return []
 
 def ObtenerHistorialCompleto():
-    """Obtiene el historial completo de entregas y devoluciones"""
+    """Obtiene el historial completo de entregas y devoluciones de ambas hojas"""
     try:
         if not os.path.exists(RUTA_REGISTRO):
             return []
         
         wb = load_workbook(RUTA_REGISTRO, read_only=True)
-        ws = wb.active
-        
         historial = []
-        headers = [cell.value for cell in ws[1]]
         
-        for row in ws.iter_rows(min_row=2, values_only=True):
-            if row:
-                registro = dict(zip(headers, row))
-                registro['Número de Documento'] = LimpiarNumeroDocumento(registro['Número de Documento'])
-                historial.append(registro)
+        # Obtener datos de "Llaves en Prestamo"
+        if "Llaves en Prestamo" in wb.sheetnames:
+            ws_prestamo = wb["Llaves en Prestamo"]
+            headers = [cell.value for cell in ws_prestamo[1]]
+            
+            for row in ws_prestamo.iter_rows(min_row=2, values_only=True):
+                if row:
+                    registro = dict(zip(headers, row))
+                    registro['Número de Documento'] = LimpiarNumeroDocumento(registro['Número de Documento'])
+                    historial.append(registro)
+        
+        # Obtener datos de "Llaves Entregadas"
+        if "Llaves Entregadas" in wb.sheetnames:
+            ws_entregadas = wb["Llaves Entregadas"]
+            headers = [cell.value for cell in ws_entregadas[1]]
+            
+            for row in ws_entregadas.iter_rows(min_row=2, values_only=True):
+                if row:
+                    registro = dict(zip(headers, row))
+                    registro['Número de Documento'] = LimpiarNumeroDocumento(registro['Número de Documento'])
+                    historial.append(registro)
+        
+        # Si no existen las hojas nuevas, usar la hoja activa (compatibilidad)
+        if not historial:
+            ws = wb.active
+            headers = [cell.value for cell in ws[1]]
+            
+            for row in ws.iter_rows(min_row=2, values_only=True):
+                if row:
+                    registro = dict(zip(headers, row))
+                    registro['Número de Documento'] = LimpiarNumeroDocumento(registro['Número de Documento'])
+                    historial.append(registro)
         
         wb.close()
         return historial

@@ -110,6 +110,51 @@ class VistaEntregaDevolucion:
         dias_espanol = ['LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO', 'DOMINGO']
         return dias_espanol[dia_numero]
     
+    def _ObtenerFacultadDesdeProgramacion(self, documento, docente, aula, horario, materia):
+        """Obtiene la facultad desde los datos de la programación"""
+        try:
+            if self.app.programacion is None or self.app.programacion.empty:
+                return "No especificada"
+            
+            df = self.app.programacion
+            
+            # Buscar el registro que coincida con los datos
+            # Convertir número de documento para comparación
+            documento_str = str(documento).replace('.0', '')
+            
+            # Filtrar por múltiples criterios para encontrar la coincidencia exacta
+            mascara = (
+                (df['Número de Documento'].astype(str).str.replace('.0', '') == documento_str) &
+                (df['Docente'].astype(str).str.strip() == str(docente).strip()) &
+                (df['Aula'].astype(str).str.strip() == str(aula).strip()) &
+                (df['Materia de la Clase'].astype(str).str.strip() == str(materia).strip())
+            )
+            
+            registros_coincidentes = df[mascara]
+            
+            if not registros_coincidentes.empty:
+                # Obtener la facultad del primer registro coincidente
+                facultad = registros_coincidentes.iloc[0]['Facultad']
+                return str(facultad).strip() if facultad and str(facultad).strip() != 'nan' else "No especificada"
+            else:
+                # Si no encuentra coincidencia exacta, buscar por documento y docente
+                mascara_simple = (
+                    (df['Número de Documento'].astype(str).str.replace('.0', '') == documento_str) &
+                    (df['Docente'].astype(str).str.strip() == str(docente).strip())
+                )
+                
+                registros_simples = df[mascara_simple]
+                
+                if not registros_simples.empty:
+                    facultad = registros_simples.iloc[0]['Facultad']
+                    return str(facultad).strip() if facultad and str(facultad).strip() != 'nan' else "No especificada"
+                
+                return "No especificada"
+                
+        except Exception as e:
+            print(f"Error al obtener facultad desde programación: {e}")
+            return "No especificada"
+    
     def _ActualizarSiNoHayBusqueda(self):
         """Callback para actualización automática - solo actualiza si no hay búsqueda activa"""
         try:
@@ -253,10 +298,14 @@ class VistaEntregaDevolucion:
                 # Obtener el día actual
                 dia_actual = self._ObtenerDiaActual()
                 
-                # Preparar información para el registro
+                # Obtener la facultad desde los datos de la programación
+                facultad = self._ObtenerFacultadDesdeProgramacion(documento, docente, aula, horario, materia)
+                
+                # Preparar información para el registro incluyendo facultad
                 info_clase = {
                     'nroidenti': documento,
                     'profesor': docente,
+                    'facultad': facultad,
                     'dia': dia_actual,
                     'horario': horario,
                     'aula': aula,
