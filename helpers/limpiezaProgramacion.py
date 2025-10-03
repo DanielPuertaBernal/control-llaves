@@ -222,6 +222,28 @@ def LimpiarProgramacion(archivo_o_df):
             # Si falla, mantener como string
             pass
 
+        # Normalizar minutos a :00 para horas como 13:01 -> 13:00, 14:01 -> 14:00
+        def normalizar_minutos_a_hora_exacta(hora_time):
+            """
+            Normaliza los minutos a :00 si están entre :01 y :09
+            Por ejemplo: 13:01 -> 13:00, 14:05 -> 14:00
+            """
+            if pd.isna(hora_time) or not hasattr(hora_time, 'minute'):
+                return hora_time
+            
+            # Si los minutos están entre 1 y 9, normalizar a :00
+            if 1 <= hora_time.minute <= 9:
+                from datetime import time
+                return time(hora_time.hour, 0)
+            
+            return hora_time
+
+        # Aplicar normalización a las horas
+        if 'hora_ini' in df.columns:
+            df['hora_ini'] = df['hora_ini'].apply(normalizar_minutos_a_hora_exacta)
+        if 'hora_fin' in df.columns:
+            df['hora_fin'] = df['hora_fin'].apply(normalizar_minutos_a_hora_exacta)
+
         # Agrupar por clase con misma información para unificar franjas horarias
         # IMPORTANTE: Incluir 'grupo' para evitar unificar clases de grupos diferentes
         columnas_agrupacion = ['nroidenti', 'profesor', 'materia', 'aula', 'dia', 'grupo']
