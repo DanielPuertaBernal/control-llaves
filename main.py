@@ -1,7 +1,6 @@
 from tkinter import Tk
 from ui.interfaz import App
 from assets.estiloTkinter import ConfigurarVentanaPrincipal
-from helpers.servidorNFC import iniciar_servidor_nfc
 from helpers.servidor.gestionServidor import iniciar_servidor
 from helpers.servidor.servicioLlavesHandler import ServicioLlavesHandler
 import atexit
@@ -35,12 +34,13 @@ def main():
 
     if start_nfc:
         try:
+            # pasar el handler HTTP al iniciar el servidor
             if use_ngrok:
                 print(f"🌐 Iniciando servidor NFC con túnel ngrok en puerto {nfc_port}...")
-                servidor_nfc = iniciar_servidor_nfc(puerto=nfc_port, usar_ngrok=True)
+                servidor_nfc = iniciar_servidor(ServicioLlavesHandler, puerto=nfc_port, usar_ngrok=True)
             else:
                 print(f"🔐 Iniciando servidor NFC local en puerto {nfc_port}...")
-                servidor_nfc = iniciar_servidor_nfc(puerto=nfc_port)
+                servidor_nfc = iniciar_servidor(ServicioLlavesHandler, puerto=nfc_port)
             print("✅ Servidor NFC iniciado correctamente")
             if hasattr(servidor_nfc, 'public_url'):
                 print(f"🌍 URL pública ngrok: {servidor_nfc.public_url}")

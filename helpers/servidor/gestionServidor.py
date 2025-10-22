@@ -13,6 +13,8 @@ class ServidorHTTP:
         self.tunnel = None
         self.thread = None
         self.corriendo = False
+        # atributo opcional con la URL pública cuando se usa ngrok
+        self.public_url = None
 
     def iniciar(self):
         if self.corriendo:
@@ -28,7 +30,13 @@ class ServidorHTTP:
                 if token:
                     ngrok.set_auth_token(token)
                 self.tunnel = ngrok.connect(self.puerto, "http")
-                print(f"🌍 URL pública: {self.tunnel.public_url}")
+                # almacenar la URL pública en self.public_url para que el llamador la pueda usar
+                try:
+                    self.public_url = getattr(self.tunnel, 'public_url', None) or str(self.tunnel)
+                except Exception:
+                    self.public_url = None
+                if self.public_url:
+                    print(f"🌍 URL pública: {self.public_url}")
 
             self.thread = threading.Thread(target=self.servidor.serve_forever, daemon=True)
             self.thread.start()
