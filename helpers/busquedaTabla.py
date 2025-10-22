@@ -265,22 +265,32 @@ class BusquedaTabla:
             # Obtener historial completo (llaves en préstamo + llaves entregadas)
             historial_completo = ObtenerHistorialCompleto()
             
-            # Crear set con documentos que ya entregaron llaves HOY
-            documentos_con_entrega_hoy = set()
-            
+            # Crear set con claves de clase (documento|aula|horario) que ya entregaron llaves HOY
+            clases_con_entrega_hoy = set()
+
             for registro in historial_completo:
                 fecha_entrega = registro.get('Fecha de entrega', '')
                 if fecha_entrega == fecha_hoy:
                     documento = LimpiarNumeroDocumento(str(registro.get('Número de Documento', '')))
-                    documentos_con_entrega_hoy.add(documento)
-            
-            # Usar vectorización para filtrar más eficientemente
-            def DocenteSinEntregaHoy(documento):
-                documento_limpio = LimpiarNumeroDocumento(str(documento))
-                return documento_limpio not in documentos_con_entrega_hoy
-            
-            # Aplicar filtro vectorizado
-            mascara_sin_entregas = df[columna_documento].apply(DocenteSinEntregaHoy)
+                    aula = str(registro.get('Aula', '')).strip()
+                    horario = str(registro.get('Horario', '')).strip()
+                    clave = f"{documento}|{aula}|{horario}"
+                    clases_con_entrega_hoy.add(clave)
+
+            # Función para determinar si una fila corresponde a una clase que ya entregó llave hoy
+            def ClaseSinEntregaHoy(fila):
+                try:
+                    documento_limpio = LimpiarNumeroDocumento(str(fila[columna_documento]))
+                    aula_fila = str(fila.get('Aula', '')).strip()
+                    horario_fila = str(fila.get('Horario', '')).strip()
+                    clave_fila = f"{documento_limpio}|{aula_fila}|{horario_fila}"
+                    return clave_fila not in clases_con_entrega_hoy
+                except Exception:
+                    # Si hay algún problema con la fila, mantenerla por seguridad
+                    return True
+
+            # Aplicar filtro fila a fila para mantener sólo las clases que no fueron entregadas hoy
+            mascara_sin_entregas = df.apply(ClaseSinEntregaHoy, axis=1)
             return df[mascara_sin_entregas].copy()
             
         except Exception as e:
