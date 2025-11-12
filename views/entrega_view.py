@@ -1,0 +1,239 @@
+"""
+Vista de entrega y devolución de llaves
+Maneja solo la presentación de la programación del día
+"""
+from tkinter import ttk, messagebox
+import tkinter as tk
+from datetime import datetime
+from controllers import LlaveController
+from services import PaginacionService, TablaService
+from views.components import BuscadorComponent
+
+
+class EntregaView:
+    """Vista para entrega y devolución de llaves"""
+    
+    def __init__(self, notebook, programacion_controller):
+        self.programacion_controller = programacion_controller
+        self.llave_controller = LlaveController()
+        
+        # Servicios
+        self.paginacion_service = PaginacionService(items_por_pagina=15)
+        
+        # Frame principal
+        self.frame = ttk.Frame(notebook, padding="20")
+        notebook.add(self.frame, text="Programación del Día")
+        
+        # Datos actuales
+        self.datos_filtrados = []
+        
+        # Crear interfaz
+        self._crear_interfaz()
+        
+        # Cargar datos iniciales
+        self.cargar_clases_del_dia()
+        
+        # Actualización automática cada 10 minutos
+        self._iniciar_actualizacion_automatica()
+    
+    def _crear_interfaz(self):
+        """Crea los componentes visuales"""
+        # Título con día
+        dia_actual = self._obtener_dia_actual()
+        self.label_dia = ttk.Label(
+            self.frame,
+            text=f"CLASES DEL DÍA: {dia_actual}",
+            font=('Segoe UI', 16, 'bold')
+        )
+        self.label_dia.pack(pady=(0, 20))
+        
+        # Componente de búsqueda reutilizable
+        self.buscador = BuscadorComponent(
+            self.frame,
+            callback_busqueda=self._realizar_busqueda,
+            label_texto="Buscar por Documento o Salón:"
+        )
+        
+        # Frame de paginación
+        frame_paginacion = ttk.Frame(self.frame)
+        frame_paginacion.pack(fill='x', pady=(15, 10))
+        
+        self.btn_anterior = ttk.Button(frame_paginacion, text="◀ Anterior", command=self._pagina_anterior)
+        self.btn_anterior.pack(side='left', padx=5)
+        
+        self.label_pagina = ttk.Label(frame_paginacion, text="Página 1 de 1")
+        self.label_pagina.pack(side='left', padx=10)
+        
+        self.btn_siguiente = ttk.Button(frame_paginacion, text="Siguiente ▶", command=self._pagina_siguiente)
+        self.btn_siguiente.pack(side='left', padx=5)
+        
+        self.label_info = ttk.Label(frame_paginacion, text="0 registros")
+        self.label_info.pack(side='left', padx=20)
+        
+        btn_actualizar = ttk.Button(frame_paginacion, text="🔄 Refrescar", command=self.cargar_clases_del_dia)
+        btn_actualizar.pack(side='right')
+        
+        # Tabla
+        frame_tabla = ttk.Frame(self.frame)
+        frame_tabla.pack(fill='both', expand=True, pady=(0, 15))
+        
+        self.tree = ttk.Treeview(frame_tabla)
+        TablaService.configurar_treeview(self.tree, 'entrega')
+        
+        scrollbar = ttk.Scrollbar(frame_tabla, orient='vertical', command=self.tree.yview)
+        self.tree.configure(yscrollcommand=scrollbar.set)
+        self.tree.pack(side='left', fill='both', expand=True)
+        scrollbar.pack(side='right', fill='y')
+        
+        # Evento de doble clic
+        self.tree.bind('<Double-1>', self._on_doble_click)
+    
+    def cargar_clases_del_dia(self):
+        """Carga las clases del día desde el controlador"""
+        df = self.programacion_controller.obtener_clases_del_dia()
+        
+        if df.empty:
+            messagebox.showwarning("Advertencia", "No hay programación cargada o no hay clases para hoy.")
+            return
+        
+        self.datos_filtrados = df
+        self.paginacion_service.actualizar_datos(df)
+        self._actualizar_vista()
+    
+    def _realizar_busqueda(self, termino):
+        """Realiza la búsqueda"""
+        if not termino:
+            self.cargar_clases_del_dia()
+            return
+        
+        # Obtener clases del día
+        df_completo = self.programacion_controller.obtener_clases_del_dia()
+        
+        if df_completo.empty:
+            return
+        
+        # Filtrar localmente (mismo método que historial)
+        termino_lower = termino.lower()
+        df_filtrado = df_completo[
+            df_completo['Número de Documento'].astype(str).str.lower().str.contains(termino_lower, na=False, regex=False) |
+            df_completo['Docente'].astype(str).str.lower().str.contains(termino_lower, na=False, regex=False) |
+            df_completo['Aula'].astype(str).str.lower().str.contains(termino_lower, na=False, regex=False)
+        ]
+        
+        self.datos_filtrados = df_filtrado
+        self.paginacion_service.actualizar_datos(df_filtrado)
+        self._actualizar_vista()
+    
+    def _pagina_anterior(self):
+        """Va a página anterior"""
+        self.paginacion_service.pagina_anterior()
+        self._actualizar_vista()
+    
+    def _pagina_siguiente(self):
+        """Va a página siguiente"""
+        self.paginacion_service.pagina_siguiente()
+        self._actualizar_vista()
+    
+    def _actualizar_vista(self):
+        """Actualiza toda la vista"""
+        # Obtener datos de página actual
+        datos_pagina, inicio, fin = self.paginacion_service.obtener_pagina_actual()
+        
+        # Limpiar tabla
+        for item in self.tree.get_children():
+            self.tree.delete(item)
+        
+        # Llenar tabla
+        if hasattr(datos_pagina, 'empty'):
+            # Es un DataFrame de pandas
+            if not datos_pagina.empty:
+                for _, row in datos_pagina.iterrows():
+                    valores = (
+                        str(row.get('Número de Documento', '')).replace('.0', ''),
+                        row.get('Docente', ''),
+                        row.get('Aula', ''),
+                        row.get('Horario', ''),
+                        row.get('Materia de la Clase', '')
+                    )
+                    self.tree.insert('', 'end', values=valores)
+        elif len(datos_pagina) > 0:
+            # Es una lista
+            for row in datos_pagina:
+                valores = (
+                    str(row.get('Número de Documento', '')).replace('.0', ''),
+                    row.get('Docente', ''),
+                    row.get('Aula', ''),
+                    row.get('Horario', ''),
+                    row.get('Materia de la Clase', '')
+                )
+                self.tree.insert('', 'end', values=valores)
+        
+        # Actualizar labels
+        info = self.paginacion_service.obtener_info_paginacion()
+        self.label_pagina.config(text=f"Página {info['pagina_actual']} de {info['total_paginas']}")
+        self.label_info.config(text=f"{info['total_items']} registros")
+        
+        # Actualizar botones
+        self.btn_anterior.config(state='normal' if info['tiene_anterior'] else 'disabled')
+        self.btn_siguiente.config(state='normal' if info['tiene_siguiente'] else 'disabled')
+    
+    def _on_doble_click(self, event):
+        """Maneja doble clic para entregar llave"""
+        try:
+            seleccion = self.tree.selection()
+            if not seleccion:
+                return
+            
+            valores = self.tree.item(seleccion[0], 'values')
+            
+            # Confirmar entrega
+            if not messagebox.askyesno(
+                "Confirmar Entrega",
+                f"¿Entregar llave para:\n\n"
+                f"Docente: {valores[1]}\n"
+                f"Aula: {valores[2]}\n"
+                f"Horario: {valores[3]}"
+            ):
+                return
+            
+            # Obtener facultad
+            facultad = self.programacion_controller.obtener_facultad_desde_programacion(
+                valores[0], valores[1], valores[2], valores[4]
+            )
+            
+            # Preparar información
+            info_clase = {
+                'nroidenti': valores[0],
+                'profesor': valores[1],
+                'aula': valores[2],
+                'horario': valores[3],
+                'materia': valores[4],
+                'facultad': facultad,
+                'dia': self._obtener_dia_actual()
+            }
+            
+            # Procesar entrega
+            exito, mensaje = self.llave_controller.procesar_entrega(info_clase)
+            
+            if exito:
+                messagebox.showinfo("Éxito", mensaje)
+                self.cargar_clases_del_dia()
+            else:
+                messagebox.showwarning("Advertencia", mensaje)
+                
+        except Exception as e:
+            messagebox.showerror("Error", f"Error al procesar entrega: {str(e)}")
+    
+    def _obtener_dia_actual(self):
+        """Obtiene el día actual en español"""
+        dias = ['LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO', 'DOMINGO']
+        return dias[datetime.now().weekday()]
+    
+    def _iniciar_actualizacion_automatica(self):
+        """Inicia actualización automática cada 10 minutos"""
+        def actualizar():
+            if not self.buscador.obtener_termino():
+                self.cargar_clases_del_dia()
+            self.frame.after(600000, actualizar)  # 10 minutos
+        
+        self.frame.after(600000, actualizar)
