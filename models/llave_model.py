@@ -33,14 +33,21 @@ class LlaveModel:
             ws_prestamo.title = "Llaves en Prestamo"
             ws_entregadas = wb.create_sheet("Llaves Entregadas")
             
-            headers = [
+            # Headers para llaves en préstamo (sin fecha/hora de devolución)
+            headers_prestamo = [
+                'Número de Documento', 'Docente', 'Día', 'Horario', 'Aula', 'Facultad', 
+                'Materia de la Clase', 'Fecha de entrega', 'Hora de entrega', 'Estado'
+            ]
+            
+            # Headers para llaves entregadas (con fecha/hora de devolución)
+            headers_entregadas = [
                 'Número de Documento', 'Docente', 'Día', 'Horario', 'Aula', 'Facultad', 
                 'Materia de la Clase', 'Fecha de entrega', 'Hora de entrega', 
                 'Fecha de devolución', 'Hora de devolución', 'Estado'
             ]
             
-            ws_prestamo.append(headers)
-            ws_entregadas.append(headers)
+            ws_prestamo.append(headers_prestamo)
+            ws_entregadas.append(headers_entregadas)
             wb.save(self.ruta_registro)
     
     def registrar_entrega(self, info_clase):
@@ -71,7 +78,7 @@ class LlaveModel:
                 wb.close()
                 return False
             
-            # Crear nuevo registro
+            # Crear nuevo registro (sin columnas de devolución)
             ahora = datetime.now()
             nuevo_registro = [
                 nroidenti_limpio,
@@ -83,8 +90,6 @@ class LlaveModel:
                 info_clase.get('materia', ''),
                 ahora.strftime('%Y-%m-%d'),
                 ahora.strftime('%H:%M:%S'),
-                '',
-                '',
                 'En Préstamo'
             ]
             
@@ -122,7 +127,7 @@ class LlaveModel:
             # Buscar la llave en préstamo
             for row_idx, row in enumerate(ws_prestamo.iter_rows(min_row=2, values_only=False), start=2):
                 if (row and str(row[0].value) == nroidenti_limpio and 
-                    row[11].value == 'En Préstamo'):
+                    row[9].value == 'En Préstamo'):  # Índice 9 ahora (era 11)
                     fila_encontrada = row_idx
                     registro_data = [cell.value for cell in row]
                     break
@@ -130,13 +135,14 @@ class LlaveModel:
             if fila_encontrada:
                 ahora = datetime.now()
                 
-                # Actualizar registro con datos de devolución
-                registro_data[9] = ahora.strftime('%Y-%m-%d')  # Fecha devolución
-                registro_data[10] = ahora.strftime('%H:%M:%S')  # Hora devolución
-                registro_data[11] = 'Devuelta'  # Estado
+                # Agregar fecha y hora de devolución al registro
+                registro_completo = registro_data.copy()
+                registro_completo.insert(9, ahora.strftime('%Y-%m-%d'))  # Fecha devolución
+                registro_completo.insert(10, ahora.strftime('%H:%M:%S'))  # Hora devolución
+                registro_completo[-1] = 'Devuelta'  # Actualizar estado
                 
                 # Agregar a hoja de llaves entregadas
-                ws_entregadas.append(registro_data)
+                ws_entregadas.append(registro_completo)
                 
                 # Eliminar de hoja de préstamos
                 ws_prestamo.delete_rows(fila_encontrada, 1)
@@ -168,7 +174,7 @@ class LlaveModel:
             
             llaves_pendientes = []
             for row in ws.iter_rows(min_row=2, values_only=True):
-                if row and row[11] == 'En Préstamo':
+                if row and row[9] == 'En Préstamo':  # Índice 9 ahora (era 11)
                     llave_info = {
                         'documento': self._limpiar_numero_documento(row[0]),
                         'docente': row[1],
@@ -179,7 +185,7 @@ class LlaveModel:
                         'materia': row[6],
                         'fecha_entrega': row[7],
                         'hora_entrega': row[8],
-                        'estado': row[11]
+                        'estado': row[9]
                     }
                     llaves_pendientes.append(llave_info)
             
@@ -215,7 +221,7 @@ class LlaveModel:
     def _tiene_llave_prestada(self, ws, nroidenti):
         """Verifica si un docente ya tiene una llave prestada"""
         for row in ws.iter_rows(min_row=2, values_only=True):
-            if row and str(row[0]) == nroidenti and row[11] == 'En Préstamo':
+            if row and str(row[0]) == nroidenti and row[9] == 'En Préstamo':  # Índice 9 ahora (era 11)
                 return True
         return False
     
