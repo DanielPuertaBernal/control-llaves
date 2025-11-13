@@ -49,6 +49,7 @@ class ProgramacionController:
         df = self.model.obtener_clases_del_dia(dia)
         
         # Aplicar filtros adicionales
+        df = self._filtrar_aulas_invalidas(df)
         df = self._filtrar_clases_pasadas(df)
         df = self._filtrar_docentes_con_llaves(df)
         
@@ -131,6 +132,24 @@ class ProgramacionController:
         except Exception as e:
             print(f"Error al obtener facultad: {e}")
             return "No especificada"
+    
+    def _filtrar_aulas_invalidas(self, df):
+        """Filtra registros donde el aula es NaN o vacía"""
+        if df.empty or 'Aula' not in df.columns:
+            return df
+        
+        try:
+            # Filtrar aulas NaN, None, vacías o que contengan 'nan'
+            df_filtrado = df.copy()
+            df_filtrado = df_filtrado[
+                df_filtrado['Aula'].notna() & 
+                (df_filtrado['Aula'].astype(str).str.strip() != '') &
+                (df_filtrado['Aula'].astype(str).str.lower() != 'nan')
+            ]
+            return df_filtrado
+        except Exception as e:
+            print(f"Error al filtrar aulas inválidas: {e}")
+            return df
     
     def _filtrar_clases_pasadas(self, df):
         """Filtra clases que ya terminaron"""
