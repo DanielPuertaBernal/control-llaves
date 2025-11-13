@@ -2,7 +2,7 @@
 Controlador para la gestión de programación académica
 Maneja la lógica de negocio de carga y procesamiento de programación
 """
-from models import ProgramacionModel
+from models.programacion import ProgramacionModel
 from datetime import datetime
 import pandas as pd
 
