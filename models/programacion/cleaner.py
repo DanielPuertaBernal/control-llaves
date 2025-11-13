@@ -43,6 +43,30 @@ class ProgramacionCleaner:
     GAP_MINIMO_MINUTOS = 30
     
     @staticmethod
+    def limpiar_texto(texto) -> str:
+        """
+        Limpia texto eliminando caracteres especiales de Excel
+        
+        Args:
+            texto: Texto a limpiar
+            
+        Returns:
+            str: Texto limpio sin caracteres especiales
+        """
+        if pd.isna(texto):
+            return ''
+        
+        texto_str = str(texto)
+        # Eliminar _x000D_ (retorno de carro de Excel)
+        texto_str = texto_str.replace('_x000D_', '')
+        # Eliminar saltos de línea y retornos de carro
+        texto_str = texto_str.replace('\r', '').replace('\n', ' ')
+        # Eliminar espacios múltiples
+        texto_str = ' '.join(texto_str.split())
+        # Strip espacios al inicio y final
+        return texto_str.strip()
+    
+    @staticmethod
     def limpiar_documento(doc) -> str:
         """
         Limpia número de documento removiendo decimales innecesarios
@@ -253,8 +277,19 @@ class ProgramacionCleaner:
             # Normalizar nombres de columnas
             df_limpio.columns = df_limpio.columns.str.strip()
             
+            # Limpiar caracteres especiales en columnas de texto
+            columnas_texto = ['profesor', 'dia', 'aula', 'materia', 'MATERIA', 'descripcion', 'descripcion.1']
+            for col in columnas_texto:
+                if col in df_limpio.columns:
+                    df_limpio[col] = df_limpio[col].apply(ProgramacionCleaner.limpiar_texto)
+            
             # Limpiar datos básicos
             df_limpio['horario'] = df_limpio['horario'].astype(str) if 'horario' in df_limpio.columns else ''
+            
+            # Limpiar horario de caracteres especiales
+            if 'horario' in df_limpio.columns:
+                df_limpio['horario'] = df_limpio['horario'].apply(ProgramacionCleaner.limpiar_texto)
+            
             df_limpio['profesor'] = df_limpio['profesor'].fillna('').str.strip() if 'profesor' in df_limpio.columns else ''
             
             # Limpiar documento
