@@ -12,15 +12,15 @@ from views.components import BuscadorComponent
 class HistorialView:
     """Vista para historial de llaves en préstamo"""
     
-    def __init__(self, notebook):
+    def __init__(self, parent_frame):
         self.historial_controller = HistorialController()
         
         # Servicios
         self.paginacion_service = PaginacionService(items_por_pagina=15)
         
-        # Frame principal
-        self.frame = ttk.Frame(notebook, padding="20")
-        notebook.add(self.frame, text="Llaves en Préstamo")
+        # Frame principal - ahora recibe el parent directamente
+        self.frame = ttk.Frame(parent_frame, padding="20")
+        self.frame.pack(fill='both', expand=True)
         
         # Datos
         self.datos_historial = []
@@ -36,43 +36,34 @@ class HistorialView:
     
     def _crear_interfaz(self):
         """Crea los componentes visuales"""
-        # Título
-        titulo = ttk.Label(
-            self.frame,
-            text="LLAVES ACTUALMENTE EN PRÉSTAMO",
-            font=('Segoe UI', 16, 'bold')
-        )
-        titulo.pack(pady=(0, 20))
-        
-        # Frame de controles
-        frame_controles = ttk.Frame(self.frame)
-        frame_controles.pack(fill='x', pady=(0, 20))
-        
-        # Componente de búsqueda reutilizable
+        # Componente de búsqueda
         self.buscador = BuscadorComponent(
-            frame_controles,
+            self.frame,
             callback_busqueda=self._realizar_busqueda,
             label_texto="Buscar:"
         )
         
-        btn_actualizar = ttk.Button(frame_controles, text="🔄 Actualizar", command=self.actualizar_datos)
-        btn_actualizar.pack(side='left')
-        
-        # Frame de paginación
+        # Frame de paginación con botón actualizar
         frame_paginacion = ttk.Frame(self.frame)
-        frame_paginacion.pack(fill='x', pady=(0, 10))
+        frame_paginacion.pack(fill='x', pady=(0, 15))
         
-        self.btn_anterior = ttk.Button(frame_paginacion, text="◀ Anterior", command=self._pagina_anterior)
-        self.btn_anterior.pack(side='left', padx=5)
+        # Botón actualizar a la izquierda
+        btn_actualizar = ttk.Button(frame_paginacion, text="🔄 Actualizar", command=self.actualizar_datos)
+        btn_actualizar.pack(side='left', padx=(0, 20))
         
-        self.label_pagina = ttk.Label(frame_paginacion, text="Página 1 de 1")
-        self.label_pagina.pack(side='left', padx=10)
+        # Información de registros
+        self.label_info = ttk.Label(frame_paginacion, text="0 registros", font=('Segoe UI', 9))
+        self.label_info.pack(side='left')
         
-        self.btn_siguiente = ttk.Button(frame_paginacion, text="Siguiente ▶", command=self._pagina_siguiente)
-        self.btn_siguiente.pack(side='left', padx=5)
+        # Controles de paginación compactos a la derecha
+        self.btn_siguiente = ttk.Button(frame_paginacion, text="▶", width=3, command=self._pagina_siguiente)
+        self.btn_siguiente.pack(side='right', padx=(5, 0))
         
-        self.label_info = ttk.Label(frame_paginacion, text="0 registros")
-        self.label_info.pack(side='left', padx=20)
+        self.label_pagina = ttk.Label(frame_paginacion, text="Página 1 de 1", font=('Segoe UI', 9))
+        self.label_pagina.pack(side='right', padx=8)
+        
+        self.btn_anterior = ttk.Button(frame_paginacion, text="◀", width=3, command=self._pagina_anterior)
+        self.btn_anterior.pack(side='right', padx=(0, 5))
         
         # Tabla
         frame_tabla = ttk.Frame(self.frame)

@@ -9,12 +9,12 @@ import tkinter as tk
 class ProgramacionView:
     """Vista para gestión de programación académica"""
     
-    def __init__(self, notebook, programacion_controller):
+    def __init__(self, parent_frame, programacion_controller):
         self.programacion_controller = programacion_controller
         
-        # Frame principal
-        self.frame = ttk.Frame(notebook, padding="20")
-        notebook.add(self.frame, text="Programación")
+        # Frame principal - ahora recibe el parent directamente
+        self.frame = ttk.Frame(parent_frame, padding="20")
+        self.frame.pack(fill='both', expand=True)
         
         # Crear interfaz
         self._crear_interfaz()
@@ -24,34 +24,28 @@ class ProgramacionView:
     
     def _crear_interfaz(self):
         """Crea los componentes visuales"""
-        # Frame principal
+        # Frame principal con padding
         main_frame = ttk.Frame(self.frame, padding="15")
         main_frame.pack(fill='both', expand=True)
         
-        # Título
-        titulo = ttk.Label(
-            main_frame,
-            text="GESTIÓN DE PROGRAMACIÓN ACADÉMICA",
-            font=('Segoe UI', 18, 'bold')
-        )
-        titulo.pack(pady=(0, 25))
+        # Título eliminado (ahora está en el header principal)
         
-        # Frame para cargar programación
-        frame_cargar = ttk.LabelFrame(main_frame, text="📁 CARGAR PROGRAMACIÓN", padding="15")
-        frame_cargar.pack(fill='x', pady=(0, 15))
+        # Frame para cargar programación - Diseño de tarjeta moderna
+        frame_cargar = ttk.LabelFrame(main_frame, text="📁 CARGAR PROGRAMACIÓN", padding="20")
+        frame_cargar.pack(fill='x', pady=(0, 20))
         
         ttk.Label(
             frame_cargar,
             text="Seleccione el archivo de programación académica:",
             font=('Segoe UI', 10)
-        ).pack(anchor='w', pady=(0, 8))
+        ).pack(anchor='w', pady=(0, 12))
         
         btn_cargar = ttk.Button(
             frame_cargar,
             text="📁 Seleccionar Archivo Excel/CSV",
             command=self._cargar_programacion
         )
-        btn_cargar.pack(pady=(0, 10))
+        btn_cargar.pack(pady=(0, 12))
         
         # Label de estado
         self.label_archivo = ttk.Label(
@@ -63,14 +57,14 @@ class ProgramacionView:
         self.label_archivo.pack(anchor='w')
         
         # Frame para exportar programación limpia
-        frame_exportar = ttk.LabelFrame(main_frame, text="💾 EXPORTAR PROGRAMACIÓN LIMPIA", padding="15")
-        frame_exportar.pack(fill='x', pady=(0, 15))
+        frame_exportar = ttk.LabelFrame(main_frame, text="💾 EXPORTAR PROGRAMACIÓN LIMPIA", padding="20")
+        frame_exportar.pack(fill='x', pady=(0, 20))
         
         ttk.Label(
             frame_exportar,
             text="Exportar la programación limpia (solo columnas necesarias):",
             font=('Segoe UI', 10)
-        ).pack(anchor='w', pady=(0, 8))
+        ).pack(anchor='w', pady=(0, 12))
         
         btn_exportar = ttk.Button(
             frame_exportar,
