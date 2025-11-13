@@ -13,16 +13,16 @@ from views.components import BuscadorComponent
 class EntregaView:
     """Vista para entrega y devolución de llaves"""
     
-    def __init__(self, notebook, programacion_controller):
+    def __init__(self, parent_frame, programacion_controller):
         self.programacion_controller = programacion_controller
         self.llave_controller = LlaveController()
         
         # Servicios
         self.paginacion_service = PaginacionService(items_por_pagina=15)
         
-        # Frame principal
-        self.frame = ttk.Frame(notebook, padding="20")
-        notebook.add(self.frame, text="Programación del Día")
+        # Frame principal - ahora recibe el parent directamente
+        self.frame = ttk.Frame(parent_frame, padding="20")
+        self.frame.pack(fill='both', expand=True)
         
         # Datos actuales
         self.datos_filtrados = []
@@ -38,40 +38,34 @@ class EntregaView:
     
     def _crear_interfaz(self):
         """Crea los componentes visuales"""
-        # Título con día
-        dia_actual = self._obtener_dia_actual()
-        self.label_dia = ttk.Label(
-            self.frame,
-            text=f"CLASES DEL DÍA: {dia_actual}",
-            font=('Segoe UI', 16, 'bold')
-        )
-        self.label_dia.pack(pady=(0, 20))
-        
-        # Componente de búsqueda reutilizable
+        # Componente de búsqueda
         self.buscador = BuscadorComponent(
             self.frame,
             callback_busqueda=self._realizar_busqueda,
-            label_texto="Buscar por Documento o Salón:"
+            label_texto="Buscar:"
         )
         
-        # Frame de paginación
+        # Frame de paginación con botón actualizar
         frame_paginacion = ttk.Frame(self.frame)
-        frame_paginacion.pack(fill='x', pady=(15, 10))
+        frame_paginacion.pack(fill='x', pady=(0, 15))
         
-        self.btn_anterior = ttk.Button(frame_paginacion, text="◀ Anterior", command=self._pagina_anterior)
-        self.btn_anterior.pack(side='left', padx=5)
+        # Botón actualizar a la izquierda
+        btn_actualizar = ttk.Button(frame_paginacion, text="🔄 Actualizar", command=self.cargar_clases_del_dia)
+        btn_actualizar.pack(side='left', padx=(0, 20))
         
-        self.label_pagina = ttk.Label(frame_paginacion, text="Página 1 de 1")
-        self.label_pagina.pack(side='left', padx=10)
+        # Información de registros
+        self.label_info = ttk.Label(frame_paginacion, text="0 registros", font=('Segoe UI', 9))
+        self.label_info.pack(side='left')
         
-        self.btn_siguiente = ttk.Button(frame_paginacion, text="Siguiente ▶", command=self._pagina_siguiente)
-        self.btn_siguiente.pack(side='left', padx=5)
+        # Controles de paginación compactos a la derecha
+        self.btn_siguiente = ttk.Button(frame_paginacion, text="▶", width=3, command=self._pagina_siguiente)
+        self.btn_siguiente.pack(side='right', padx=(5, 0))
         
-        self.label_info = ttk.Label(frame_paginacion, text="0 registros")
-        self.label_info.pack(side='left', padx=20)
+        self.label_pagina = ttk.Label(frame_paginacion, text="Página 1 de 1", font=('Segoe UI', 9))
+        self.label_pagina.pack(side='right', padx=8)
         
-        btn_actualizar = ttk.Button(frame_paginacion, text="🔄 Refrescar", command=self.cargar_clases_del_dia)
-        btn_actualizar.pack(side='right')
+        self.btn_anterior = ttk.Button(frame_paginacion, text="◀", width=3, command=self._pagina_anterior)
+        self.btn_anterior.pack(side='right', padx=(0, 5))
         
         # Tabla
         frame_tabla = ttk.Frame(self.frame)

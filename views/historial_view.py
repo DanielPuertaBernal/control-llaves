@@ -1,9 +1,10 @@
-"""
+""">
 Vista de historial de llaves
 Maneja solo la presentación del historial de préstamos
 """
 from tkinter import ttk, messagebox
 import tkinter as tk
+from datetime import datetime
 from controllers import HistorialController
 from services import PaginacionService, TablaService
 from views.components import BuscadorComponent
@@ -12,15 +13,15 @@ from views.components import BuscadorComponent
 class HistorialView:
     """Vista para historial de llaves en préstamo"""
     
-    def __init__(self, notebook):
+    def __init__(self, parent_frame):
         self.historial_controller = HistorialController()
         
         # Servicios
         self.paginacion_service = PaginacionService(items_por_pagina=15)
         
-        # Frame principal
-        self.frame = ttk.Frame(notebook, padding="20")
-        notebook.add(self.frame, text="Llaves en Préstamo")
+        # Frame principal - ahora recibe el parent directamente
+        self.frame = ttk.Frame(parent_frame, padding="20")
+        self.frame.pack(fill='both', expand=True)
         
         # Datos
         self.datos_historial = []
@@ -36,43 +37,34 @@ class HistorialView:
     
     def _crear_interfaz(self):
         """Crea los componentes visuales"""
-        # Título
-        titulo = ttk.Label(
-            self.frame,
-            text="LLAVES ACTUALMENTE EN PRÉSTAMO",
-            font=('Segoe UI', 16, 'bold')
-        )
-        titulo.pack(pady=(0, 20))
-        
-        # Frame de controles
-        frame_controles = ttk.Frame(self.frame)
-        frame_controles.pack(fill='x', pady=(0, 20))
-        
-        # Componente de búsqueda reutilizable
+        # Componente de búsqueda
         self.buscador = BuscadorComponent(
-            frame_controles,
+            self.frame,
             callback_busqueda=self._realizar_busqueda,
             label_texto="Buscar:"
         )
         
-        btn_actualizar = ttk.Button(frame_controles, text="🔄 Actualizar", command=self.actualizar_datos)
-        btn_actualizar.pack(side='left')
-        
-        # Frame de paginación
+        # Frame de paginación con botón actualizar
         frame_paginacion = ttk.Frame(self.frame)
-        frame_paginacion.pack(fill='x', pady=(0, 10))
+        frame_paginacion.pack(fill='x', pady=(0, 15))
         
-        self.btn_anterior = ttk.Button(frame_paginacion, text="◀ Anterior", command=self._pagina_anterior)
-        self.btn_anterior.pack(side='left', padx=5)
+        # Botón actualizar a la izquierda
+        btn_actualizar = ttk.Button(frame_paginacion, text="🔄 Actualizar", command=self.actualizar_datos)
+        btn_actualizar.pack(side='left', padx=(0, 20))
         
-        self.label_pagina = ttk.Label(frame_paginacion, text="Página 1 de 1")
-        self.label_pagina.pack(side='left', padx=10)
+        # Información de registros
+        self.label_info = ttk.Label(frame_paginacion, text="0 registros", font=('Segoe UI', 9))
+        self.label_info.pack(side='left')
         
-        self.btn_siguiente = ttk.Button(frame_paginacion, text="Siguiente ▶", command=self._pagina_siguiente)
-        self.btn_siguiente.pack(side='left', padx=5)
+        # Controles de paginación compactos a la derecha
+        self.btn_siguiente = ttk.Button(frame_paginacion, text="▶", width=3, command=self._pagina_siguiente)
+        self.btn_siguiente.pack(side='right', padx=(5, 0))
         
-        self.label_info = ttk.Label(frame_paginacion, text="0 registros")
-        self.label_info.pack(side='left', padx=20)
+        self.label_pagina = ttk.Label(frame_paginacion, text="Página 1 de 1", font=('Segoe UI', 9))
+        self.label_pagina.pack(side='right', padx=8)
+        
+        self.btn_anterior = ttk.Button(frame_paginacion, text="◀", width=3, command=self._pagina_anterior)
+        self.btn_anterior.pack(side='right', padx=(0, 5))
         
         # Tabla
         frame_tabla = ttk.Frame(self.frame)
@@ -93,14 +85,14 @@ class HistorialView:
         self.tree.bind('<Double-1>', self._on_doble_click)
     
     def actualizar_datos(self):
-        """Actualiza los datos del historial"""
+        """Actualiza los datos del historial mostrando solo llaves del día actual"""
         from controllers import LlaveController
         
         llave_controller = LlaveController()
-        llaves_pendientes = llave_controller.obtener_llaves_en_prestamo()
+        llaves_dia = llave_controller.obtener_llaves_prestadas_dia()
         
-        self.datos_historial = llaves_pendientes
-        self.paginacion_service.actualizar_datos(llaves_pendientes)
+        self.datos_historial = llaves_dia
+        self.paginacion_service.actualizar_datos(llaves_dia)
         self._actualizar_vista()
     
     def _realizar_busqueda(self):
@@ -147,7 +139,7 @@ class HistorialView:
         for item in self.tree.get_children():
             self.tree.delete(item)
         
-        # Llenar tabla
+        # Llenar tabla (sin columna fecha_entrega)
         if datos_pagina:
             for llave in datos_pagina:
                 valores = (
@@ -156,7 +148,6 @@ class HistorialView:
                     llave.get('horario', ''),
                     llave.get('aula', ''),
                     llave.get('materia', ''),
-                    llave.get('fecha_entrega', ''),
                     llave.get('hora_entrega', '')
                 )
                 self.tree.insert('', 'end', values=valores)

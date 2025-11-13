@@ -16,9 +16,9 @@ class TablaService:
     }
     
     TABLA_HISTORIAL = {
-        'columnas': ('documento', 'docente', 'horario', 'aula', 'materia', 'fecha_entrega', 'hora_entrega'),
-        'nombres': ('Documento', 'Docente', 'Horario', 'Aula', 'Materia', 'Fecha Entrega', 'Hora Entrega'),
-        'anchos': [120, 180, 150, 80, 180, 120, 120],
+        'columnas': ('documento', 'docente', 'horario', 'aula', 'materia', 'hora_entrega'),
+        'nombres': ('Documento', 'Docente', 'Horario', 'Aula', 'Materia', 'Hora Entrega'),
+        'anchos': [120, 200, 150, 100, 220, 120],
         'alineacion': 'center',
         'altura': 15
     }

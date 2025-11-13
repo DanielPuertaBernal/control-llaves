@@ -1,9 +1,9 @@
-"""
+""">
 Controlador para la gestión de llaves
 Maneja la lógica de negocio de entregas y devoluciones
 """
 from models import LlaveModel
-from datetime import datetime
+from datetime import datetime, date
 
 
 class LlaveController:
@@ -61,6 +61,16 @@ class LlaveController:
             list: Lista de diccionarios con información de préstamos activos
         """
         return self.model.obtener_llaves_pendientes()
+    
+    def obtener_llaves_prestadas_dia(self):
+        """
+        Obtiene las llaves prestadas exclusivamente del día actual
+        
+        Returns:
+            list: Lista de diccionarios con información de préstamos del día
+        """
+        fecha_actual = date.today()
+        return self.model.obtener_llaves_prestadas_dia(fecha_actual)
     
     def verificar_tiene_llave(self, nroidenti):
         """
