@@ -61,6 +61,23 @@ class ProgramacionView:
             font=('Segoe UI', 10, 'bold')
         )
         self.label_archivo.pack(anchor='w')
+        
+        # Frame para exportar programación limpia
+        frame_exportar = ttk.LabelFrame(main_frame, text="💾 EXPORTAR PROGRAMACIÓN LIMPIA", padding="15")
+        frame_exportar.pack(fill='x', pady=(0, 15))
+        
+        ttk.Label(
+            frame_exportar,
+            text="Exportar la programación limpia (solo columnas necesarias):",
+            font=('Segoe UI', 10)
+        ).pack(anchor='w', pady=(0, 8))
+        
+        btn_exportar = ttk.Button(
+            frame_exportar,
+            text="💾 Exportar a Excel",
+            command=self._exportar_programacion
+        )
+        btn_exportar.pack()
     
     def _verificar_programacion(self):
         """Verifica si hay programación guardada"""
@@ -94,3 +111,36 @@ class ProgramacionView:
         else:
             self.label_archivo.config(text=mensaje, foreground="#d32f2f")
             messagebox.showerror("Error", mensaje)
+    
+    def _exportar_programacion(self):
+        """Exporta la programación limpia a un archivo Excel"""
+        # Verificar si hay programación cargada
+        exito, df, mensaje = self.programacion_controller.cargar_programacion_inicial()
+        
+        if not exito or df is None or df.empty:
+            messagebox.showwarning("Advertencia", "No hay programación cargada para exportar")
+            return
+        
+        # Seleccionar ubicación de guardado
+        ruta_guardado = filedialog.asksaveasfilename(
+            title="Guardar programación limpia",
+            defaultextension=".xlsx",
+            filetypes=[
+                ("Archivo Excel", "*.xlsx"),
+                ("Todos los archivos", "*.*")
+            ],
+            initialfile="programacion_limpia.xlsx"
+        )
+        
+        if not ruta_guardado:
+            return
+        
+        # Exportar programación
+        exito_exportar, mensaje_exportar = self.programacion_controller.exportar_programacion(
+            df, ruta_guardado
+        )
+        
+        if exito_exportar:
+            messagebox.showinfo("Éxito", mensaje_exportar)
+        else:
+            messagebox.showerror("Error", mensaje_exportar)

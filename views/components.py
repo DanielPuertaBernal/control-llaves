@@ -25,6 +25,16 @@ class BuscadorComponent:
         # Crear componentes visuales
         self._crear_interfaz(label_texto, placeholder)
     
+    @staticmethod
+    def normalizar_texto(texto):
+        """
+        Normaliza texto para búsqueda eliminando guiones, espacios y convirtiendo a minúsculas
+        Esto permite buscar M303 y encontrar M-303, o Co101 y encontrar co-101
+        """
+        if not texto:
+            return ""
+        return texto.lower().replace('-', '').replace('_', '').replace(' ', '').strip()
+    
     def _crear_interfaz(self, label_texto, placeholder):
         """Crea la interfaz del buscador"""
         # Frame contenedor

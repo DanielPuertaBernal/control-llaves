@@ -103,28 +103,31 @@ class HistorialView:
         self.paginacion_service.actualizar_datos(llaves_pendientes)
         self._actualizar_vista()
     
-    def _realizar_busqueda(self, termino):
-        """Realiza la búsqueda"""
+    def _realizar_busqueda(self):
+        """Filtra los datos según el término de búsqueda"""
+        termino = self.buscador.obtener_termino()
+        
         if not termino:
-            self.actualizar_datos()
+            # Sin búsqueda, mostrar todos los datos
+            datos_paginados = self.servicio_paginacion.obtener_pagina_atual()
+            self._actualizar_tabla(datos_paginados)
             return
         
-        # Filtrar datos localmente
-        from controllers import LlaveController
-        llave_controller = LlaveController()
-        todos_datos = llave_controller.obtener_llaves_en_prestamo()
+        # Normalizar término de búsqueda
+        termino_normalizado = self.buscador.normalizar_texto(termino)
         
-        # Filtrar por término
+        # Filtrar localmente con normalización
         datos_filtrados = [
-            d for d in todos_datos
-            if termino.lower() in str(d.get('documento', '')).lower() or
-               termino.lower() in str(d.get('docente', '')).lower() or
-               termino.lower() in str(d.get('aula', '')).lower()
+            dato for dato in self.datos_completos
+            if (termino_normalizado in self.buscador.normalizar_texto(dato[0]) or  # Documento
+                termino_normalizado in self.buscador.normalizar_texto(dato[1]) or  # Docente
+                termino_normalizado in self.buscador.normalizar_texto(dato[2]))     # Aula
         ]
         
-        self.datos_historial = datos_filtrados
-        self.paginacion_service.actualizar_datos(datos_filtrados)
-        self._actualizar_vista()
+        # Actualizar paginación con datos filtrados
+        self.servicio_paginacion.actualizar_datos(datos_filtrados)
+        datos_paginados = self.servicio_paginacion.obtener_pagina_atual()
+        self._actualizar_tabla(datos_paginados)
     
     def _pagina_anterior(self):
         """Va a página anterior"""

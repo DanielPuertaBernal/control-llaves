@@ -173,11 +173,14 @@ class ProgramacionModel:
             'hora_fin': 'Hora Fin',
             'horario': 'Horario',
             'aula': 'Aula',
-            'materia': 'Materia de la Clase',
+            'materia': 'Código Materia',  # Mapear código de materia
+            'MATERIA': 'Materia de la Clase',  # Nombre completo de la materia
             'PROGRAMA': 'Facultad',
             'descripcion': 'Facultad',
             'grupo': 'Grupo',
-            'nivel_grupo': 'Nivel del Grupo'
+            'nivel_grupo': 'Nivel del Grupo',
+            'OBSERVACION': 'Observación',  # Singular
+            'OBSERVACIONES': 'Observación'  # Por si viene en plural, normalizar
         }
         
         for col_original, col_nuevo in mapeo.items():

@@ -179,3 +179,30 @@ class ProgramacionController:
         except Exception as e:
             print(f"Error al filtrar docentes con llaves: {e}")
             return df
+    
+    def exportar_programacion(self, df, ruta_destino):
+        """
+        Exporta el DataFrame de programación a un archivo Excel
+        
+        Args:
+            df: DataFrame con la programación a exportar
+            ruta_destino: Ruta completa donde guardar el archivo
+        
+        Returns:
+            tuple: (exito, mensaje)
+        """
+        try:
+            # Verificar que el DataFrame no esté vacío
+            if df is None or df.empty:
+                return False, "No hay datos para exportar"
+            
+            # Exportar a Excel
+            df.to_excel(ruta_destino, index=False, engine='openpyxl')
+            
+            return True, f"Programación exportada exitosamente en:\n{ruta_destino}"
+            
+        except PermissionError:
+            return False, f"Error: No se puede escribir en el archivo.\nAsegúrese de que el archivo no esté abierto en otra aplicación."
+        
+        except Exception as e:
+            return False, f"Error al exportar programación:\n{str(e)}"

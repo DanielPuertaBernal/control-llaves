@@ -100,29 +100,28 @@ class EntregaView:
         self.paginacion_service.actualizar_datos(df)
         self._actualizar_vista()
     
-    def _realizar_busqueda(self, termino):
-        """Realiza la búsqueda"""
+    def _realizar_busqueda(self):
+        """Filtra los datos según el término de búsqueda"""
+        termino = self.buscador.obtener_termino()
+        
         if not termino:
-            self.cargar_clases_del_dia()
+            # Sin búsqueda, mostrar todo
+            self._actualizar_vista()
             return
         
-        # Obtener clases del día
-        df_completo = self.programacion_controller.obtener_clases_del_dia()
+        # Normalizar término de búsqueda
+        termino_normalizado = self.buscador.normalizar_texto(termino)
         
-        if df_completo.empty:
-            return
-        
-        # Filtrar localmente (mismo método que historial)
-        termino_lower = termino.lower()
-        df_filtrado = df_completo[
-            df_completo['Número de Documento'].astype(str).str.lower().str.contains(termino_lower, na=False, regex=False) |
-            df_completo['Docente'].astype(str).str.lower().str.contains(termino_lower, na=False, regex=False) |
-            df_completo['Aula'].astype(str).str.lower().str.contains(termino_lower, na=False, regex=False)
+        # Filtrar el dataframe actual con normalización
+        df_filtrado = self.df_actual[
+            self.df_actual['Docente'].apply(lambda x: termino_normalizado in self.buscador.normalizar_texto(str(x))) |
+            self.df_actual['Materia'].apply(lambda x: termino_normalizado in self.buscador.normalizar_texto(str(x))) |
+            self.df_actual['Aula'].apply(lambda x: termino_normalizado in self.buscador.normalizar_texto(str(x))) |
+            self.df_actual['Facultad'].apply(lambda x: termino_normalizado in self.buscador.normalizar_texto(str(x)))
         ]
         
-        self.datos_filtrados = df_filtrado
-        self.paginacion_service.actualizar_datos(df_filtrado)
-        self._actualizar_vista()
+        # Actualizar vista con datos filtrados
+        self._actualizar_vista(df_filtrado)
     
     def _pagina_anterior(self):
         """Va a página anterior"""
