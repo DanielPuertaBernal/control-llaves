@@ -1,9 +1,10 @@
-"""
+""">
 Vista de historial de llaves
 Maneja solo la presentación del historial de préstamos
 """
 from tkinter import ttk, messagebox
 import tkinter as tk
+from datetime import datetime
 from controllers import HistorialController
 from services import PaginacionService, TablaService
 from views.components import BuscadorComponent
@@ -84,14 +85,14 @@ class HistorialView:
         self.tree.bind('<Double-1>', self._on_doble_click)
     
     def actualizar_datos(self):
-        """Actualiza los datos del historial"""
+        """Actualiza los datos del historial mostrando solo llaves del día actual"""
         from controllers import LlaveController
         
         llave_controller = LlaveController()
-        llaves_pendientes = llave_controller.obtener_llaves_en_prestamo()
+        llaves_dia = llave_controller.obtener_llaves_prestadas_dia()
         
-        self.datos_historial = llaves_pendientes
-        self.paginacion_service.actualizar_datos(llaves_pendientes)
+        self.datos_historial = llaves_dia
+        self.paginacion_service.actualizar_datos(llaves_dia)
         self._actualizar_vista()
     
     def _realizar_busqueda(self):
@@ -138,7 +139,7 @@ class HistorialView:
         for item in self.tree.get_children():
             self.tree.delete(item)
         
-        # Llenar tabla
+        # Llenar tabla (sin columna fecha_entrega)
         if datos_pagina:
             for llave in datos_pagina:
                 valores = (
@@ -147,7 +148,6 @@ class HistorialView:
                     llave.get('horario', ''),
                     llave.get('aula', ''),
                     llave.get('materia', ''),
-                    llave.get('fecha_entrega', ''),
                     llave.get('hora_entrega', '')
                 )
                 self.tree.insert('', 'end', values=valores)

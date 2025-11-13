@@ -196,6 +196,61 @@ class LlaveModel:
             print(f"Error al obtener llaves pendientes: {e}")
             return []
     
+    def obtener_llaves_prestadas_dia(self, fecha_actual):
+        """
+        Obtiene las llaves prestadas exclusivamente del día actual
+        
+        Args:
+            fecha_actual (date): Fecha actual para filtrar
+        
+        Returns:
+            list: Lista de diccionarios con información de llaves prestadas del día
+        """
+        try:
+            if not os.path.exists(self.ruta_registro):
+                return []
+            
+            wb = load_workbook(self.ruta_registro)
+            ws = wb["Llaves en Prestamo"]
+            
+            # Convertir fecha actual a string formato YYYY-MM-DD
+            fecha_str = fecha_actual.strftime('%Y-%m-%d')
+            
+            llaves_del_dia = []
+            for row in ws.iter_rows(min_row=2, values_only=True):
+                if row and row[9] == 'En Préstamo':  # Estado
+                    # Obtener fecha de entrega de la fila
+                    fecha_entrega = row[7]
+                    
+                    # Convertir a string si es datetime
+                    if hasattr(fecha_entrega, 'strftime'):
+                        fecha_entrega_str = fecha_entrega.strftime('%Y-%m-%d')
+                    else:
+                        fecha_entrega_str = str(fecha_entrega)
+                    
+                    # Filtrar solo registros del día actual
+                    if fecha_entrega_str == fecha_str:
+                        llave_info = {
+                            'documento': self._limpiar_numero_documento(row[0]),
+                            'docente': row[1],
+                            'dia': row[2],
+                            'horario': row[3],
+                            'aula': row[4],
+                            'facultad': row[5],
+                            'materia': row[6],
+                            'fecha_entrega': row[7],
+                            'hora_entrega': row[8],
+                            'estado': row[9]
+                        }
+                        llaves_del_dia.append(llave_info)
+            
+            wb.close()
+            return llaves_del_dia
+            
+        except Exception as e:
+            print(f"Error al obtener llaves prestadas del día: {e}")
+            return []
+    
     def obtener_historial_completo(self):
         """
         Obtiene el historial completo de préstamos (activos y devueltos)

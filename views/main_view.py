@@ -226,7 +226,8 @@ class MainView:
             self.titulo_contenido.config(text=f"PROGRAMACIÓN DEL DÍA - {dia_actual}")
             self.vista_entrega = EntregaView(vista_frame, self.programacion_controller)
         elif nombre_vista == "historial":
-            self.titulo_contenido.config(text="LLAVES EN PRÉSTAMO")
+            dia_actual = self._obtener_dia_actual()
+            self.titulo_contenido.config(text=f"LLAVES EN PRÉSTAMO DEL DÍA - {dia_actual}")
             self.vista_historial = HistorialView(vista_frame)
             self.vista_historial.actualizar_datos()
     
