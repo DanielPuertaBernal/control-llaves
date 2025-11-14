@@ -17,15 +17,32 @@ Sistema para gestionar el préstamo y devolución de llaves de aulas universitar
 ### Prerrequisitos
 - Python 3.7 o superior
 
-### Dependencias
+### Instalación con entorno virtual (Recomendado)
 ```bash
-pip install openpyxl pandas
+# Clonar el repositorio
+git clone https://github.com/DanielPuertaBernal/ControlDeLLaves.git
+cd ControlDeLLaves
+
+# Crear entorno virtual
+python3 -m venv venv
+
+# Activar entorno virtual
+source venv/bin/activate  # Linux/Mac
+# o
+venv\Scripts\activate     # Windows
+
+# Instalar dependencias
+pip install -r requirements.txt
+
+# Ejecutar aplicación
+python main.py
 ```
 
-### Ejecutar
+### Instalación sin entorno virtual
 ```bash
 git clone https://github.com/DanielPuertaBernal/ControlDeLLaves.git
 cd ControlDeLLaves
+pip install -r requirements.txt
 python main.py
 ```
 
