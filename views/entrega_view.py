@@ -85,11 +85,17 @@ class EntregaView:
     def cargar_clases_del_dia(self):
         """Carga las clases del día desde el controlador"""
         df = self.programacion_controller.obtener_clases_del_dia()
-        
+
+        # Si no hay datos, intentar recargar programación guardada una sola vez
+        if df.empty:
+            exito, _, _ = self.programacion_controller.cargar_programacion_inicial()
+            if exito:
+                df = self.programacion_controller.obtener_clases_del_dia()
+
         if df.empty:
             messagebox.showwarning("Advertencia", "No hay programación cargada o no hay clases para hoy.")
             return
-        
+
         self.datos_filtrados = df
         self.paginacion_service.actualizar_datos(df)
         self._actualizar_vista()

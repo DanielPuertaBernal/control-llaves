@@ -28,8 +28,17 @@ class ProgramacionRepository:
             str: Ruta absoluta al directorio data
         """
         ruta_actual = os.path.dirname(os.path.abspath(__file__))
-        ruta_proyecto = os.path.dirname(ruta_actual)
-        return os.path.join(ruta_proyecto, "data")
+        # Preferir carpeta data en la raíz del proyecto
+        ruta_proyecto = os.path.dirname(os.path.dirname(ruta_actual))
+        ruta_data_principal = os.path.join(ruta_proyecto, "data")
+        ruta_data_legacy = os.path.join(os.path.dirname(ruta_actual), "data")
+
+        # Si existe la ruta principal, úsala; si no, cae a la legacy; si ninguna existe, crea en principal
+        if os.path.exists(ruta_data_principal):
+            return ruta_data_principal
+        if os.path.exists(ruta_data_legacy):
+            return ruta_data_legacy
+        return ruta_data_principal
     
     def cargar_desde_excel(self, ruta_archivo: str) -> tuple[bool, pd.DataFrame, str]:
         """
