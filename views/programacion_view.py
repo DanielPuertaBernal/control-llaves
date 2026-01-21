@@ -75,8 +75,18 @@ class ProgramacionView:
     
     def _verificar_programacion(self):
         """Verifica si hay programación guardada"""
+        # Si ya hay programación en memoria, no intentes recargar
+        df_actual = self.programacion_controller.obtener_programacion_completa()
+        if df_actual is not None and not df_actual.empty:
+            self.label_archivo.config(
+                text=f"✅ Programación cargada: {len(df_actual)} registros",
+                foreground="#2e7d32"
+            )
+            return
+
+        # Si no hay en memoria, intenta cargar la guardada
         exito, df, mensaje = self.programacion_controller.cargar_programacion_inicial()
-        
+
         if exito:
             self.label_archivo.config(text=mensaje, foreground="#2e7d32")
         else:
