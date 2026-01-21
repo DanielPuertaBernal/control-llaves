@@ -100,26 +100,25 @@ class HistorialView:
         termino = self.buscador.obtener_termino()
         
         if not termino:
-            # Sin búsqueda, mostrar todos los datos
-            datos_paginados = self.servicio_paginacion.obtener_pagina_atual()
-            self._actualizar_tabla(datos_paginados)
+            # Sin búsqueda, mostrar todos los datos originales
+            self.paginacion_service.actualizar_datos(self.datos_historial)
+            self._actualizar_vista()
             return
         
         # Normalizar término de búsqueda
         termino_normalizado = self.buscador.normalizar_texto(termino)
         
-        # Filtrar localmente con normalización
+        # Filtrar datos con normalización
         datos_filtrados = [
-            dato for dato in self.datos_completos
-            if (termino_normalizado in self.buscador.normalizar_texto(dato[0]) or  # Documento
-                termino_normalizado in self.buscador.normalizar_texto(dato[1]) or  # Docente
-                termino_normalizado in self.buscador.normalizar_texto(dato[2]))     # Aula
+            llave for llave in self.datos_historial
+            if (termino_normalizado in self.buscador.normalizar_texto(str(llave.get('documento', ''))) or
+                termino_normalizado in self.buscador.normalizar_texto(str(llave.get('docente', ''))) or
+                termino_normalizado in self.buscador.normalizar_texto(str(llave.get('aula', ''))))
         ]
         
         # Actualizar paginación con datos filtrados
-        self.servicio_paginacion.actualizar_datos(datos_filtrados)
-        datos_paginados = self.servicio_paginacion.obtener_pagina_atual()
-        self._actualizar_tabla(datos_paginados)
+        self.paginacion_service.actualizar_datos(datos_filtrados)
+        self._actualizar_vista()
     
     def _pagina_anterior(self):
         """Va a página anterior"""
