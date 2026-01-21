@@ -99,23 +99,25 @@ class EntregaView:
         termino = self.buscador.obtener_termino()
         
         if not termino:
-            # Sin búsqueda, mostrar todo
+            # Sin búsqueda, mostrar todos los datos originales
+            self.paginacion_service.actualizar_datos(self.datos_filtrados)
             self._actualizar_vista()
             return
         
         # Normalizar término de búsqueda
         termino_normalizado = self.buscador.normalizar_texto(termino)
         
-        # Filtrar el dataframe actual con normalización
-        df_filtrado = self.df_actual[
-            self.df_actual['Docente'].apply(lambda x: termino_normalizado in self.buscador.normalizar_texto(str(x))) |
-            self.df_actual['Materia'].apply(lambda x: termino_normalizado in self.buscador.normalizar_texto(str(x))) |
-            self.df_actual['Aula'].apply(lambda x: termino_normalizado in self.buscador.normalizar_texto(str(x))) |
-            self.df_actual['Facultad'].apply(lambda x: termino_normalizado in self.buscador.normalizar_texto(str(x)))
+        # Filtrar el dataframe con normalización
+        df_filtrado = self.datos_filtrados[
+            self.datos_filtrados['Docente'].apply(lambda x: termino_normalizado in self.buscador.normalizar_texto(str(x))) |
+            self.datos_filtrados['Materia de la Clase'].apply(lambda x: termino_normalizado in self.buscador.normalizar_texto(str(x))) |
+            self.datos_filtrados['Aula'].apply(lambda x: termino_normalizado in self.buscador.normalizar_texto(str(x))) |
+            self.datos_filtrados['Número de Documento'].apply(lambda x: termino_normalizado in self.buscador.normalizar_texto(str(x))) 
         ]
         
-        # Actualizar vista con datos filtrados
-        self._actualizar_vista(df_filtrado)
+        # Actualizar paginación con datos filtrados
+        self.paginacion_service.actualizar_datos(df_filtrado)
+        self._actualizar_vista()
     
     def _pagina_anterior(self):
         """Va a página anterior"""
