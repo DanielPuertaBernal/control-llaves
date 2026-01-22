@@ -36,12 +36,13 @@ class ProgramacionController:
         """
         return self.model.cargar_desde_archivo(ruta_archivo)
     
-    def obtener_clases_del_dia(self, dia=None):
+    def obtener_clases_del_dia(self, dia=None, incluir_pasadas=False):
         """
         Obtiene las clases del día actual o especificado
         
         Args:
             dia (str): Día de la semana (opcional)
+            incluir_pasadas (bool): Si True, incluye clases que ya terminaron (útil para fin de jornada)
         
         Returns:
             pd.DataFrame: Clases del día
@@ -50,7 +51,11 @@ class ProgramacionController:
         
         # Aplicar filtros adicionales
         df = self._filtrar_aulas_invalidas(df)
-        df = self._filtrar_clases_pasadas(df)
+        
+        # Filtro de clases pasadas es opcional
+        if not incluir_pasadas:
+            df = self._filtrar_clases_pasadas(df)
+        
         df = self._filtrar_docentes_con_llaves(df)
         
         return df
@@ -152,7 +157,10 @@ class ProgramacionController:
             return df
     
     def _filtrar_clases_pasadas(self, df):
-        """Filtra clases que ya terminaron"""
+        """
+        Filtra clases que ya terminaron.
+        Estrategia defensiva: si hay error al parsear, incluir la clase (no descartar).
+        """
         if df.empty or 'Hora Fin' not in df.columns:
             return df
         
@@ -160,17 +168,35 @@ class ProgramacionController:
             ahora = datetime.now().time()
             
             def es_clase_valida(hora_fin):
+                """Retorna True si la clase aún no termina"""
                 try:
+                    # Manejar tanto string como time objects
                     if isinstance(hora_fin, str):
-                        hora_obj = datetime.strptime(hora_fin.split(':')[0] + ':' + hora_fin.split(':')[1], '%H:%M').time()
-                        return hora_obj > ahora
-                    return True
-                except:
+                        # Limpiar y parsear hora en formato HH:MM
+                        hora_str = str(hora_fin).strip()
+                        if ':' in hora_str:
+                            partes = hora_str.split(':')
+                            hora_obj = datetime.strptime(f"{partes[0]}:{partes[1]}", '%H:%M').time()
+                        else:
+                            # Si no tiene formato válido, incluir la clase
+                            return True
+                    elif isinstance(hora_fin, type(datetime.now().time())):
+                        hora_obj = hora_fin
+                    else:
+                        # Tipo desconocido, incluir para no perder datos
+                        return True
+                    
+                    # Comparar: la clase es válida si su hora fin es posterior a ahora
+                    return hora_obj > ahora
+                    
+                except (ValueError, AttributeError, IndexError):
+                    # Si hay cualquier error al parsear, incluir la clase (estrategia defensiva)
                     return True
             
             return df[df['Hora Fin'].apply(es_clase_valida)].copy()
         except Exception as e:
-            print(f"Error al filtrar clases pasadas: {e}")
+            print(f"Error al filtrar clases pasadas: {e}. Retornando todas las clases.")
+            # Si hay error general, retornar todo sin filtrar (mejor que perder datos)
             return df
     
     def _filtrar_docentes_con_llaves(self, df):
