@@ -9,6 +9,7 @@ from controllers import ProgramacionController
 from views.entrega_view import EntregaView
 from views.programacion_view import ProgramacionView
 from views.historial_view import HistorialView
+from views.informes_view import InformesView
 
 
 class MainView:
@@ -85,7 +86,8 @@ class MainView:
         opciones_menu = [
             {"texto": "  📋 Programación", "vista": "programacion", "icono": "📋"},
             {"texto": "  📅 Programación del Día", "vista": "entrega", "icono": "📅"},
-            {"texto": "  🔓 Llaves en Préstamo", "vista": "historial", "icono": "🔓"}
+            {"texto": "  🔓 Llaves en Préstamo", "vista": "historial", "icono": "🔓"},
+            {"texto": "  📊 Informes del Día", "vista": "informes", "icono": "📊"}
         ]
         
         # Crear botones del menú
@@ -230,6 +232,10 @@ class MainView:
             self.titulo_contenido.config(text=f"LLAVES EN PRÉSTAMO DEL DÍA - {dia_actual}")
             self.vista_historial = HistorialView(vista_frame)
             self.vista_historial.actualizar_datos()
+        elif nombre_vista == "informes":
+            dia_actual = self._obtener_dia_actual()
+            self.titulo_contenido.config(text=f"INFORME DE LLAVES DEL DÍA - {dia_actual}")
+            self.vista_informes = InformesView(vista_frame)
     
     def _obtener_dia_actual(self):
         """Obtiene el día actual en español"""

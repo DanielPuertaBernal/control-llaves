@@ -23,31 +23,23 @@ class LlaveModel:
         return os.path.join(ruta_proyecto, "data")
     
     def _inicializar_registro(self):
-        """Inicializa el archivo de registro si no existe"""
+        """Inicializa el archivo de registro con una sola hoja si no existe"""
         if not os.path.exists(self.ruta_data):
             os.makedirs(self.ruta_data)
         
         if not os.path.exists(self.ruta_registro):
             wb = Workbook()
-            ws_prestamo = wb.active
-            ws_prestamo.title = "Llaves en Prestamo"
-            ws_entregadas = wb.create_sheet("Llaves Entregadas")
+            ws = wb.active
+            ws.title = "Registro de Llaves"
             
-            # Headers para llaves en préstamo (sin fecha/hora de devolución)
-            headers_prestamo = [
-                'Número de Documento', 'Docente', 'Día', 'Horario', 'Aula', 'Facultad', 
-                'Materia de la Clase', 'Fecha de entrega', 'Hora de entrega', 'Estado'
-            ]
-            
-            # Headers para llaves entregadas (con fecha/hora de devolución)
-            headers_entregadas = [
+            # Headers unificados con todos los campos
+            headers = [
                 'Número de Documento', 'Docente', 'Día', 'Horario', 'Aula', 'Facultad', 
                 'Materia de la Clase', 'Fecha de entrega', 'Hora de entrega', 
                 'Fecha de devolución', 'Hora de devolución', 'Estado'
             ]
             
-            ws_prestamo.append(headers_prestamo)
-            ws_entregadas.append(headers_entregadas)
+            ws.append(headers)
             wb.save(self.ruta_registro)
     
     def registrar_entrega(self, info_clase):
@@ -69,7 +61,7 @@ class LlaveModel:
         """
         try:
             wb = load_workbook(self.ruta_registro)
-            ws = wb["Llaves en Prestamo"]
+            ws = wb["Registro de Llaves"]
             
             nroidenti_limpio = self._limpiar_numero_documento(info_clase['nroidenti'])
             
@@ -78,7 +70,7 @@ class LlaveModel:
                 wb.close()
                 return False
             
-            # Crear nuevo registro (sin columnas de devolución)
+            # Crear nuevo registro con columnas de devolución vacías
             ahora = datetime.now()
             nuevo_registro = [
                 nroidenti_limpio,
@@ -90,6 +82,8 @@ class LlaveModel:
                 info_clase.get('materia', ''),
                 ahora.strftime('%Y-%m-%d'),
                 ahora.strftime('%H:%M:%S'),
+                '',  # Fecha de devolución (vacío)
+                '',  # Hora de devolución (vacío)
                 'En Préstamo'
             ]
             
@@ -104,7 +98,7 @@ class LlaveModel:
     
     def registrar_devolucion(self, nroidenti):
         """
-        Registra la devolución de una llave
+        Registra la devolución de una llave actualizando el registro existente
         
         Args:
             nroidenti: Número de documento del docente
@@ -117,39 +111,23 @@ class LlaveModel:
                 return False
             
             wb = load_workbook(self.ruta_registro)
-            ws_prestamo = wb["Llaves en Prestamo"]
-            ws_entregadas = wb["Llaves Entregadas"]
+            ws = wb["Registro de Llaves"]
             
             nroidenti_limpio = self._limpiar_numero_documento(nroidenti)
-            fila_encontrada = None
-            registro_data = None
+            ahora = datetime.now()
             
-            # Buscar la llave en préstamo
-            for row_idx, row in enumerate(ws_prestamo.iter_rows(min_row=2, values_only=False), start=2):
-                if (row and str(row[0].value) == nroidenti_limpio and 
-                    row[9].value == 'En Préstamo'):  # Índice 9 ahora (era 11)
-                    fila_encontrada = row_idx
-                    registro_data = [cell.value for cell in row]
-                    break
-            
-            if fila_encontrada:
-                ahora = datetime.now()
-                
-                # Agregar fecha y hora de devolución al registro
-                registro_completo = registro_data.copy()
-                registro_completo.insert(9, ahora.strftime('%Y-%m-%d'))  # Fecha devolución
-                registro_completo.insert(10, ahora.strftime('%H:%M:%S'))  # Hora devolución
-                registro_completo[-1] = 'Devuelta'  # Actualizar estado
-                
-                # Agregar a hoja de llaves entregadas
-                ws_entregadas.append(registro_completo)
-                
-                # Eliminar de hoja de préstamos
-                ws_prestamo.delete_rows(fila_encontrada, 1)
-                
-                wb.save(self.ruta_registro)
-                wb.close()
-                return True
+            # Buscar y actualizar la fila correspondiente
+            for row in ws.iter_rows(min_row=2):
+                if (row[0].value and str(row[0].value) == nroidenti_limpio and 
+                    row[11].value == 'En Préstamo'):  # Índice 11 es Estado
+                    # Actualizar fecha y hora de devolución
+                    row[9].value = ahora.strftime('%Y-%m-%d')   # Fecha devolución
+                    row[10].value = ahora.strftime('%H:%M:%S')  # Hora devolución
+                    row[11].value = 'Devuelta'                  # Estado
+                    
+                    wb.save(self.ruta_registro)
+                    wb.close()
+                    return True
             
             wb.close()
             return False
@@ -170,11 +148,11 @@ class LlaveModel:
                 return []
             
             wb = load_workbook(self.ruta_registro)
-            ws = wb["Llaves en Prestamo"]
+            ws = wb["Registro de Llaves"]
             
             llaves_pendientes = []
             for row in ws.iter_rows(min_row=2, values_only=True):
-                if row and row[9] == 'En Préstamo':  # Índice 9 ahora (era 11)
+                if row and row[11] == 'En Préstamo':  # Índice 11 es Estado
                     llave_info = {
                         'documento': self._limpiar_numero_documento(row[0]),
                         'docente': row[1],
@@ -185,7 +163,7 @@ class LlaveModel:
                         'materia': row[6],
                         'fecha_entrega': row[7],
                         'hora_entrega': row[8],
-                        'estado': row[9]
+                        'estado': row[11]
                     }
                     llaves_pendientes.append(llave_info)
             
@@ -211,14 +189,14 @@ class LlaveModel:
                 return []
             
             wb = load_workbook(self.ruta_registro)
-            ws = wb["Llaves en Prestamo"]
+            ws = wb["Registro de Llaves"]
             
             # Convertir fecha actual a string formato YYYY-MM-DD
             fecha_str = fecha_actual.strftime('%Y-%m-%d')
             
             llaves_del_dia = []
             for row in ws.iter_rows(min_row=2, values_only=True):
-                if row and row[9] == 'En Préstamo':  # Estado
+                if row and row[11] == 'En Préstamo':  # Índice 11 es Estado
                     # Obtener fecha de entrega de la fila
                     fecha_entrega = row[7]
                     
@@ -240,7 +218,7 @@ class LlaveModel:
                             'materia': row[6],
                             'fecha_entrega': row[7],
                             'hora_entrega': row[8],
-                            'estado': row[9]
+                            'estado': row[11]
                         }
                         llaves_del_dia.append(llave_info)
             
@@ -249,6 +227,55 @@ class LlaveModel:
             
         except Exception as e:
             print(f"Error al obtener llaves prestadas del día: {e}")
+            return []
+    
+    def obtener_clases_procesadas_hoy(self, fecha_actual):
+        """
+        Obtiene todas las clases que recibieron llaves hoy (En Préstamo o Devueltas).
+        Sirve para evitar que una clase vuelva a aparecer en la vista de entrega
+        después de ser devuelta el mismo día.
+        
+        Args:
+            fecha_actual (date): Fecha actual para filtrar
+        
+        Returns:
+            list: Lista de diccionarios con documento y horario de clases procesadas
+        """
+        try:
+            if not os.path.exists(self.ruta_registro):
+                return []
+            
+            wb = load_workbook(self.ruta_registro)
+            ws = wb["Registro de Llaves"]
+            
+            # Convertir fecha actual a string formato YYYY-MM-DD
+            fecha_str = fecha_actual.strftime('%Y-%m-%d')
+            
+            clases_procesadas = []
+            for row in ws.iter_rows(min_row=2, values_only=True):
+                if row:
+                    # Obtener fecha de entrega
+                    fecha_entrega = row[7]
+                    
+                    # Convertir a string si es datetime
+                    if hasattr(fecha_entrega, 'strftime'):
+                        fecha_entrega_str = fecha_entrega.strftime('%Y-%m-%d')
+                    else:
+                        fecha_entrega_str = str(fecha_entrega)
+                    
+                    # Incluir TODAS las entregas de hoy (En Préstamo y Devueltas)
+                    if fecha_entrega_str == fecha_str:
+                        clase_info = {
+                            'documento': self._limpiar_numero_documento(row[0]),
+                            'horario': str(row[3]).strip() if row[3] else ''
+                        }
+                        clases_procesadas.append(clase_info)
+            
+            wb.close()
+            return clases_procesadas
+            
+        except Exception as e:
+            print(f"Error al obtener clases procesadas hoy: {e}")
             return []
     
     def obtener_historial_completo(self):
@@ -262,12 +289,8 @@ class LlaveModel:
             if not os.path.exists(self.ruta_registro):
                 return pd.DataFrame()
             
-            df_prestamo = pd.read_excel(self.ruta_registro, sheet_name='Llaves en Prestamo')
-            df_entregadas = pd.read_excel(self.ruta_registro, sheet_name='Llaves Entregadas')
-            
-            # Combinar ambos DataFrames
-            df_completo = pd.concat([df_prestamo, df_entregadas], ignore_index=True)
-            return df_completo
+            df = pd.read_excel(self.ruta_registro, sheet_name='Registro de Llaves')
+            return df
             
         except Exception as e:
             print(f"Error al obtener historial completo: {e}")
@@ -276,7 +299,7 @@ class LlaveModel:
     def _tiene_llave_prestada(self, ws, nroidenti):
         """Verifica si un docente ya tiene una llave prestada"""
         for row in ws.iter_rows(min_row=2, values_only=True):
-            if row and str(row[0]) == nroidenti and row[9] == 'En Préstamo':  # Índice 9 ahora (era 11)
+            if row and str(row[0]) == nroidenti and row[11] == 'En Préstamo':  # Índice 11 es Estado
                 return True
         return False
     
