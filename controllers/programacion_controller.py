@@ -200,7 +200,10 @@ class ProgramacionController:
             return df
     
     def _filtrar_docentes_con_llaves(self, df):
-        """Filtra docentes que ya tienen llaves prestadas"""
+        """
+        Filtra clases específicas de docentes que ya tienen llaves prestadas.
+        Solo oculta la clase exacta para la cual se prestó la llave (por documento + horario).
+        """
         if df.empty:
             return df
         
@@ -211,18 +214,29 @@ class ProgramacionController:
             llave_ctrl = LlaveController()
             llaves_prestadas = llave_ctrl.obtener_llaves_en_prestamo()
             
-            documentos_con_llaves = {llave['documento'] for llave in llaves_prestadas}
+            # Crear conjunto de tuplas (documento, horario) para clases con llaves prestadas
+            clases_con_llaves = {
+                (str(llave['documento']).replace('.0', ''), str(llave.get('horario', '')).strip())
+                for llave in llaves_prestadas
+            }
             
-            # Filtrar DataFrame
+            # Filtrar DataFrame por clase específica, no por docente completo
             df_filtrado = df.copy()
             df_filtrado['doc_limpio'] = df_filtrado['Número de Documento'].astype(str).str.replace('.0', '')
-            df_filtrado = df_filtrado[~df_filtrado['doc_limpio'].isin(documentos_con_llaves)]
-            df_filtrado = df_filtrado.drop('doc_limpio', axis=1)
+            df_filtrado['horario_limpio'] = df_filtrado['Horario'].astype(str).str.strip()
+            
+            # Crear máscara: mantener clases que NO coincidan con (doc, horario) prestado
+            mascara_mantener = ~df_filtrado.apply(
+                lambda row: (row['doc_limpio'], row['horario_limpio']) in clases_con_llaves,
+                axis=1
+            )
+            
+            df_filtrado = df_filtrado[mascara_mantener].drop(['doc_limpio', 'horario_limpio'], axis=1)
             
             return df_filtrado
             
         except Exception as e:
-            print(f"Error al filtrar docentes con llaves: {e}")
+            print(f"Error al filtrar clases con llaves prestadas: {e}")
             return df
     
     def exportar_programacion(self, df, ruta_destino):
