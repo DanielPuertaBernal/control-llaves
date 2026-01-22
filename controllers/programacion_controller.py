@@ -201,8 +201,9 @@ class ProgramacionController:
     
     def _filtrar_docentes_con_llaves(self, df):
         """
-        Filtra clases específicas de docentes que ya tienen llaves prestadas.
-        Solo oculta la clase exacta para la cual se prestó la llave (por documento + horario).
+        Filtra clases que ya fueron procesadas hoy (entrega de llaves).
+        Oculta clases que recibieron llave hoy, independientemente de si fueron devueltas.
+        Esto evita que una clase vuelva a aparecer después de devolver la llave el mismo día.
         """
         if df.empty:
             return df
@@ -212,20 +213,20 @@ class ProgramacionController:
             from controllers.llave_controller import LlaveController
             
             llave_ctrl = LlaveController()
-            llaves_prestadas = llave_ctrl.obtener_llaves_en_prestamo()
+            clases_procesadas = llave_ctrl.obtener_clases_procesadas_hoy()
             
-            # Crear conjunto de tuplas (documento, horario) para clases con llaves prestadas
+            # Crear conjunto de tuplas (documento, horario) para clases procesadas hoy
             clases_con_llaves = {
-                (str(llave['documento']).replace('.0', ''), str(llave.get('horario', '')).strip())
-                for llave in llaves_prestadas
+                (str(clase['documento']).replace('.0', ''), str(clase.get('horario', '')).strip())
+                for clase in clases_procesadas
             }
             
-            # Filtrar DataFrame por clase específica, no por docente completo
+            # Filtrar DataFrame por clase específica
             df_filtrado = df.copy()
             df_filtrado['doc_limpio'] = df_filtrado['Número de Documento'].astype(str).str.replace('.0', '')
             df_filtrado['horario_limpio'] = df_filtrado['Horario'].astype(str).str.strip()
             
-            # Crear máscara: mantener clases que NO coincidan con (doc, horario) prestado
+            # Crear máscara: mantener clases que NO fueron procesadas hoy
             mascara_mantener = ~df_filtrado.apply(
                 lambda row: (row['doc_limpio'], row['horario_limpio']) in clases_con_llaves,
                 axis=1

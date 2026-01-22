@@ -62,6 +62,17 @@ class LlaveController:
         """
         return self.model.obtener_llaves_pendientes()
     
+    def obtener_clases_procesadas_hoy(self):
+        """
+        Obtiene todas las clases que tuvieron entrega de llaves hoy
+        (tanto en préstamo como devueltas), para evitar mostrarlas nuevamente
+        
+        Returns:
+            list: Lista de diccionarios con información de clases procesadas hoy
+        """
+        fecha_actual = date.today()
+        return self.model.obtener_clases_procesadas_hoy(fecha_actual)
+    
     def obtener_llaves_prestadas_dia(self):
         """
         Obtiene las llaves prestadas exclusivamente del día actual
