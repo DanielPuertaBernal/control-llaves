@@ -198,48 +198,52 @@ class InformesView:
         self.label_info.config(text=f"{total} registros")
     
     def _exportar_registros(self):
-        """Exporta los registros del día a un archivo Excel"""
-        if not self.datos_filtrados:
-            messagebox.showwarning("Advertencia", "No hay registros para exportar")
-            return
-        
-        # Seleccionar ubicación de guardado
-        fecha_hoy = date.today().strftime('%Y-%m-%d')
-        nombre_archivo = f"Informe_Llaves_{fecha_hoy}.xlsx"
-        
-        ruta_guardado = filedialog.asksaveasfilename(
-            title="Guardar informe de llaves",
-            defaultextension=".xlsx",
-            filetypes=[
-                ("Archivo Excel", "*.xlsx"),
-                ("Todos los archivos", "*.*")
-            ],
-            initialfile=nombre_archivo
-        )
-        
-        if not ruta_guardado:
-            return
-        
+        """Exporta TODOS los registros de la base de datos a un archivo Excel"""
         try:
+            from models import LlaveModel
             import pandas as pd
             
-            # Crear DataFrame con datos filtrados (para exportar exactamente lo que se ve)
-            df = pd.DataFrame(self.datos_filtrados)
+            # Obtener TODOS los registros de la base de datos (no solo del día)
+            modelo = LlaveModel()
+            df_completo = modelo.obtener_historial_completo()
             
-            # Reordenar columnas de forma legible, ocultando Número de Documento
-            columnas_exportar = [
-                'Docente', 'Horario', 'Aula', 'Materia de la Clase',
-                'Hora de entrega', 'Hora de devolución', 'Estado'
+            if df_completo.empty:
+                messagebox.showwarning("Advertencia", "No hay registros para exportar")
+                return
+            
+            # Seleccionar ubicación de guardado
+            fecha_hoy = date.today().strftime('%Y-%m-%d')
+            nombre_archivo = f"Registro_Completo_Llaves_{fecha_hoy}.xlsx"
+            
+            ruta_guardado = filedialog.asksaveasfilename(
+                title="Guardar registro completo de llaves",
+                defaultextension=".xlsx",
+                filetypes=[
+                    ("Archivo Excel", "*.xlsx"),
+                    ("Todos los archivos", "*.*")
+                ],
+                initialfile=nombre_archivo
+            )
+            
+            if not ruta_guardado:
+                return
+            
+            # Mantener el orden original de columnas tal como están en el archivo
+            columnas_orden = [
+                'Número de Documento', 'Docente', 'Día', 'Horario', 'Aula', 'Facultad',
+                'Materia de la Clase', 'Fecha de entrega', 'Hora de entrega',
+                'Fecha de devolución', 'Hora de devolución', 'Estado'
             ]
             
-            # Seleccionar solo las columnas que existan
-            columnas_validas = [col for col in columnas_exportar if col in df.columns]
-            df_exportar = df[columnas_validas]
+            # Seleccionar solo las columnas que existan en el DataFrame
+            columnas_validas = [col for col in columnas_orden if col in df_completo.columns]
+            df_exportar = df_completo[columnas_validas]
             
             # Exportar a Excel
             df_exportar.to_excel(ruta_guardado, index=False, engine='openpyxl')
             
-            messagebox.showinfo("Éxito", f"Informe exportado en:\n{ruta_guardado}")
+            total_registros = len(df_exportar)
+            messagebox.showinfo("Éxito", f"Registro completo exportado ({total_registros} registros)\nUbicación:\n{ruta_guardado}")
             
         except Exception as e:
             messagebox.showerror("Error", f"Error al exportar:\n{str(e)}")
