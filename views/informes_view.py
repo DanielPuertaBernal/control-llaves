@@ -93,12 +93,13 @@ class InformesView:
         frame_tabla.grid_columnconfigure(0, weight=1)
     
     def _configurar_treeview(self):
-        """Configura las columnas del Treeview (sin mostrar Documento, Facultad y Día)"""
+        """Configura columnas del Treeview (oculta Documento, Facultad y Día)"""
         columnas = (
             'Docente', 'Horario', 'Aula',
-            'Materia', 'Hora Entrega', 'Hora Devolución', 'Estado'
+            'Materia', 'Hora Entrega', 'Hora Devolución',
+            'Duración', 'Se reclamó a tiempo', 'Tiempo de retraso', 'Estado'
         )
-        anchos = [180, 150, 90, 220, 120, 130, 100]
+        anchos = [180, 140, 90, 200, 115, 120, 120, 140, 130, 95]
         
         self.tree.configure(columns=columnas, show='headings', height=20)
         
@@ -175,6 +176,9 @@ class InformesView:
                 str(registro.get('Materia de la Clase', '')),
                 str(registro.get('Hora de entrega', '')),
                 str(registro.get('Hora de devolución', '') if registro.get('Hora de devolución') else ''),
+                str(registro.get('Duración clase (entrega→devolución)', '')),
+                str(registro.get('Se reclamó a tiempo', '')),
+                str(registro.get('Tiempo de retraso', '')),
                 str(registro.get('Estado', ''))
             )
             
@@ -232,7 +236,11 @@ class InformesView:
             columnas_orden = [
                 'Número de Documento', 'Docente', 'Día', 'Horario', 'Aula', 'Facultad',
                 'Materia de la Clase', 'Fecha de entrega', 'Hora de entrega',
-                'Fecha de devolución', 'Hora de devolución', 'Estado'
+                'Fecha de devolución', 'Hora de devolución',
+                'Duración clase (entrega→devolución)',
+                'Se reclamó a tiempo',
+                'Tiempo de retraso',
+                'Estado'
             ]
             
             # Seleccionar solo las columnas que existan en el DataFrame
