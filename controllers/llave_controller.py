@@ -123,3 +123,4 @@ class LlaveController:
         """Valida que la información de clase tenga los campos requeridos"""
         campos_requeridos = ['nroidenti', 'profesor', 'aula']
         return all(campo in info_clase for campo in campos_requeridos)
+

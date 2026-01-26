@@ -5,11 +5,13 @@ Maneja solo la presentación y componentes visuales
 from tkinter import ttk, messagebox
 import tkinter as tk
 from datetime import datetime
-from controllers import ProgramacionController
+from controllers import ProgramacionController, LlaveController
 from views.entrega_view import EntregaView
 from views.programacion_view import ProgramacionView
 from views.historial_view import HistorialView
 from views.informes_view import InformesView
+from views.nfc_manager import NFCManager
+from views.nfc_view import NFCView
 
 
 class MainView:
@@ -21,21 +23,35 @@ class MainView:
         self.root.geometry("1280x820")
         self.root.minsize(1024, 600)
         
-        # Controlador de programación compartido
+        # Inicializar variables ANTES de crear interfaz
+        self.vista_actual = None
+        self.botones_menu = {}
+        
+        # Controladores
         self.programacion_controller = ProgramacionController()
+        self.llave_controller = LlaveController()
+        
+        # Crear interfaz primero
+        self._crear_interfaz()
+        
+        # Gestor NFC
+        self.nfc_manager = NFCManager(
+            self.root,
+            self.llave_controller,
+            self.programacion_controller
+        )
+        
+        # Establecer callback para ir a vista NFC automáticamente
+        self.nfc_manager.establecer_callback_ir_nfc(lambda: self._mostrar_vista("nfc"))
         
         # Cargar programación inicial
         self._cargar_programacion_inicial()
         
-        # Variable para rastrear vista activa
-        self.vista_actual = None
-        self.botones_menu = {}
-        
-        # Crear interfaz
-        self._crear_interfaz()
-        
         # Mostrar vista inicial
         self._mostrar_vista("programacion")
+        
+        # Inicializar NFC con callback de actualización
+        self.nfc_manager.inicializar(self._actualizar_vistas_despues_operacion)
     
     def _cargar_programacion_inicial(self):
         """Carga la programación guardada al iniciar"""
@@ -87,7 +103,8 @@ class MainView:
             {"texto": "  📋 Programación", "vista": "programacion", "icono": "📋"},
             {"texto": "  📅 Programación del Día", "vista": "entrega", "icono": "📅"},
             {"texto": "  🔓 Llaves en Préstamo", "vista": "historial", "icono": "🔓"},
-            {"texto": "  📊 Informes del Día", "vista": "informes", "icono": "📊"}
+            {"texto": "  📊 Informes del Día", "vista": "informes", "icono": "📊"},
+            {"texto": "  📡 Sistema NFC", "vista": "nfc", "icono": "📡"}
         ]
         
         # Crear botones del menú
@@ -236,6 +253,11 @@ class MainView:
             dia_actual = self._obtener_dia_actual()
             self.titulo_contenido.config(text=f"INFORME DE LLAVES DEL DÍA - {dia_actual}")
             self.vista_informes = InformesView(vista_frame)
+        elif nombre_vista == "nfc":
+            self.titulo_contenido.config(text="MONITOREO DEL SISTEMA NFC")
+            self.vista_nfc = NFCView(vista_frame, None)
+            # Establecer referencia en el gestor NFC para actualizaciones en tiempo real
+            self.nfc_manager.establecer_nfc_view(self.vista_nfc)
     
     def _obtener_dia_actual(self):
         """Obtiene el día actual en español"""
@@ -245,4 +267,24 @@ class MainView:
     def _salir_aplicacion(self):
         """Cierra la aplicación"""
         if messagebox.askyesno("Salir", "¿Está seguro que desea salir?"):
+            # Desconectar NFC antes de cerrar
+            self.nfc_manager.desconectar()
             self.root.quit()
+    
+    def _actualizar_vistas_despues_operacion(self):
+        """Actualiza las vistas después de una operación de entrega/devolución"""
+        try:
+            # Actualizar vista de entrega si está activa
+            if hasattr(self, 'vista_entrega') and self.vista_actual == "entrega":
+                self.vista_entrega.cargar_clases_del_dia()
+            
+            # Actualizar vista de historial si está activa
+            if hasattr(self, 'vista_historial') and self.vista_actual == "historial":
+                self.vista_historial.actualizar_datos()
+            
+            # Actualizar vista de informes si está activa
+            if hasattr(self, 'vista_informes') and self.vista_actual == "informes":
+                self.vista_informes.actualizar_datos()
+        
+        except Exception as e:
+            print(f"Error al actualizar vistas: {e}")
