@@ -6,7 +6,7 @@ from tkinter import ttk, messagebox, filedialog
 import tkinter as tk
 from datetime import date
 from controllers import LlaveController
-from services import TablaService
+from services import TablaService, PaginacionService
 from views.components import BuscadorComponent
 
 
@@ -16,9 +16,13 @@ class InformesView:
     # Colores
     COLOR_DEVUELTA = "#C8E6C9"   # Verde suave
     COLOR_PRESTAMO = "#FFE0B2"   # Naranja suave
+    COLOR_RETRASO = "#FFCDD2"    # Rojo suave
     
     def __init__(self, parent_frame):
         self.llave_controller = LlaveController()
+        
+        # Servicio de paginación
+        self.paginacion_service = PaginacionService(items_por_pagina=15)
         
         # Frame principal
         self.frame = ttk.Frame(parent_frame, padding="20")
@@ -64,7 +68,17 @@ class InformesView:
         )
         self.label_info.pack(side='left')
         
-        # Botón exportar a la derecha
+        # Controles de paginación compactos a la derecha
+        self.btn_siguiente = ttk.Button(frame_controles, text="▶", width=3, command=self._pagina_siguiente)
+        self.btn_siguiente.pack(side='right', padx=(5, 0))
+        
+        self.label_pagina = ttk.Label(frame_controles, text="Página 1 de 1", font=('Segoe UI', 9))
+        self.label_pagina.pack(side='right', padx=8)
+        
+        self.btn_anterior = ttk.Button(frame_controles, text="◀", width=3, command=self._pagina_anterior)
+        self.btn_anterior.pack(side='right', padx=(0, 5))
+        
+        # Botón exportar a la derecha (después de los controles de paginación)
         btn_exportar = ttk.Button(
             frame_controles,
             text="📊 Exportar a Excel",
@@ -93,12 +107,13 @@ class InformesView:
         frame_tabla.grid_columnconfigure(0, weight=1)
     
     def _configurar_treeview(self):
-        """Configura las columnas del Treeview (sin mostrar Documento, Facultad y Día)"""
+        """Configura columnas del Treeview (oculta Documento, Facultad y Día)"""
         columnas = (
             'Docente', 'Horario', 'Aula',
-            'Materia', 'Hora Entrega', 'Hora Devolución', 'Estado'
+            'Materia', 'Hora Entrega', 'Hora Devolución',
+            'Duración', 'Se reclamó a tiempo', 'Tiempo de retraso', 'Estado'
         )
-        anchos = [180, 150, 90, 220, 120, 130, 100]
+        anchos = [180, 130, 90, 180, 110, 115, 115, 130, 120, 160]
         
         self.tree.configure(columns=columnas, show='headings', height=20)
         
@@ -110,6 +125,17 @@ class InformesView:
         """Carga los datos del registro de llaves del día"""
         self.datos_dia = self._obtener_registros_dia()
         self.datos_filtrados = self.datos_dia.copy()
+        self.paginacion_service.actualizar_datos(self.datos_filtrados)
+        self._actualizar_tabla()
+    
+    def _pagina_anterior(self):
+        """Va a página anterior"""
+        self.paginacion_service.pagina_anterior()
+        self._actualizar_tabla()
+    
+    def _pagina_siguiente(self):
+        """Va a página siguiente"""
+        self.paginacion_service.pagina_siguiente()
         self._actualizar_tabla()
     
     def _obtener_registros_dia(self):
@@ -158,16 +184,38 @@ class InformesView:
                     termino_normalizado in self.buscador.normalizar_texto(str(registro.get('Facultad', ''))))
             ]
         
+        # Actualizar paginación con datos filtrados
+        self.paginacion_service.actualizar_datos(self.datos_filtrados)
         self._actualizar_tabla()
     
     def _actualizar_tabla(self):
         """Actualiza la tabla con los datos filtrados"""
+        from models import LlaveModel
+        from datetime import datetime, time
+        
+        # Obtener página actual
+        datos_pagina, inicio, fin = self.paginacion_service.obtener_pagina_actual()
+        
         # Limpiar tabla
         for item in self.tree.get_children():
             self.tree.delete(item)
         
+        modelo = LlaveModel()
+        
         # Insertar datos con colores según estado (sin mostrar Documento, Facultad y Día)
-        for idx, registro in enumerate(self.datos_filtrados):
+        for idx, registro in enumerate(datos_pagina):
+            # Determinar estado con indicador de retraso si aplica
+            estado = registro.get('Estado', '')
+            horario = registro.get('Horario', '')
+            
+            if estado == 'En Préstamo':
+                if modelo.evaluar_retraso_entrega(horario, None):
+                    estado_mostrado = 'En Préstamo - Retraso en Entrega'
+                else:
+                    estado_mostrado = estado
+            else:
+                estado_mostrado = estado
+            
             valores = (
                 str(registro.get('Docente', '')),
                 str(registro.get('Horario', '')),
@@ -175,27 +223,38 @@ class InformesView:
                 str(registro.get('Materia de la Clase', '')),
                 str(registro.get('Hora de entrega', '')),
                 str(registro.get('Hora de devolución', '') if registro.get('Hora de devolución') else ''),
-                str(registro.get('Estado', ''))
+                str(registro.get('Duración clase (entrega→devolución)', '')),
+                str(registro.get('Se reclamó a tiempo', '')),
+                str(registro.get('Tiempo de retraso', '')),
+                estado_mostrado
             )
             
             # Determinar etiqueta de color según estado
-            estado = registro.get('Estado', '')
+            tag = ''
+            
             if estado == 'Devuelta':
                 tag = 'devuelta'
             elif estado == 'En Préstamo':
-                tag = 'prestamo'
-            else:
-                tag = ''
+                # Verificar si hay retraso en entrega (> 1 hora después de fin de clase)
+                if modelo.evaluar_retraso_entrega(horario, None):
+                    tag = 'retraso'
+                else:
+                    tag = 'prestamo'
             
             self.tree.insert('', 'end', values=valores, tags=(tag,))
         
         # Configurar estilos de etiquetas
         self.tree.tag_configure('devuelta', background=self.COLOR_DEVUELTA)
         self.tree.tag_configure('prestamo', background=self.COLOR_PRESTAMO)
+        self.tree.tag_configure('retraso', background=self.COLOR_RETRASO)
         
-        # Actualizar etiqueta de información (solo total)
-        total = len(self.datos_filtrados)
-        self.label_info.config(text=f"{total} registros")
+        # Actualizar labels de paginación
+        info = self.paginacion_service.obtener_info_paginacion()
+        self.label_pagina.config(text=f"Página {info['pagina_actual']} de {info['total_paginas']}")
+        self.label_info.config(text=f"{info['total_items']} registros")
+        
+        self.btn_anterior.config(state='normal' if info['tiene_anterior'] else 'disabled')
+        self.btn_siguiente.config(state='normal' if info['tiene_siguiente'] else 'disabled')
     
     def _exportar_registros(self):
         """Exporta TODOS los registros de la base de datos a un archivo Excel"""
@@ -232,7 +291,12 @@ class InformesView:
             columnas_orden = [
                 'Número de Documento', 'Docente', 'Día', 'Horario', 'Aula', 'Facultad',
                 'Materia de la Clase', 'Fecha de entrega', 'Hora de entrega',
-                'Fecha de devolución', 'Hora de devolución', 'Estado'
+                'Fecha de devolución', 'Hora de devolución',
+                'Duración clase (entrega→devolución)',
+                'Se reclamó a tiempo',
+                'Tiempo de retraso',
+                'Retraso en entrega',
+                'Estado'
             ]
             
             # Seleccionar solo las columnas que existan en el DataFrame
