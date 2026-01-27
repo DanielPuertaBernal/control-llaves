@@ -16,6 +16,7 @@ class InformesView:
     # Colores
     COLOR_DEVUELTA = "#C8E6C9"   # Verde suave
     COLOR_PRESTAMO = "#FFE0B2"   # Naranja suave
+    COLOR_RETRASO = "#FFCDD2"    # Rojo suave
     
     def __init__(self, parent_frame):
         self.llave_controller = LlaveController()
@@ -163,12 +164,29 @@ class InformesView:
     
     def _actualizar_tabla(self):
         """Actualiza la tabla con los datos filtrados"""
+        from models import LlaveModel
+        from datetime import datetime, time
+        
         # Limpiar tabla
         for item in self.tree.get_children():
             self.tree.delete(item)
         
+        modelo = LlaveModel()
+        
         # Insertar datos con colores según estado (sin mostrar Documento, Facultad y Día)
         for idx, registro in enumerate(self.datos_filtrados):
+            # Determinar estado con indicador de retraso si aplica
+            estado = registro.get('Estado', '')
+            horario = registro.get('Horario', '')
+            
+            if estado == 'En Préstamo':
+                if modelo.evaluar_retraso_entrega(horario, None):
+                    estado_mostrado = 'En Préstamo - Retraso en Entrega'
+                else:
+                    estado_mostrado = estado
+            else:
+                estado_mostrado = estado
+            
             valores = (
                 str(registro.get('Docente', '')),
                 str(registro.get('Horario', '')),
@@ -179,23 +197,27 @@ class InformesView:
                 str(registro.get('Duración clase (entrega→devolución)', '')),
                 str(registro.get('Se reclamó a tiempo', '')),
                 str(registro.get('Tiempo de retraso', '')),
-                str(registro.get('Estado', ''))
+                estado_mostrado
             )
             
             # Determinar etiqueta de color según estado
-            estado = registro.get('Estado', '')
+            tag = ''
+            
             if estado == 'Devuelta':
                 tag = 'devuelta'
             elif estado == 'En Préstamo':
-                tag = 'prestamo'
-            else:
-                tag = ''
+                # Verificar si hay retraso en entrega (> 1 hora después de fin de clase)
+                if modelo.evaluar_retraso_entrega(horario, None):
+                    tag = 'retraso'
+                else:
+                    tag = 'prestamo'
             
             self.tree.insert('', 'end', values=valores, tags=(tag,))
         
         # Configurar estilos de etiquetas
         self.tree.tag_configure('devuelta', background=self.COLOR_DEVUELTA)
         self.tree.tag_configure('prestamo', background=self.COLOR_PRESTAMO)
+        self.tree.tag_configure('retraso', background=self.COLOR_RETRASO)
         
         # Actualizar etiqueta de información (solo total)
         total = len(self.datos_filtrados)
