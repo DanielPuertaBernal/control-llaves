@@ -139,7 +139,7 @@ class InformesView:
         self._actualizar_tabla()
     
     def _obtener_registros_dia(self):
-        """Obtiene todos los registros del día (en préstamo y devueltos)"""
+        """Obtiene registros del día (entregadas hoy) y llaves en préstamo de días anteriores"""
         try:
             from models import LlaveModel
             import pandas as pd
@@ -150,9 +150,15 @@ class InformesView:
             if df.empty:
                 return []
             
-            # Filtrar por fecha de entrega del día
+            # Filtrar por:
+            # 1. Fecha de entrega del día (entregadas hoy)
+            # 2. O Estado = 'En Préstamo' (llaves que se deben desde días anteriores)
             fecha_hoy = date.today().strftime('%Y-%m-%d')
-            df_filtrado = df[df['Fecha de entrega'].astype(str).str.contains(fecha_hoy, na=False)]
+            df_entregadas_hoy = df[df['Fecha de entrega'].astype(str).str.contains(fecha_hoy, na=False)]
+            df_en_prestamo = df[df['Estado'] == 'En Préstamo']
+            
+            # Combinar ambos filtros
+            df_filtrado = pd.concat([df_entregadas_hoy, df_en_prestamo]).drop_duplicates()
             
             # Convertir a lista de diccionarios
             registros = df_filtrado.to_dict('records')
@@ -191,7 +197,7 @@ class InformesView:
     def _actualizar_tabla(self):
         """Actualiza la tabla con los datos filtrados"""
         from models import LlaveModel
-        from datetime import datetime, time
+        from datetime import datetime, time, date
         
         # Obtener página actual
         datos_pagina, inicio, fin = self.paginacion_service.obtener_pagina_actual()
@@ -207,6 +213,7 @@ class InformesView:
             # Determinar estado con indicador de retraso si aplica
             estado = registro.get('Estado', '')
             horario = registro.get('Horario', '')
+            fecha_entrega_str = registro.get('Fecha de entrega', '')
             
             if estado == 'En Préstamo':
                 if modelo.evaluar_retraso_entrega(horario, None):
@@ -235,11 +242,22 @@ class InformesView:
             if estado == 'Devuelta':
                 tag = 'devuelta'
             elif estado == 'En Préstamo':
-                # Verificar si hay retraso en entrega (> 1 hora después de fin de clase)
-                if modelo.evaluar_retraso_entrega(horario, None):
-                    tag = 'retraso'
-                else:
-                    tag = 'prestamo'
+                # Verificar si hay retraso en entrega
+                hay_retraso = False
+                
+                # Si es hoy: usar evaluar_retraso_entrega (> 1 hora después de fin de clase)
+                try:
+                    fecha_entrega = datetime.strptime(fecha_entrega_str, '%Y-%m-%d').date()
+                    if fecha_entrega == date.today():
+                        hay_retraso = modelo.evaluar_retraso_entrega(horario, None)
+                    else:
+                        # Si es de días anteriores: definitivamente está en retraso
+                        hay_retraso = True
+                except:
+                    # Por defecto, usar evaluar_retraso_entrega
+                    hay_retraso = modelo.evaluar_retraso_entrega(horario, None)
+                
+                tag = 'retraso' if hay_retraso else 'prestamo'
             
             self.tree.insert('', 'end', values=valores, tags=(tag,))
         
