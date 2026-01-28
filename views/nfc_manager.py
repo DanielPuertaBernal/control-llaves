@@ -4,7 +4,6 @@ Separa la lógica de inicialización y callbacks NFC
 """
 from services.nfc_service import NFCService
 from controllers.nfc_controller import NFCController
-from views.feedback_view import FeedbackView
 
 
 class NFCManager:
@@ -20,9 +19,18 @@ class NFCManager:
         self.root = root
         self.nfc_service = NFCService()
         self.nfc_controller = NFCController(llave_controller, programacion_controller)
-        self.feedback_view = None
         self.nfc_conectado = False
         self.callback_actualizar_vistas = None
+        self.callback_ir_nfc_view = None  # Callback para ir a vista NFC
+        self.nfc_view = None  # Se asignará desde main_view.py
+    
+    def establecer_nfc_view(self, nfc_view):
+        """Establece la referencia a la vista NFC para actualizar en tiempo real"""
+        self.nfc_view = nfc_view
+    
+    def establecer_callback_ir_nfc(self, callback):
+        """Establece callback para navegar a vista NFC"""
+        self.callback_ir_nfc_view = callback
     
     def inicializar(self, callback_actualizar_vistas=None):
         """
@@ -67,15 +75,19 @@ class NFCManager:
         try:
             print(f"📡 Carnet leído: {id_carnet}")
             
+            # Ir a vista NFC automáticamente
+            if self.callback_ir_nfc_view:
+                self.callback_ir_nfc_view()
+            
             # Procesar lectura con el controlador NFC
             resultado = self.nfc_controller.procesar_lectura_nfc(id_carnet)
             
-            # Crear vista de feedback si no existe
-            if not self.feedback_view:
-                self.feedback_view = FeedbackView(self.root)
-            
-            # Mostrar feedback según el resultado
+            # Mostrar feedback en el panel
             self._mostrar_feedback(resultado)
+            
+            # Actualizar vista NFC si existe
+            if self.nfc_view:
+                self.nfc_view.actualizar_operacion(resultado)
             
             # Actualizar vistas si hubo éxito en entrega/devolución
             if resultado['accion'] in ['entrega', 'devolucion'] and resultado['exito']:
@@ -84,40 +96,12 @@ class NFCManager:
         
         except Exception as e:
             print(f"Error en callback NFC: {e}")
-            if self.feedback_view:
-                self.feedback_view.mostrar_error(
-                    f"❌ Error al procesar carnet:\n{str(e)}",
-                    duracion=3000
-                )
     
     def _mostrar_feedback(self, resultado):
-        """Muestra el feedback visual según el resultado del procesamiento"""
-        if resultado['accion'] == 'entrega':
-            self.feedback_view.mostrar_entrega(
-                resultado['datos_docente'],
-                resultado['datos_clase'],
-                duracion=2000
-            )
-        
-        elif resultado['accion'] == 'devolucion':
-            self.feedback_view.mostrar_devolucion(
-                resultado['datos_docente'],
-                resultado['hora_devolucion'],
-                duracion=2000
-            )
-        
-        elif resultado['accion'] == 'advertencia':
-            self.feedback_view.mostrar_advertencia(
-                resultado['mensaje'],
-                resultado['tiempo_faltante'],
-                resultado['callback_confirmar']
-            )
-        
-        elif resultado['accion'] == 'error':
-            self.feedback_view.mostrar_error(
-                resultado['mensaje'],
-                duracion=3000
-            )
+        """Actualiza solo la vista NFC si existe"""
+        # La retroalimentación visual ahora es responsabilidad de NFCView
+        # Este método se mantiene por compatibilidad pero no hace nada
+        pass
     
     def desconectar(self):
         """Desconecta el servicio NFC"""

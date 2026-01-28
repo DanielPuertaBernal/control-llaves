@@ -107,8 +107,7 @@ class NFCController:
         
         if validacion['permitir_inmediato']:
             # Entrega automática (falta 30 min o menos, o ya inició)
-            info_clase = self._convertir_a_info_clase(clase)
-            exito, mensaje = self.llave_controller.procesar_entrega(info_clase)
+            exito, mensaje = self.llave_controller.procesar_entrega(clase)
             
             if exito:
                 return {
@@ -225,14 +224,35 @@ class NFCController:
                     'tiempo_faltante_str': 'N/A'
                 }
             
-            # El formato es "HH:MM-HH:MM", extraer solo la hora de inicio
-            if '-' in str(horario):
-                hora_inicio_str = str(horario).split('-')[0].strip()
+            # El formato puede ser "HH:MM-HH:MM" o "HH:MM A HH:MM", extraer solo la hora de inicio
+            horario_str = str(horario).strip()
+            
+            # Separar por delimitador
+            if '-' in horario_str:
+                hora_inicio_str = horario_str.split('-')[0].strip()
+            elif ' A ' in horario_str.upper():
+                # Manejar "HH:MM A HH:MM"
+                partes = [p for p in horario_str.split() if ':' in p]
+                hora_inicio_str = partes[0].strip() if partes else horario_str
             else:
-                hora_inicio_str = str(horario).strip()
+                hora_inicio_str = horario_str
+            
+            # Limpiar espacios y caracteres especiales
+            hora_inicio_str = hora_inicio_str.strip()
+            # Extraer solo HH:MM
+            if len(hora_inicio_str) > 5:
+                hora_inicio_str = hora_inicio_str[:5]
             
             # Convertir a objeto time
-            hora_inicio = datetime.strptime(hora_inicio_str, '%H:%M').time()
+            try:
+                hora_inicio = datetime.strptime(hora_inicio_str, '%H:%M').time()
+            except ValueError:
+                # Si falla el parsing, permitir entrega por defecto
+                return {
+                    'permitir_inmediato': True,
+                    'minutos_faltantes': 0,
+                    'tiempo_faltante_str': 'N/A (formato inválido)'
+                }
             
             # Calcular diferencia en minutos
             ahora = datetime.combine(date.today(), hora_actual)
@@ -268,18 +288,6 @@ class NFCController:
                 'tiempo_faltante_str': 'N/A'
             }
     
-    def _convertir_a_info_clase(self, clase):
-        """Convierte dict de clase a formato esperado por procesar_entrega"""
-        return {
-            'nroidenti': clase.get('nroidenti'),
-            'profesor': clase.get('profesor'),
-            'aula': clase.get('aula'),
-            'materia': clase.get('materia', ''),
-            'horario': clase.get('horario', ''),
-            'dia': clase.get('dia', '')
-        }
-    
     def _confirmar_entrega_adelantada(self, clase):
         """Callback para confirmar entrega adelantada"""
-        info_clase = self._convertir_a_info_clase(clase)
-        return self.llave_controller.procesar_entrega(info_clase)
+        return self.llave_controller.procesar_entrega(clase)

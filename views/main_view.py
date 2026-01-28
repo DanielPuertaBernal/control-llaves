@@ -11,6 +11,7 @@ from views.programacion_view import ProgramacionView
 from views.historial_view import HistorialView
 from views.informes_view import InformesView
 from views.nfc_manager import NFCManager
+from views.nfc_view import NFCView
 
 
 class MainView:
@@ -22,9 +23,16 @@ class MainView:
         self.root.geometry("1280x820")
         self.root.minsize(1024, 600)
         
+        # Inicializar variables ANTES de crear interfaz
+        self.vista_actual = None
+        self.botones_menu = {}
+        
         # Controladores
         self.programacion_controller = ProgramacionController()
         self.llave_controller = LlaveController()
+        
+        # Crear interfaz primero
+        self._crear_interfaz()
         
         # Gestor NFC
         self.nfc_manager = NFCManager(
@@ -33,15 +41,11 @@ class MainView:
             self.programacion_controller
         )
         
+        # Establecer callback para ir a vista NFC automáticamente
+        self.nfc_manager.establecer_callback_ir_nfc(lambda: self._mostrar_vista("nfc"))
+        
         # Cargar programación inicial
         self._cargar_programacion_inicial()
-        
-        # Variable para rastrear vista activa
-        self.vista_actual = None
-        self.botones_menu = {}
-        
-        # Crear interfaz
-        self._crear_interfaz()
         
         # Mostrar vista inicial
         self._mostrar_vista("programacion")
@@ -99,7 +103,8 @@ class MainView:
             {"texto": "  📋 Programación", "vista": "programacion", "icono": "📋"},
             {"texto": "  📅 Programación del Día", "vista": "entrega", "icono": "📅"},
             {"texto": "  🔓 Llaves en Préstamo", "vista": "historial", "icono": "🔓"},
-            {"texto": "  📊 Informes del Día", "vista": "informes", "icono": "📊"}
+            {"texto": "  📊 Informes del Día", "vista": "informes", "icono": "📊"},
+            {"texto": "  📡 Sistema NFC", "vista": "nfc", "icono": "📡"}
         ]
         
         # Crear botones del menú
@@ -248,6 +253,11 @@ class MainView:
             dia_actual = self._obtener_dia_actual()
             self.titulo_contenido.config(text=f"INFORME DE LLAVES DEL DÍA - {dia_actual}")
             self.vista_informes = InformesView(vista_frame)
+        elif nombre_vista == "nfc":
+            self.titulo_contenido.config(text="MONITOREO DEL SISTEMA NFC")
+            self.vista_nfc = NFCView(vista_frame, None)
+            # Establecer referencia en el gestor NFC para actualizaciones en tiempo real
+            self.nfc_manager.establecer_nfc_view(self.vista_nfc)
     
     def _obtener_dia_actual(self):
         """Obtiene el día actual en español"""
