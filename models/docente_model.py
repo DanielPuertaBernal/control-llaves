@@ -4,6 +4,7 @@ Maneja la carga, validación y almacenamiento de datos de docentes
 """
 import pandas as pd
 import os
+import re
 from openpyxl import Workbook, load_workbook
 
 
@@ -82,7 +83,7 @@ class DocenteModel:
             if columnas_faltantes:
                 return False, None, f"❌ Faltan columnas requeridas: {', '.join(columnas_faltantes)}"
             
-            # Limpiar y validar datos
+            # Limpiar y validar datos (normaliza carnet para lectura del sensor)
             df = self._limpiar_datos(df)
             
             # Guardar en archivo local
@@ -104,7 +105,11 @@ class DocenteModel:
         # Limpiar número de documento (quitar decimales .0)
         df['Numero de documento'] = df['Numero de documento'].astype(str).str.replace('.0', '', regex=False)
         
-        # Limpiar espacios en blanco
+        # Normalizar Id Carnet para compatibilidad con lector NFC
+        if 'Id Carnet' in df.columns:
+            df['Id Carnet'] = df['Id Carnet'].apply(self._normalizar_carnet)
+        
+        # Limpiar espacios en blanco en demás columnas tipo texto
         for col in df.columns:
             if df[col].dtype == 'object':
                 df[col] = df[col].astype(str).str.strip()
@@ -113,6 +118,26 @@ class DocenteModel:
         df = df.drop_duplicates(subset=['Numero de documento'], keep='first')
         
         return df
+
+    def _normalizar_carnet(self, valor):
+        """Normaliza un ID de carnet para que coincida con el formato del lector
+        - Convierte a str y mayúsculas
+        - Elimina espacios y caracteres especiales (como ':' o '-')
+        - Conserva ceros a la izquierda si existen en el texto
+        - Elimina restos de decimales `.0` provenientes de Excel
+        """
+        try:
+            if pd.isna(valor):
+                return ''
+            s = str(valor).strip().upper()
+            # Quitar restos típicos de Excel como .0
+            if s.endswith('.0'):
+                s = s[:-2]
+            # Eliminar todos los caracteres que no sean 0-9 o A-Z
+            s = re.sub(r'[^0-9A-Z]', '', s)
+            return s
+        except Exception:
+            return str(valor)
     
     def _guardar_docentes(self, df):
         """
@@ -201,11 +226,12 @@ class DocenteModel:
             if df.empty:
                 return None
             
-            # Limpiar ID de carnet
-            carnet_limpio = str(id_carnet).strip()
+            # Normalizar ID de carnet del lector
+            carnet_limpio = self._normalizar_carnet(id_carnet)
             
-            # Buscar en el DataFrame
-            resultado = df[df['Id Carnet'].astype(str) == carnet_limpio]
+            # Asegurar comparación sobre valores normalizados
+            serie_normalizada = df['Id Carnet'].astype(str).apply(self._normalizar_carnet)
+            resultado = df[serie_normalizada == carnet_limpio]
             
             if not resultado.empty:
                 return resultado.iloc[0].to_dict()
