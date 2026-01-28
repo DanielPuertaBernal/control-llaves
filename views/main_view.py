@@ -5,11 +5,12 @@ Maneja solo la presentación y componentes visuales
 from tkinter import ttk, messagebox
 import tkinter as tk
 from datetime import datetime
-from controllers import ProgramacionController
+from controllers import ProgramacionController, LlaveController
 from views.entrega_view import EntregaView
 from views.programacion_view import ProgramacionView
 from views.historial_view import HistorialView
 from views.informes_view import InformesView
+from views.nfc_manager import NFCManager
 
 
 class MainView:
@@ -21,8 +22,16 @@ class MainView:
         self.root.geometry("1280x820")
         self.root.minsize(1024, 600)
         
-        # Controlador de programación compartido
+        # Controladores
         self.programacion_controller = ProgramacionController()
+        self.llave_controller = LlaveController()
+        
+        # Gestor NFC
+        self.nfc_manager = NFCManager(
+            self.root,
+            self.llave_controller,
+            self.programacion_controller
+        )
         
         # Cargar programación inicial
         self._cargar_programacion_inicial()
@@ -36,6 +45,9 @@ class MainView:
         
         # Mostrar vista inicial
         self._mostrar_vista("programacion")
+        
+        # Inicializar NFC con callback de actualización
+        self.nfc_manager.inicializar(self._actualizar_vistas_despues_operacion)
     
     def _cargar_programacion_inicial(self):
         """Carga la programación guardada al iniciar"""
@@ -245,4 +257,24 @@ class MainView:
     def _salir_aplicacion(self):
         """Cierra la aplicación"""
         if messagebox.askyesno("Salir", "¿Está seguro que desea salir?"):
+            # Desconectar NFC antes de cerrar
+            self.nfc_manager.desconectar()
             self.root.quit()
+    
+    def _actualizar_vistas_despues_operacion(self):
+        """Actualiza las vistas después de una operación de entrega/devolución"""
+        try:
+            # Actualizar vista de entrega si está activa
+            if hasattr(self, 'vista_entrega') and self.vista_actual == "entrega":
+                self.vista_entrega.cargar_clases_del_dia()
+            
+            # Actualizar vista de historial si está activa
+            if hasattr(self, 'vista_historial') and self.vista_actual == "historial":
+                self.vista_historial.actualizar_datos()
+            
+            # Actualizar vista de informes si está activa
+            if hasattr(self, 'vista_informes') and self.vista_actual == "informes":
+                self.vista_informes.actualizar_datos()
+        
+        except Exception as e:
+            print(f"Error al actualizar vistas: {e}")
