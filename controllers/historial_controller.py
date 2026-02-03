@@ -2,7 +2,7 @@
 Controlador para la gestión de historial de llaves
 Maneja la lógica de negocio de consultas y reportes
 """
-from application.historial_service import HistorialService
+from application.services.historial_service import HistorialService
 
 
 class HistorialController:

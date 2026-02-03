@@ -5,8 +5,8 @@ Muestra todos los registros de llaves del día con colores según el estado
 from tkinter import ttk, messagebox, filedialog
 import tkinter as tk
 from datetime import date
-from application.historial_service import HistorialService
-from application.llave_service import LlaveService
+from application.services.historial_service import HistorialService
+from application.services.llave_service import LlaveService
 from infrastructure.repositories.llave_mongo_repository import LlaveMongoRepository
 from presentation.components import TablaComponent, PaginacionComponent, BuscadorComponent
 

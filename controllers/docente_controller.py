@@ -2,7 +2,7 @@
 Controlador para la gestión de información de docentes
 Maneja la lógica de negocio de carga y consulta de docentes
 """
-from application.docente_service import DocenteService
+from application.services.docente_service import DocenteService
 
 
 class DocenteController:

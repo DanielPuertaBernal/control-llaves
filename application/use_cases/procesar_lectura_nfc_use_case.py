@@ -2,9 +2,9 @@
 Caso de uso: Procesar lectura NFC
 Maneja la lógica de procesamiento de carnets y validación de tiempos
 """
-from application.docente_service import DocenteService
-from application.llave_service import LlaveService
-from application.programacion_service import ProgramacionService
+from application.services.docente_service import DocenteService
+from application.services.llave_service import LlaveService
+from application.services.programacion_service import ProgramacionService
 from infrastructure.repositories.docente_mongo_repository import DocenteMongoRepository
 from infrastructure.repositories.llave_mongo_repository import LlaveMongoRepository
 from infrastructure.repositories.programacion_mongo_repository import ProgramacionMongoRepository

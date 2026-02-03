@@ -2,7 +2,7 @@
 Controlador para la gestión de llaves
 Maneja la lógica de negocio de entregas y devoluciones
 """
-from application.llave_service import LlaveService
+from application.services.llave_service import LlaveService
 
 
 class LlaveController:

@@ -5,15 +5,16 @@ Maneja solo la presentación del historial de préstamos
 from tkinter import ttk, messagebox
 import tkinter as tk
 from datetime import datetime
-from controllers import HistorialController
+from controllers import HistorialController, LlaveController
 from presentation.components import PaginacionComponent, TablaComponent, BuscadorComponent
 
 
 class HistorialView:
     """Vista para historial de llaves en préstamo"""
     
-    def __init__(self, parent_frame, historial_controller: HistorialController):
+    def __init__(self, parent_frame, historial_controller: HistorialController, llave_controller: LlaveController):
         self.historial_controller = historial_controller
+        self.llave_controller = llave_controller
         
         # Servicios
         self.paginacion_service = PaginacionComponent(items_por_pagina=15)
@@ -85,10 +86,8 @@ class HistorialView:
     
     def actualizar_datos(self):
         """Actualiza los datos del historial mostrando TODAS las llaves en préstamo"""
-        from controllers import LlaveController
-        
-        llave_controller = LlaveController()
-        llaves_pendientes = llave_controller.obtener_llaves_en_prestamo()
+        # Usar el historial_controller que ya tiene inyectado
+        llaves_pendientes = self.historial_controller.obtener_prestamos_activos()
         
         self.datos_historial = llaves_pendientes
         self.paginacion_service.actualizar_datos(llaves_pendientes)
@@ -177,10 +176,8 @@ class HistorialView:
             ):
                 return
             
-            # Procesar devolución
-            from controllers import LlaveController
-            llave_controller = LlaveController()
-            exito, mensaje = llave_controller.procesar_devolucion(valores[0], valores[1])
+            # Procesar devolución - usar el llave_controller inyectado
+            exito, mensaje = self.llave_controller.procesar_devolucion(valores[0], valores[1])
             
             if exito:
                 messagebox.showinfo("Éxito", mensaje)

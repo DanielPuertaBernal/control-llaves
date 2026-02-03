@@ -1,13 +1,22 @@
 """
 Service Factory - Patrón Factory para crear servicios con dependencias inyectadas
 """
-from application.docente_service import DocenteService
-from application.llave_service import LlaveService
-from application.historial_service import HistorialService
-from application.programacion_service import ProgramacionService
+import logging
+from application.services.docente_service import DocenteService
+from application.services.llave_service import LlaveService
+from application.services.historial_service import HistorialService
+from application.services.programacion_service import ProgramacionService
 from infrastructure.repositories.docente_mongo_repository import DocenteMongoRepository
 from infrastructure.repositories.llave_mongo_repository import LlaveMongoRepository
 from infrastructure.repositories.programacion_mongo_repository import ProgramacionMongoRepository
+
+
+# Configurar logger centralizado
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger('ControlDeLLaves')
 
 
 class ServiceFactory:
@@ -24,6 +33,8 @@ class ServiceFactory:
     
     def _inicializar(self):
         """Inicializa los servicios una sola vez (singleton)"""
+        logger.info("Inicializando ServiceFactory...")
+        
         # Crear repositories
         self._docente_repo = DocenteMongoRepository()
         self._llave_repo = LlaveMongoRepository()
@@ -41,6 +52,8 @@ class ServiceFactory:
             self._programacion_repo,
             self._services['llave']
         )
+        
+        logger.info("ServiceFactory inicializado exitosamente")
     
     def get_docente_service(self) -> DocenteService:
         """Obtiene servicio de docentes"""
@@ -53,6 +66,10 @@ class ServiceFactory:
     def get_historial_service(self) -> HistorialService:
         """Obtiene servicio de historial"""
         return self._services['historial']
+    
+    def get_logger(self):
+        """Obtiene el logger centralizado"""
+        return logger
     
     def get_programacion_service(self) -> ProgramacionService:
         """Obtiene servicio de programación"""

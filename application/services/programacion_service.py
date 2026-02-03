@@ -2,7 +2,7 @@
 from datetime import datetime
 import pandas as pd
 from interfaces.programacion_repository import ProgramacionRepository
-from application.llave_service import LlaveService
+from application.services.llave_service import LlaveService
 from infrastructure.importers.programacion_excel_importer import cargar_programacion_desde_archivo
 from application.processing.programacion_validator import ProgramacionValidator
 from application.processing.programacion_cleaner import ProgramacionCleaner
@@ -42,6 +42,14 @@ class ProgramacionService:
             return False, None, f"❌ Error al cargar programación: {str(e)}"
 
     def obtener_clases_del_dia(self, dia=None, incluir_pasadas=False):
+        """Obtiene las clases del día actual (o del día especificado)"""
+        from datetime import datetime
+        
+        # Si no se especifica día, usar el día actual
+        if dia is None:
+            dias_semana = ['LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO', 'DOMINGO']
+            dia = dias_semana[datetime.now().weekday()]
+        
         df = self.repository.obtener_clases_del_dia(dia)
 
         df = self._filtrar_aulas_invalidas(df)

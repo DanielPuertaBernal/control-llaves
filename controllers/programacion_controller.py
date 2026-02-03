@@ -2,7 +2,7 @@
 Controlador para la gestión de programación académica
 Maneja la lógica de negocio de carga y procesamiento de programación
 """
-from application.programacion_service import ProgramacionService
+from application.services.programacion_service import ProgramacionService
 
 
 class ProgramacionController:

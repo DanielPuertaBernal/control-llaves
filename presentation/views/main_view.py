@@ -249,7 +249,7 @@ class MainView:
         elif nombre_vista == "historial":
             dia_actual = self._obtener_dia_actual()
             self.titulo_contenido.config(text=f"LLAVES EN PRÉSTAMO DEL DÍA - {dia_actual}")
-            self.vista_historial = HistorialView(vista_frame, self.historial_controller)
+            self.vista_historial = HistorialView(vista_frame, self.historial_controller, self.llave_controller)
             self.vista_historial.actualizar_datos()
         elif nombre_vista == "informes":
             dia_actual = self._obtener_dia_actual()
