@@ -3,100 +3,24 @@ Modelo para la gestión de préstamos de llaves
 Maneja toda la lógica de datos relacionada con entregas y devoluciones
 """
 from datetime import datetime, date, time, timedelta
-import os
-from openpyxl import Workbook, load_workbook
 import pandas as pd
+from services.mongo_client import MongoClientProvider
 
 
 class LlaveModel:
     """Modelo para gestionar préstamos de llaves"""
     
     def __init__(self):
-        self.ruta_data = self._obtener_ruta_data()
-        self.ruta_registro = os.path.join(self.ruta_data, 'registrosLlaves.xlsx')
-        self._inicializar_registro()
-        self._asegurar_formato_registro()
-    
-    def _obtener_ruta_data(self):
-        """Obtiene la ruta del directorio data"""
-        ruta_actual = os.path.dirname(os.path.abspath(__file__))
-        ruta_proyecto = os.path.dirname(ruta_actual)
-        return os.path.join(ruta_proyecto, "data")
-    
-    def _inicializar_registro(self):
-        """Inicializa el archivo de registro con una sola hoja si no existe"""
-        if not os.path.exists(self.ruta_data):
-            os.makedirs(self.ruta_data)
-        
-        if not os.path.exists(self.ruta_registro):
-            wb = Workbook()
-            ws = wb.active
-            ws.title = "Registro de Llaves"
-            
-            # Headers unificados con todos los campos
-            headers = [
-                'Número de Documento', 'Docente', 'Día', 'Horario', 'Aula', 'Facultad',
-                'Materia de la Clase', 'Fecha de entrega', 'Hora de entrega',
-                'Fecha de devolución', 'Hora de devolución',
-                'Duración clase (entrega→devolución)',
-                'Se reclamó a tiempo',
-                'Tiempo de retraso',
-                'Retraso en entrega',
-                'Tiempo retraso devolución',
-                'Estado'
-            ]
-            
-            ws.append(headers)
-            wb.save(self.ruta_registro)
+        self.collection = MongoClientProvider.get_collection("registros_llaves")
+        self._asegurar_indices()
 
-    def _asegurar_formato_registro(self):
-        """Actualiza el archivo existente para incluir nuevas columnas si faltan."""
+    def _asegurar_indices(self):
         try:
-            if not os.path.exists(self.ruta_registro):
-                return
-            wb = load_workbook(self.ruta_registro)
-            ws = wb["Registro de Llaves"]
-            headers = [cell.value for cell in ws[1]]
-            # Si ya está actualizado, salir
-            if len(headers) >= 15:
-                wb.close()
-                return
-            # Transformar headers antiguos (12 columnas) a nuevos (17)
-            nuevos_headers = [
-                'Número de Documento', 'Docente', 'Día', 'Horario', 'Aula', 'Facultad',
-                'Materia de la Clase', 'Fecha de entrega', 'Hora de entrega',
-                'Fecha de devolución', 'Hora de devolución',
-                'Duración clase (entrega→devolución)',
-                'Se reclamó a tiempo',
-                'Tiempo de retraso',
-                'Retraso en entrega',
-                'Tiempo retraso devolución',
-                'Estado'
-            ]
-            ws.delete_rows(1)
-            ws.insert_rows(1)
-            ws.append(nuevos_headers)
-            # Ajustar filas existentes
-            filas_originales = list(ws.iter_rows(min_row=2, values_only=True))
-            # Limpiar filas originales
-            ws.delete_rows(2, ws.max_row)
-            for row in filas_originales:
-                if len(row) >= 12:
-                    estado = row[11]
-                    nueva = list(row[:11])  # hasta hora_devolucion
-                    nueva += [
-                        '',        # duración
-                        'No info', # se reclamó a tiempo
-                        '',        # tiempo retraso
-                        '',        # retraso en entrega
-                        '',        # tiempo retraso devolución
-                        estado     # estado al final
-                    ]
-                    ws.append(nueva)
-            wb.save(self.ruta_registro)
-            wb.close()
-        except Exception as e:
-            print(f"Error al asegurar formato de registro: {e}")
+            self.collection.create_index("Número de Documento")
+            self.collection.create_index("Estado")
+            self.collection.create_index("Fecha de entrega")
+        except Exception:
+            pass
     
     def registrar_entrega(self, info_clase):
         """
@@ -116,43 +40,37 @@ class LlaveModel:
             bool: True si se registró exitosamente, False si ya tiene una llave prestada
         """
         try:
-            wb = load_workbook(self.ruta_registro)
-            ws = wb["Registro de Llaves"]
-            
             nroidenti_limpio = self._limpiar_numero_documento(info_clase['nroidenti'])
             
             # Verificar si ya tiene una llave prestada
-            if self._tiene_llave_prestada(ws, nroidenti_limpio):
-                wb.close()
+            if self.collection.find_one({"Número de Documento": nroidenti_limpio, "Estado": "En Préstamo"}):
                 return False
             
             # Crear nuevo registro con columnas de devolución vacías
             ahora = datetime.now()
             se_tiempo, retraso = self._evaluar_reclamo_tiempo(info_clase.get('horario', ''), ahora)
 
-            nuevo_registro = [
-                nroidenti_limpio,
-                info_clase.get('profesor', ''),
-                info_clase.get('dia', ''),
-                info_clase.get('horario', ''),
-                info_clase.get('aula', ''),
-                info_clase.get('facultad', 'No especificada'),
-                info_clase.get('materia', ''),
-                ahora.strftime('%Y-%m-%d'),
-                ahora.strftime('%H:%M:%S'),
-                '',  # Fecha de devolución (vacío)
-                '',  # Hora de devolución (vacío)
-                '',  # Duración clase (vacío hasta devolución)
-                se_tiempo,            # Se reclamó a tiempo (Sí/No)
-                retraso,              # Tiempo de retraso
-                'No',                 # Retraso en entrega (inicialmente No)
-                '',                   # Tiempo retraso devolución (vacío hasta devolver)
-                'En Préstamo'
-            ]
-            
-            ws.append(nuevo_registro)
-            wb.save(self.ruta_registro)
-            wb.close()
+            nuevo_registro = {
+                'Número de Documento': nroidenti_limpio,
+                'Docente': info_clase.get('profesor', ''),
+                'Día': info_clase.get('dia', ''),
+                'Horario': info_clase.get('horario', ''),
+                'Aula': info_clase.get('aula', ''),
+                'Facultad': info_clase.get('facultad', 'No especificada'),
+                'Materia de la Clase': info_clase.get('materia', ''),
+                'Fecha de entrega': ahora.strftime('%Y-%m-%d'),
+                'Hora de entrega': ahora.strftime('%H:%M:%S'),
+                'Fecha de devolución': '',
+                'Hora de devolución': '',
+                'Duración clase (entrega→devolución)': '',
+                'Se reclamó a tiempo': se_tiempo,
+                'Tiempo de retraso': retraso,
+                'Retraso en entrega': 'No',
+                'Tiempo retraso devolución': '',
+                'Estado': 'En Préstamo'
+            }
+
+            self.collection.insert_one(nuevo_registro)
             return True
             
         except Exception as e:
@@ -170,39 +88,41 @@ class LlaveModel:
             bool: True si se registró exitosamente, False en caso contrario
         """
         try:
-            if not os.path.exists(self.ruta_registro):
-                return False
-            
-            wb = load_workbook(self.ruta_registro)
-            ws = wb["Registro de Llaves"]
-            
             nroidenti_limpio = self._limpiar_numero_documento(nroidenti)
             ahora = datetime.now()
-            
-            # Buscar y actualizar la fila correspondiente
-            for row in ws.iter_rows(min_row=2):
-                if (row[0].value and str(row[0].value) == nroidenti_limpio and 
-                    row[16].value == 'En Préstamo'):  # Índice 16 es Estado
-                    # Actualizar fecha y hora de devolución
-                    row[9].value = ahora.strftime('%Y-%m-%d')   # Fecha devolución
-                    row[10].value = ahora.strftime('%H:%M:%S')  # Hora devolución
-                    # Calcular duración si hay entrega previa
-                    duracion = self._calcular_duracion(row[7].value, row[8].value, ahora)
-                    row[11].value = duracion
-                    # Calcular tiempo retraso devolución si hay retraso
-                    horario = row[3].value
-                    tiempo_retraso_dev = self._calcular_tiempo_retraso_devolucion(horario, row[7].value, ahora)
-                    row[15].value = tiempo_retraso_dev
-                    # Actualizar campo "Retraso en entrega" basado en si hay retraso
-                    row[14].value = 'Sí' if tiempo_retraso_dev else 'No'
-                    row[16].value = 'Devuelta'                  # Estado
-                    
-                    wb.save(self.ruta_registro)
-                    wb.close()
-                    return True
-            
-            wb.close()
-            return False
+            registro = self.collection.find_one({
+                "Número de Documento": nroidenti_limpio,
+                "Estado": "En Préstamo"
+            })
+
+            if not registro:
+                return False
+
+            duracion = self._calcular_duracion(
+                registro.get('Fecha de entrega'),
+                registro.get('Hora de entrega'),
+                ahora
+            )
+            horario = registro.get('Horario')
+            tiempo_retraso_dev = self._calcular_tiempo_retraso_devolucion(
+                horario,
+                registro.get('Fecha de entrega'),
+                ahora
+            )
+
+            self.collection.update_one(
+                {"_id": registro["_id"]},
+                {"$set": {
+                    "Fecha de devolución": ahora.strftime('%Y-%m-%d'),
+                    "Hora de devolución": ahora.strftime('%H:%M:%S'),
+                    "Duración clase (entrega→devolución)": duracion,
+                    "Tiempo retraso devolución": tiempo_retraso_dev,
+                    "Retraso en entrega": 'Sí' if tiempo_retraso_dev else 'No',
+                    "Estado": "Devuelta"
+                }}
+            )
+
+            return True
             
         except Exception as e:
             print(f"Error en registrar_devolucion: {e}")
@@ -216,30 +136,21 @@ class LlaveModel:
             list: Lista de diccionarios con información de llaves en préstamo
         """
         try:
-            if not os.path.exists(self.ruta_registro):
-                return []
-            
-            wb = load_workbook(self.ruta_registro)
-            ws = wb["Registro de Llaves"]
-            
             llaves_pendientes = []
-            for row in ws.iter_rows(min_row=2, values_only=True):
-                if row and row[16] == 'En Préstamo':  # Índice 16 es Estado
-                    llave_info = {
-                        'documento': self._limpiar_numero_documento(row[0]),
-                        'docente': row[1],
-                        'dia': row[2],
-                        'horario': row[3],
-                        'aula': row[4],
-                        'facultad': row[5],
-                        'materia': row[6],
-                        'fecha_entrega': row[7],
-                        'hora_entrega': row[8],
-                        'estado': row[16]
-                    }
-                    llaves_pendientes.append(llave_info)
-            
-            wb.close()
+            for registro in self.collection.find({"Estado": "En Préstamo"}, {"_id": 0}):
+                llave_info = {
+                    'documento': self._limpiar_numero_documento(registro.get('Número de Documento')),
+                    'docente': registro.get('Docente'),
+                    'dia': registro.get('Día'),
+                    'horario': registro.get('Horario'),
+                    'aula': registro.get('Aula'),
+                    'facultad': registro.get('Facultad'),
+                    'materia': registro.get('Materia de la Clase'),
+                    'fecha_entrega': registro.get('Fecha de entrega'),
+                    'hora_entrega': registro.get('Hora de entrega'),
+                    'estado': registro.get('Estado')
+                }
+                llaves_pendientes.append(llave_info)
             return llaves_pendientes
             
         except Exception as e:
@@ -257,44 +168,23 @@ class LlaveModel:
             list: Lista de diccionarios con información de llaves prestadas del día
         """
         try:
-            if not os.path.exists(self.ruta_registro):
-                return []
-            
-            wb = load_workbook(self.ruta_registro)
-            ws = wb["Registro de Llaves"]
-            
             # Convertir fecha actual a string formato YYYY-MM-DD
             fecha_str = fecha_actual.strftime('%Y-%m-%d')
-            
             llaves_del_dia = []
-            for row in ws.iter_rows(min_row=2, values_only=True):
-                if row and row[16] == 'En Préstamo':  # Índice 16 es Estado
-                    # Obtener fecha de entrega de la fila
-                    fecha_entrega = row[7]
-                    
-                    # Convertir a string si es datetime
-                    if hasattr(fecha_entrega, 'strftime'):
-                        fecha_entrega_str = fecha_entrega.strftime('%Y-%m-%d')
-                    else:
-                        fecha_entrega_str = str(fecha_entrega)
-                    
-                    # Filtrar solo registros del día actual
-                    if fecha_entrega_str == fecha_str:
-                        llave_info = {
-                            'documento': self._limpiar_numero_documento(row[0]),
-                            'docente': row[1],
-                            'dia': row[2],
-                            'horario': row[3],
-                            'aula': row[4],
-                            'facultad': row[5],
-                            'materia': row[6],
-                            'fecha_entrega': row[7],
-                            'hora_entrega': row[8],
-                            'estado': row[16]
-                        }
-                        llaves_del_dia.append(llave_info)
-            
-            wb.close()
+            for registro in self.collection.find({"Estado": "En Préstamo", "Fecha de entrega": fecha_str}, {"_id": 0}):
+                llave_info = {
+                    'documento': self._limpiar_numero_documento(registro.get('Número de Documento')),
+                    'docente': registro.get('Docente'),
+                    'dia': registro.get('Día'),
+                    'horario': registro.get('Horario'),
+                    'aula': registro.get('Aula'),
+                    'facultad': registro.get('Facultad'),
+                    'materia': registro.get('Materia de la Clase'),
+                    'fecha_entrega': registro.get('Fecha de entrega'),
+                    'hora_entrega': registro.get('Hora de entrega'),
+                    'estado': registro.get('Estado')
+                }
+                llaves_del_dia.append(llave_info)
             return llaves_del_dia
             
         except Exception as e:
@@ -314,36 +204,15 @@ class LlaveModel:
             list: Lista de diccionarios con documento y horario de clases procesadas
         """
         try:
-            if not os.path.exists(self.ruta_registro):
-                return []
-            
-            wb = load_workbook(self.ruta_registro)
-            ws = wb["Registro de Llaves"]
-            
             # Convertir fecha actual a string formato YYYY-MM-DD
             fecha_str = fecha_actual.strftime('%Y-%m-%d')
-            
             clases_procesadas = []
-            for row in ws.iter_rows(min_row=2, values_only=True):
-                if row:
-                    # Obtener fecha de entrega
-                    fecha_entrega = row[7]
-                    
-                    # Convertir a string si es datetime
-                    if hasattr(fecha_entrega, 'strftime'):
-                        fecha_entrega_str = fecha_entrega.strftime('%Y-%m-%d')
-                    else:
-                        fecha_entrega_str = str(fecha_entrega)
-                    
-                    # Incluir TODAS las entregas de hoy (En Préstamo y Devueltas)
-                    if fecha_entrega_str == fecha_str:
-                        clase_info = {
-                            'documento': self._limpiar_numero_documento(row[0]),
-                            'horario': str(row[3]).strip() if row[3] else ''
-                        }
-                        clases_procesadas.append(clase_info)
-            
-            wb.close()
+            for registro in self.collection.find({"Fecha de entrega": fecha_str}, {"_id": 0, "Número de Documento": 1, "Horario": 1}):
+                clase_info = {
+                    'documento': self._limpiar_numero_documento(registro.get('Número de Documento')),
+                    'horario': str(registro.get('Horario', '')).strip()
+                }
+                clases_procesadas.append(clase_info)
             return clases_procesadas
             
         except Exception as e:
@@ -358,11 +227,8 @@ class LlaveModel:
             pd.DataFrame: DataFrame con el historial completo
         """
         try:
-            if not os.path.exists(self.ruta_registro):
-                return pd.DataFrame()
-            
-            df = pd.read_excel(self.ruta_registro, sheet_name='Registro de Llaves')
-            return df
+            registros = list(self.collection.find({}, {"_id": 0}))
+            return pd.DataFrame(registros)
             
         except Exception as e:
             print(f"Error al obtener historial completo: {e}")
@@ -370,10 +236,7 @@ class LlaveModel:
     
     def _tiene_llave_prestada(self, ws, nroidenti):
         """Verifica si un docente ya tiene una llave prestada"""
-        for row in ws.iter_rows(min_row=2, values_only=True):
-            if row and str(row[0]) == nroidenti and row[16] == 'En Préstamo':  # Índice 16 es Estado
-                return True
-        return False
+        return self.collection.find_one({"Número de Documento": nroidenti, "Estado": "En Préstamo"}) is not None
 
     # ============ Helpers de tiempo ============
     def _evaluar_reclamo_tiempo(self, horario, momento_entrega):

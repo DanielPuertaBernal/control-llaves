@@ -3,13 +3,13 @@ Repositorio de programación académica
 Responsabilidad: Persistencia (carga y guardado) de datos de programación
 """
 import pandas as pd
-import os
+from datetime import datetime
+from services.mongo_client import MongoClientProvider
+from datetime import time
 
 
 class ProgramacionRepository:
     """Repositorio para operaciones de persistencia de programación"""
-    
-    NOMBRE_ARCHIVO = "programacionLimpiaActual.xlsx"
     
     def __init__(self, ruta_data: str = None):
         """
@@ -18,27 +18,7 @@ class ProgramacionRepository:
         Args:
             ruta_data: Ruta del directorio data. Si es None, se calcula automáticamente
         """
-        self.ruta_data = ruta_data or self._obtener_ruta_data()
-    
-    def _obtener_ruta_data(self) -> str:
-        """
-        Obtiene la ruta del directorio data
-        
-        Returns:
-            str: Ruta absoluta al directorio data
-        """
-        ruta_actual = os.path.dirname(os.path.abspath(__file__))
-        # Preferir carpeta data en la raíz del proyecto
-        ruta_proyecto = os.path.dirname(os.path.dirname(ruta_actual))
-        ruta_data_principal = os.path.join(ruta_proyecto, "data")
-        ruta_data_legacy = os.path.join(os.path.dirname(ruta_actual), "data")
-
-        # Si existe la ruta principal, úsala; si no, cae a la legacy; si ninguna existe, crea en principal
-        if os.path.exists(ruta_data_principal):
-            return ruta_data_principal
-        if os.path.exists(ruta_data_legacy):
-            return ruta_data_legacy
-        return ruta_data_principal
+        self.collection = MongoClientProvider.get_collection("programacion")
     
     def cargar_desde_excel(self, ruta_archivo: str) -> tuple[bool, pd.DataFrame, str]:
         """
@@ -68,13 +48,11 @@ class ProgramacionRepository:
         Returns:
             tuple: (exito, dataframe, mensaje)
         """
-        ruta_programacion = os.path.join(self.ruta_data, self.NOMBRE_ARCHIVO)
-        
-        if not os.path.exists(ruta_programacion):
-            return False, None, "❌ No hay programación guardada"
-        
         try:
-            df = pd.read_excel(ruta_programacion)
+            registros = list(self.collection.find({}, {"_id": 0}))
+            if not registros:
+                return False, None, "❌ No hay programación guardada"
+            df = pd.DataFrame(registros)
             mensaje = f"✅ Programación cargada: {len(df)} registros"
             return True, df, mensaje
         except Exception as e:
@@ -91,12 +69,25 @@ class ProgramacionRepository:
             tuple: (exito, mensaje)
         """
         try:
-            if not os.path.exists(self.ruta_data):
-                os.makedirs(self.ruta_data)
-            
-            ruta_archivo = os.path.join(self.ruta_data, self.NOMBRE_ARCHIVO)
-            df.to_excel(ruta_archivo, index=False)
-            return True, f"✅ Programación guardada: {ruta_archivo}"
+            if df is None or df.empty:
+                return False, "❌ No hay programación para guardar"
+
+            registros = df.to_dict('records')
+            version_carga = datetime.utcnow()
+            for registro in registros:
+                # Convertir tiempos a string para MongoDB
+                for key, value in list(registro.items()):
+                    if isinstance(value, time):
+                        registro[key] = value.strftime('%H:%M:%S')
+                    elif isinstance(value, datetime):
+                        registro[key] = value.strftime('%Y-%m-%d %H:%M:%S')
+                registro["version_carga"] = version_carga
+
+            self.collection.delete_many({})
+            if registros:
+                self.collection.insert_many(registros)
+
+            return True, f"✅ Programación guardada en MongoDB: {len(registros)} registros"
             
         except Exception as e:
             return False, f"❌ Error al guardar: {str(e)}"
@@ -108,5 +99,4 @@ class ProgramacionRepository:
         Returns:
             bool: True si existe
         """
-        ruta_programacion = os.path.join(self.ruta_data, self.NOMBRE_ARCHIVO)
-        return os.path.exists(ruta_programacion)
+        return self.collection.count_documents({}) > 0

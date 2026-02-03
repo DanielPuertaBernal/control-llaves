@@ -3,25 +3,24 @@ Modelo para la gestión de información de docentes
 Maneja la carga, validación y almacenamiento de datos de docentes
 """
 import pandas as pd
-import os
 import re
-from openpyxl import Workbook, load_workbook
+from services.mongo_client import MongoClientProvider
 
 
 class DocenteModel:
     """Modelo para gestionar información de docentes"""
     
-    NOMBRE_ARCHIVO = "docentes.xlsx"
-    
     def __init__(self):
-        self.ruta_data = self._obtener_ruta_data()
-        self.ruta_archivo = os.path.join(self.ruta_data, self.NOMBRE_ARCHIVO)
-    
-    def _obtener_ruta_data(self):
-        """Obtiene la ruta del directorio data"""
-        ruta_actual = os.path.dirname(os.path.abspath(__file__))
-        ruta_proyecto = os.path.dirname(ruta_actual)
-        return os.path.join(ruta_proyecto, "data")
+        self.collection = MongoClientProvider.get_collection("docentes")
+        self._asegurar_indices()
+
+    def _asegurar_indices(self):
+        """Crea índices únicos para documento y carnet"""
+        try:
+            self.collection.create_index("Numero de documento", unique=True)
+            self.collection.create_index("Id Carnet", unique=True, sparse=True)
+        except Exception:
+            pass
     
     def cargar_desde_excel(self, ruta_archivo):
         """
@@ -108,6 +107,7 @@ class DocenteModel:
         # Normalizar Id Carnet para compatibilidad con lector NFC
         if 'Id Carnet' in df.columns:
             df['Id Carnet'] = df['Id Carnet'].apply(self._normalizar_carnet)
+            df['Id Carnet'] = df['Id Carnet'].apply(lambda v: None if v == '' else v)
         
         # Limpiar espacios en blanco en demás columnas tipo texto
         for col in df.columns:
@@ -150,13 +150,17 @@ class DocenteModel:
             tuple: (exito, mensaje)
         """
         try:
-            if not os.path.exists(self.ruta_data):
-                os.makedirs(self.ruta_data)
-            
-            # Guardar DataFrame en Excel
-            df.to_excel(self.ruta_archivo, index=False, engine='openpyxl')
-            
-            return True, f"✅ Información guardada en: {self.ruta_archivo}"
+            if df is None or df.empty:
+                return False, "❌ No hay datos para guardar"
+
+            registros = df.to_dict('records')
+            for docente in registros:
+                self.collection.update_one(
+                    {"Numero de documento": docente.get("Numero de documento")},
+                    {"$set": docente},
+                    upsert=True
+                )
+            return True, f"✅ Información guardada en MongoDB: {len(registros)} registros"
             
         except Exception as e:
             return False, f"❌ Error al guardar: {str(e)}"
@@ -169,11 +173,8 @@ class DocenteModel:
             pd.DataFrame: DataFrame con información de docentes o DataFrame vacío
         """
         try:
-            if not os.path.exists(self.ruta_archivo):
-                return pd.DataFrame()
-            
-            df = pd.read_excel(self.ruta_archivo)
-            return df
+            registros = list(self.collection.find({}, {"_id": 0}))
+            return pd.DataFrame(registros)
             
         except Exception as e:
             print(f"Error al obtener docentes: {e}")
