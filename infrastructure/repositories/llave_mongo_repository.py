@@ -2,7 +2,7 @@
 from datetime import datetime, time, timedelta
 import pandas as pd
 from interfaces.llave_repository import LlaveRepository
-from services.mongo_client import MongoClientProvider
+from infrastructure.services.mongo_client import MongoClientProvider
 
 
 class LlaveMongoRepository(LlaveRepository):

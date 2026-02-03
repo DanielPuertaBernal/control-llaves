@@ -1,6 +1,6 @@
 """Repositorio Mongo para docentes"""
 from interfaces.docente_repository import DocenteRepository
-from services.mongo_client import MongoClientProvider
+from infrastructure.services.mongo_client import MongoClientProvider
 import pandas as pd
 
 

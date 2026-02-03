@@ -1,11 +1,11 @@
 """
-Servicio de paginación de datos
+Componente de paginación de datos
 Maneja la lógica de paginación de forma reutilizable
 """
 import pandas as pd
 
 
-class PaginacionService:
+class PaginacionComponent:
     """Servicio para paginación de datos"""
     
     def __init__(self, items_por_pagina=15):

@@ -1,6 +1,6 @@
 """Repositorio Mongo para programación"""
 from interfaces.programacion_repository import ProgramacionRepository
-from services.mongo_client import MongoClientProvider
+from infrastructure.services.mongo_client import MongoClientProvider
 from typing import Optional
 from datetime import datetime, time
 import pandas as pd

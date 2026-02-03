@@ -6,12 +6,12 @@ from tkinter import ttk, messagebox
 import tkinter as tk
 from datetime import datetime
 from controllers import ProgramacionController, LlaveController
-from views.entrega_view import EntregaView
-from views.programacion_view import ProgramacionView
-from views.historial_view import HistorialView
-from views.informes_view import InformesView
-from views.nfc_manager import NFCManager
-from views.nfc_view import NFCView
+from presentation.views.entrega_view import EntregaView
+from presentation.views.programacion_view import ProgramacionView
+from presentation.views.historial_view import HistorialView
+from presentation.views.informes_view import InformesView
+from presentation.nfc_presenter import NFCPresenter
+from presentation.views.nfc_view import NFCView
 
 
 class MainView:
@@ -34,15 +34,11 @@ class MainView:
         # Crear interfaz primero
         self._crear_interfaz()
         
-        # Gestor NFC
-        self.nfc_manager = NFCManager(
-            self.root,
-            self.llave_controller,
-            self.programacion_controller
-        )
+        # Presenter NFC
+        self.nfc_presenter = NFCPresenter(self.root)
         
         # Establecer callback para ir a vista NFC automáticamente
-        self.nfc_manager.establecer_callback_ir_nfc(lambda: self._mostrar_vista("nfc"))
+        self.nfc_presenter.establecer_callback_ir_nfc(lambda: self._mostrar_vista("nfc"))
         
         # Cargar programación inicial
         self._cargar_programacion_inicial()
@@ -51,7 +47,7 @@ class MainView:
         self._mostrar_vista("programacion")
         
         # Inicializar NFC con callback de actualización
-        self.nfc_manager.inicializar(self._actualizar_vistas_despues_operacion)
+        self.nfc_presenter.inicializar(self._actualizar_vistas_despues_operacion)
     
     def _cargar_programacion_inicial(self):
         """Carga la programación guardada al iniciar"""
@@ -256,8 +252,8 @@ class MainView:
         elif nombre_vista == "nfc":
             self.titulo_contenido.config(text="MONITOREO DEL SISTEMA NFC")
             self.vista_nfc = NFCView(vista_frame, None)
-            # Establecer referencia en el gestor NFC para actualizaciones en tiempo real
-            self.nfc_manager.establecer_nfc_view(self.vista_nfc)
+            # Establecer referencia en el presenter NFC para actualizaciones en tiempo real
+            self.nfc_presenter.establecer_nfc_view(self.vista_nfc)
     
     def _obtener_dia_actual(self):
         """Obtiene el día actual en español"""
@@ -268,7 +264,7 @@ class MainView:
         """Cierra la aplicación"""
         if messagebox.askyesno("Salir", "¿Está seguro que desea salir?"):
             # Desconectar NFC antes de cerrar
-            self.nfc_manager.desconectar()
+            self.nfc_presenter.desconectar()
             self.root.quit()
     
     def _actualizar_vistas_despues_operacion(self):

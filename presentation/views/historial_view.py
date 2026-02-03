@@ -6,8 +6,7 @@ from tkinter import ttk, messagebox
 import tkinter as tk
 from datetime import datetime
 from controllers import HistorialController
-from services import PaginacionService, TablaService
-from views.components import BuscadorComponent
+from presentation.components import PaginacionComponent, TablaComponent, BuscadorComponent
 
 
 class HistorialView:
@@ -17,7 +16,7 @@ class HistorialView:
         self.historial_controller = HistorialController()
         
         # Servicios
-        self.paginacion_service = PaginacionService(items_por_pagina=15)
+        self.paginacion_service = PaginacionComponent(items_por_pagina=15)
         
         # Frame principal - ahora recibe el parent directamente
         self.frame = ttk.Frame(parent_frame, padding="20")
@@ -71,7 +70,7 @@ class HistorialView:
         frame_tabla.pack(fill='both', expand=True, pady=(0, 20))
         
         self.tree = ttk.Treeview(frame_tabla)
-        TablaService.configurar_treeview(self.tree, 'historial')
+        TablaComponent.configurar_treeview(self.tree, 'historial')
         
         scrollbar_v = ttk.Scrollbar(frame_tabla, orient='vertical', command=self.tree.yview)
         scrollbar_h = ttk.Scrollbar(frame_tabla, orient='horizontal', command=self.tree.xview)

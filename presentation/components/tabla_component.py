@@ -1,10 +1,10 @@
 """
-Servicio de configuración de tablas
+Componente de configuración de tablas
 Define columnas y estilos estándar para tablas
 """
 
 
-class TablaService:
+class TablaComponent:
     """Servicio de configuración de tablas"""
     
     # Configuraciones de tablas

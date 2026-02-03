@@ -8,8 +8,7 @@ from datetime import date
 from application.historial_service import HistorialService
 from application.llave_service import LlaveService
 from infrastructure.repositories.llave_mongo_repository import LlaveMongoRepository
-from services import TablaService, PaginacionService
-from views.components import BuscadorComponent
+from presentation.components import TablaComponent, PaginacionComponent, BuscadorComponent
 
 
 class InformesView:
@@ -26,7 +25,7 @@ class InformesView:
         self.llave_service = LlaveService(repo_llaves)
         
         # Servicio de paginación
-        self.paginacion_service = PaginacionService(items_por_pagina=15)
+        self.paginacion_service = PaginacionComponent(items_por_pagina=15)
         
         # Frame principal
         self.frame = ttk.Frame(parent_frame, padding="20")

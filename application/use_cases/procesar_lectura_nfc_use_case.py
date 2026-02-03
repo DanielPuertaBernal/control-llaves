@@ -1,26 +1,30 @@
 """
-Controlador especializado para operaciones NFC/RFID
+Caso de uso: Procesar lectura NFC
 Maneja la lógica de procesamiento de carnets y validación de tiempos
 """
 from application.docente_service import DocenteService
+from application.llave_service import LlaveService
+from application.programacion_service import ProgramacionService
 from infrastructure.repositories.docente_mongo_repository import DocenteMongoRepository
+from infrastructure.repositories.llave_mongo_repository import LlaveMongoRepository
+from infrastructure.repositories.programacion_mongo_repository import ProgramacionMongoRepository
 from datetime import datetime, date
 
 
-class NFCController:
-    """Controlador para procesar lecturas NFC y automatizar entregas/devoluciones"""
+class ProcesarLecturaNFCUseCase:
+    """Caso de uso para procesar lecturas NFC y automatizar entregas/devoluciones"""
     
-    def __init__(self, llave_controller, programacion_controller):
-        """
-        Args:
-            llave_controller: Controlador de llaves
-            programacion_controller: Controlador de programación
-        """
-        self.llave_controller = llave_controller
-        self.programacion_controller = programacion_controller
+    def __init__(self):
+        """Inicializa los servicios necesarios"""
         self.docente_service = DocenteService(DocenteMongoRepository())
+        self.llave_service = LlaveService(LlaveMongoRepository())
+        # ProgramacionService necesita llave_service
+        self.programacion_service = ProgramacionService(
+            ProgramacionMongoRepository(),
+            self.llave_service
+        )
     
-    def procesar_lectura_nfc(self, id_carnet):
+    def ejecutar(self, id_carnet):
         """
         Procesa la lectura de un carnet NFC/RFID
         Realiza entrega o devolución automática según corresponda
@@ -55,7 +59,7 @@ class NFCController:
             numero_documento = docente['Numero de documento']
             
             # 2. Verificar si ya tiene llave prestada (caso devolución)
-            if self.llave_controller.verificar_tiene_llave(numero_documento):
+            if self._verificar_tiene_llave(numero_documento):
                 return self._procesar_devolucion(docente, numero_documento)
             
             # 3. Caso entrega: buscar clase del docente para hoy
@@ -78,10 +82,19 @@ class NFCController:
                 'mensaje': f'❌ Error al procesar carnet: {str(e)}'
             }
     
+    def _verificar_tiene_llave(self, numero_documento):
+        """Verifica si un docente tiene llave prestada"""
+        llaves_prestadas = self.llave_service.obtener_llaves_en_prestamo()
+        return any(
+            str(llave.get('nroidenti', '')).replace('.0', '').strip() == 
+            str(numero_documento).replace('.0', '').strip()
+            for llave in llaves_prestadas
+        )
+    
     def _procesar_devolucion(self, docente, numero_documento):
         """Procesa la devolución de una llave"""
         hora_devolucion = datetime.now().strftime('%H:%M:%S')
-        exito, mensaje = self.llave_controller.procesar_devolucion(
+        exito, mensaje = self.llave_service.procesar_devolucion(
             numero_documento, 
             docente['Nombre']
         )
@@ -108,7 +121,7 @@ class NFCController:
         
         if validacion['permitir_inmediato']:
             # Entrega automática (falta 30 min o menos, o ya inició)
-            exito, mensaje = self.llave_controller.procesar_entrega(clase)
+            exito, mensaje = self.llave_service.procesar_entrega(clase)
             
             if exito:
                 return {
@@ -149,8 +162,8 @@ class NFCController:
     def _buscar_clase_docente_hoy(self, numero_documento):
         """Busca la próxima clase del docente para hoy"""
         try:
-            # Usar método existente del programacion_controller para obtener clases del día
-            df_clases = self.programacion_controller.obtener_clases_del_dia()
+            # Obtener clases del día usando el servicio de programación
+            df_clases = self.programacion_service.obtener_clases_del_dia()
             
             if df_clases is None or df_clases.empty:
                 return None
@@ -165,7 +178,7 @@ class NFCController:
                 return None
             
             # Filtrar clases ya procesadas hoy
-            clases_procesadas = self.llave_controller.obtener_clases_procesadas_hoy()
+            clases_procesadas = self.llave_service.obtener_clases_procesadas_hoy()
             clases_procesadas_keys = {
                 (str(c['documento']).replace('.0', '').strip(), c.get('horario', ''))
                 for c in clases_procesadas
@@ -291,4 +304,4 @@ class NFCController:
     
     def _confirmar_entrega_adelantada(self, clase):
         """Callback para confirmar entrega adelantada"""
-        return self.llave_controller.procesar_entrega(clase)
+        return self.llave_service.procesar_entrega(clase)

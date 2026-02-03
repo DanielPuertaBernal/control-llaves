@@ -1,28 +1,28 @@
 """
-Gestor de NFC para la aplicación principal
-Separa la lógica de inicialización y callbacks NFC
+Presenter NFC - Coordina entre el hardware NFC y la UI
+Maneja callbacks y actualización de vistas
 """
-from services.nfc_service import NFCService
-from controllers.nfc_controller import NFCController
+from infrastructure.services.nfc_service import NFCService
+from application.use_cases.procesar_lectura_nfc_use_case import ProcesarLecturaNFCUseCase
 
 
-class NFCManager:
-    """Administrador de funcionalidad NFC para la aplicación"""
+class NFCPresenter:
+    """Coordina la funcionalidad NFC entre infraestructura y presentación"""
     
-    def __init__(self, root, llave_controller, programacion_controller):
+    def __init__(self, root):
         """
         Args:
-            root: Ventana raíz de Tkinter
-            llave_controller: Controlador de llaves
-            programacion_controller: Controlador de programación
+            root: Ventana raíz de Tkinter para callbacks temporizados
         """
         self.root = root
         self.nfc_service = NFCService()
-        self.nfc_controller = NFCController(llave_controller, programacion_controller)
+        self.use_case = ProcesarLecturaNFCUseCase()
         self.nfc_conectado = False
+        
+        # Callbacks para coordinar con la UI
         self.callback_actualizar_vistas = None
-        self.callback_ir_nfc_view = None  # Callback para ir a vista NFC
-        self.nfc_view = None  # Se asignará desde main_view.py
+        self.callback_ir_nfc_view = None
+        self.nfc_view = None
     
     def establecer_nfc_view(self, nfc_view):
         """Establece la referencia a la vista NFC para actualizar en tiempo real"""
@@ -79,11 +79,8 @@ class NFCManager:
             if self.callback_ir_nfc_view:
                 self.callback_ir_nfc_view()
             
-            # Procesar lectura con el controlador NFC
-            resultado = self.nfc_controller.procesar_lectura_nfc(id_carnet)
-            
-            # Mostrar feedback en el panel
-            self._mostrar_feedback(resultado)
+            # Procesar lectura con el caso de uso
+            resultado = self.use_case.ejecutar(id_carnet)
             
             # Actualizar vista NFC si existe
             if self.nfc_view:
@@ -96,12 +93,6 @@ class NFCManager:
         
         except Exception as e:
             print(f"Error en callback NFC: {e}")
-    
-    def _mostrar_feedback(self, resultado):
-        """Actualiza solo la vista NFC si existe"""
-        # La retroalimentación visual ahora es responsabilidad de NFCView
-        # Este método se mantiene por compatibilidad pero no hace nada
-        pass
     
     def desconectar(self):
         """Desconecta el servicio NFC"""
