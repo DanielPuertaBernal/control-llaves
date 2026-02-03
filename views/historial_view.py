@@ -85,14 +85,14 @@ class HistorialView:
         self.tree.bind('<Double-1>', self._on_doble_click)
     
     def actualizar_datos(self):
-        """Actualiza los datos del historial mostrando solo llaves del día actual"""
+        """Actualiza los datos del historial mostrando TODAS las llaves en préstamo"""
         from controllers import LlaveController
         
         llave_controller = LlaveController()
-        llaves_dia = llave_controller.obtener_llaves_prestadas_dia()
+        llaves_pendientes = llave_controller.obtener_llaves_en_prestamo()
         
-        self.datos_historial = llaves_dia
-        self.paginacion_service.actualizar_datos(llaves_dia)
+        self.datos_historial = llaves_pendientes
+        self.paginacion_service.actualizar_datos(llaves_pendientes)
         self._actualizar_vista()
     
     def _realizar_busqueda(self):
@@ -138,7 +138,7 @@ class HistorialView:
         for item in self.tree.get_children():
             self.tree.delete(item)
         
-        # Llenar tabla (sin columna fecha_entrega)
+        # Llenar tabla con fecha_entrega
         if datos_pagina:
             for llave in datos_pagina:
                 valores = (
@@ -147,6 +147,7 @@ class HistorialView:
                     llave.get('horario', ''),
                     llave.get('aula', ''),
                     llave.get('materia', ''),
+                    llave.get('fecha_entrega', ''),
                     llave.get('hora_entrega', '')
                 )
                 self.tree.insert('', 'end', values=valores)

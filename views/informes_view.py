@@ -98,9 +98,10 @@ class InformesView:
         columnas = (
             'Docente', 'Horario', 'Aula',
             'Materia', 'Hora Entrega', 'Hora Devolución',
-            'Duración', 'Se reclamó a tiempo', 'Tiempo de retraso', 'Estado'
+            'Duración', 'Se reclamó a tiempo', 'Tiempo de retraso', 
+            'Retraso Devolución', 'Estado'
         )
-        anchos = [180, 140, 90, 200, 115, 120, 120, 140, 130, 95]
+        anchos = [180, 130, 90, 180, 110, 115, 115, 130, 120, 130, 160]
         
         self.tree.configure(columns=columnas, show='headings', height=20)
         
@@ -197,6 +198,7 @@ class InformesView:
                 str(registro.get('Duración clase (entrega→devolución)', '')),
                 str(registro.get('Se reclamó a tiempo', '')),
                 str(registro.get('Tiempo de retraso', '')),
+                str(registro.get('Tiempo retraso devolución', '')),
                 estado_mostrado
             )
             
@@ -262,6 +264,8 @@ class InformesView:
                 'Duración clase (entrega→devolución)',
                 'Se reclamó a tiempo',
                 'Tiempo de retraso',
+                'Retraso en entrega',
+                'Tiempo retraso devolución',
                 'Estado'
             ]
             

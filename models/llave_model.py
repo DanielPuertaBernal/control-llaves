@@ -42,6 +42,7 @@ class LlaveModel:
                 'Se reclamó a tiempo',
                 'Tiempo de retraso',
                 'Retraso en entrega',
+                'Tiempo retraso devolución',
                 'Estado'
             ]
             
@@ -60,7 +61,7 @@ class LlaveModel:
             if len(headers) >= 15:
                 wb.close()
                 return
-            # Transformar headers antiguos (12 columnas) a nuevos (16)
+            # Transformar headers antiguos (12 columnas) a nuevos (17)
             nuevos_headers = [
                 'Número de Documento', 'Docente', 'Día', 'Horario', 'Aula', 'Facultad',
                 'Materia de la Clase', 'Fecha de entrega', 'Hora de entrega',
@@ -69,6 +70,7 @@ class LlaveModel:
                 'Se reclamó a tiempo',
                 'Tiempo de retraso',
                 'Retraso en entrega',
+                'Tiempo retraso devolución',
                 'Estado'
             ]
             ws.delete_rows(1)
@@ -86,7 +88,8 @@ class LlaveModel:
                         '',        # duración
                         'No info', # se reclamó a tiempo
                         '',        # tiempo retraso
-                        '',        # retraso en entrega (nuevo)
+                        '',        # retraso en entrega
+                        '',        # tiempo retraso devolución
                         estado     # estado al final
                     ]
                     ws.append(nueva)
@@ -143,6 +146,7 @@ class LlaveModel:
                 se_tiempo,            # Se reclamó a tiempo (Sí/No)
                 retraso,              # Tiempo de retraso
                 'No',                 # Retraso en entrega (inicialmente No)
+                '',                   # Tiempo retraso devolución (vacío hasta devolver)
                 'En Préstamo'
             ]
             
@@ -178,14 +182,20 @@ class LlaveModel:
             # Buscar y actualizar la fila correspondiente
             for row in ws.iter_rows(min_row=2):
                 if (row[0].value and str(row[0].value) == nroidenti_limpio and 
-                    row[15].value == 'En Préstamo'):  # Índice 15 es Estado
+                    row[16].value == 'En Préstamo'):  # Índice 16 es Estado
                     # Actualizar fecha y hora de devolución
                     row[9].value = ahora.strftime('%Y-%m-%d')   # Fecha devolución
                     row[10].value = ahora.strftime('%H:%M:%S')  # Hora devolución
                     # Calcular duración si hay entrega previa
                     duracion = self._calcular_duracion(row[7].value, row[8].value, ahora)
                     row[11].value = duracion
-                    row[15].value = 'Devuelta'                  # Estado
+                    # Calcular tiempo retraso devolución si hay retraso
+                    horario = row[3].value
+                    tiempo_retraso_dev = self._calcular_tiempo_retraso_devolucion(horario, row[7].value, ahora)
+                    row[15].value = tiempo_retraso_dev
+                    # Actualizar campo "Retraso en entrega" basado en si hay retraso
+                    row[14].value = 'Sí' if tiempo_retraso_dev else 'No'
+                    row[16].value = 'Devuelta'                  # Estado
                     
                     wb.save(self.ruta_registro)
                     wb.close()
@@ -214,7 +224,7 @@ class LlaveModel:
             
             llaves_pendientes = []
             for row in ws.iter_rows(min_row=2, values_only=True):
-                if row and row[15] == 'En Préstamo':  # Índice 15 es Estado
+                if row and row[16] == 'En Préstamo':  # Índice 16 es Estado
                     llave_info = {
                         'documento': self._limpiar_numero_documento(row[0]),
                         'docente': row[1],
@@ -225,7 +235,7 @@ class LlaveModel:
                         'materia': row[6],
                         'fecha_entrega': row[7],
                         'hora_entrega': row[8],
-                        'estado': row[15]
+                        'estado': row[16]
                     }
                     llaves_pendientes.append(llave_info)
             
@@ -258,7 +268,7 @@ class LlaveModel:
             
             llaves_del_dia = []
             for row in ws.iter_rows(min_row=2, values_only=True):
-                if row and row[15] == 'En Préstamo':  # Índice 15 es Estado
+                if row and row[16] == 'En Préstamo':  # Índice 16 es Estado
                     # Obtener fecha de entrega de la fila
                     fecha_entrega = row[7]
                     
@@ -280,7 +290,7 @@ class LlaveModel:
                             'materia': row[6],
                             'fecha_entrega': row[7],
                             'hora_entrega': row[8],
-                            'estado': row[15]
+                            'estado': row[16]
                         }
                         llaves_del_dia.append(llave_info)
             
@@ -361,7 +371,7 @@ class LlaveModel:
     def _tiene_llave_prestada(self, ws, nroidenti):
         """Verifica si un docente ya tiene una llave prestada"""
         for row in ws.iter_rows(min_row=2, values_only=True):
-            if row and str(row[0]) == nroidenti and row[15] == 'En Préstamo':  # Índice 15 es Estado
+            if row and str(row[0]) == nroidenti and row[16] == 'En Préstamo':  # Índice 16 es Estado
                 return True
         return False
 
@@ -477,6 +487,56 @@ class LlaveModel:
             return datetime.strptime(fin[:5], '%H:%M').time()
         except ValueError:
             return None
+
+    def _calcular_tiempo_retraso_devolucion(self, horario, fecha_entrega, momento_devolucion):
+        """Calcula cuánto tiempo transcurrió desde fin de clase hasta devolución.
+        Solo aplica si hay retraso (> 1 hora después de fin de clase).
+        Formato: días, horas, minutos si aplica.
+        """
+        try:
+            if not horario:
+                return ''
+            
+            # Parsear hora de fin de clase
+            hora_fin = self._parse_hora_fin(horario)
+            if hora_fin is None:
+                return ''
+            
+            # Obtener fecha de entrega
+            if isinstance(fecha_entrega, datetime):
+                fecha_entrega_dt = fecha_entrega.date()
+            else:
+                fecha_entrega_dt = datetime.strptime(str(fecha_entrega), '%Y-%m-%d').date()
+            
+            # Combinar fecha entrega con hora fin de clase
+            fin_clase_dt = datetime.combine(fecha_entrega_dt, hora_fin)
+            
+            # Calcular diferencia
+            diferencia = momento_devolucion - fin_clase_dt
+            total_minutos = diferencia.total_seconds() / 60
+            
+            # Si no hay retraso (< 60 min), retornar vacío
+            if total_minutos <= 60:
+                return ''
+            
+            # Formatear considerando días, horas y minutos
+            dias = int(total_minutos // (24 * 60))
+            horas = int((total_minutos % (24 * 60)) // 60)
+            minutos = int(total_minutos % 60)
+            
+            partes = []
+            if dias > 0:
+                partes.append(f"{dias}d")
+            if horas > 0:
+                partes.append(f"{horas}h")
+            if minutos > 0 or not partes:  # Mostrar minutos si no hay días/horas
+                partes.append(f"{minutos}m")
+            
+            return ' '.join(partes)
+            
+        except Exception as e:
+            print(f"Error calculando retraso devolución: {e}")
+            return ''
 
     @staticmethod
     def _formatear_timedelta(td: timedelta):
