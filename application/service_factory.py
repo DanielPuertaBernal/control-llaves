@@ -6,9 +6,11 @@ from application.services.docente_service import DocenteService
 from application.services.llave_service import LlaveService
 from application.services.historial_service import HistorialService
 from application.services.programacion_service import ProgramacionService
+from application.services.auth_service import AuthService
 from infrastructure.repositories.docente_mongo_repository import DocenteMongoRepository
 from infrastructure.repositories.llave_mongo_repository import LlaveMongoRepository
 from infrastructure.repositories.programacion_mongo_repository import ProgramacionMongoRepository
+from infrastructure.repositories.usuario_mongo_repository import UsuarioMongoRepository
 
 
 # Configurar logger centralizado
@@ -39,10 +41,12 @@ class ServiceFactory:
         self._docente_repo = DocenteMongoRepository()
         self._llave_repo = LlaveMongoRepository()
         self._programacion_repo = ProgramacionMongoRepository()
+        self._usuario_repo = UsuarioMongoRepository()
         
         # Crear servicios con inyección de dependencias
         self._services['docente'] = DocenteService(self._docente_repo)
         self._services['llave'] = LlaveService(self._llave_repo)
+        self._services['auth'] = AuthService(self._usuario_repo)
         
         # HistorialService usa LlaveRepository para traer datos
         self._services['historial'] = HistorialService(self._llave_repo)
@@ -66,6 +70,10 @@ class ServiceFactory:
     def get_historial_service(self) -> HistorialService:
         """Obtiene servicio de historial"""
         return self._services['historial']
+    
+    def get_auth_service(self) -> AuthService:
+        """Obtiene servicio de autenticación"""
+        return self._services['auth']
     
     def get_logger(self):
         """Obtiene el logger centralizado"""
