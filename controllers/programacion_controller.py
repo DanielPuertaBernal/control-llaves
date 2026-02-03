@@ -2,18 +2,14 @@
 Controlador para la gestión de programación académica
 Maneja la lógica de negocio de carga y procesamiento de programación
 """
-from models.programacion import ProgramacionModel
-from datetime import datetime
-import pandas as pd
+from application.services.programacion_service import ProgramacionService
 
 
 class ProgramacionController:
     """Controlador para gestionar programación académica"""
     
-    def __init__(self):
-        self.model = ProgramacionModel()
-        self._cache_docentes_con_llaves = set()
-        self._cache_timestamp = None
+    def __init__(self, programacion_service: ProgramacionService):
+        self.service = programacion_service
     
     def cargar_programacion_inicial(self):
         """
@@ -22,7 +18,7 @@ class ProgramacionController:
         Returns:
             tuple: (exito, dataframe, mensaje)
         """
-        return self.model.cargar_programacion_guardada()
+        return self.service.cargar_programacion_inicial()
     
     def cargar_desde_archivo(self, ruta_archivo):
         """
@@ -34,7 +30,7 @@ class ProgramacionController:
         Returns:
             tuple: (exito, dataframe, mensaje)
         """
-        return self.model.cargar_desde_archivo(ruta_archivo)
+        return self.service.cargar_desde_archivo(ruta_archivo)
     
     def obtener_clases_del_dia(self, dia=None, incluir_pasadas=False):
         """
@@ -47,18 +43,7 @@ class ProgramacionController:
         Returns:
             pd.DataFrame: Clases del día
         """
-        df = self.model.obtener_clases_del_dia(dia)
-        
-        # Aplicar filtros adicionales
-        df = self._filtrar_aulas_invalidas(df)
-        
-        # Filtro de clases pasadas es opcional
-        if not incluir_pasadas:
-            df = self._filtrar_clases_pasadas(df)
-        
-        df = self._filtrar_docentes_con_llaves(df)
-        
-        return df
+        return self.service.obtener_clases_del_dia(dia, incluir_pasadas)
     
     def obtener_programacion_completa(self):
         """
@@ -67,7 +52,7 @@ class ProgramacionController:
         Returns:
             pd.DataFrame: Programación completa
         """
-        return self.model.obtener_programacion_actual()
+        return self.service.obtener_programacion_completa()
     
     def buscar_en_programacion(self, termino, programacion_df=None):
         """
@@ -80,23 +65,7 @@ class ProgramacionController:
         Returns:
             pd.DataFrame: Resultados de búsqueda
         """
-        if programacion_df is None:
-            programacion_df = self.model.obtener_programacion_actual()
-        
-        if programacion_df is None or programacion_df.empty or not termino:
-            return programacion_df
-        
-        # Buscar en múltiples columnas
-        termino = termino.strip().lower()
-        mascara_busqueda = pd.Series([False] * len(programacion_df))
-        
-        columnas_busqueda = ['Número de Documento', 'Docente', 'Aula', 'Materia de la Clase']
-        
-        for columna in columnas_busqueda:
-            if columna in programacion_df.columns:
-                mascara_busqueda |= programacion_df[columna].astype(str).str.lower().str.contains(termino, na=False)
-        
-        return programacion_df[mascara_busqueda]
+        return self.service.buscar_en_programacion(termino, programacion_df)
     
     def obtener_facultad_desde_programacion(self, documento, docente, aula, materia):
         """
@@ -111,134 +80,7 @@ class ProgramacionController:
         Returns:
             str: Nombre de la facultad
         """
-        programacion = self.model.obtener_programacion_actual()
-        
-        if programacion is None or programacion.empty:
-            return "No especificada"
-        
-        try:
-            documento_str = str(documento).replace('.0', '')
-            
-            # Buscar por múltiples criterios
-            mascara = (
-                (programacion['Número de Documento'].astype(str).str.replace('.0', '') == documento_str) &
-                (programacion['Docente'].astype(str).str.strip() == str(docente).strip()) &
-                (programacion['Aula'].astype(str).str.strip() == str(aula).strip())
-            )
-            
-            registros = programacion[mascara]
-            
-            if not registros.empty and 'Facultad' in registros.columns:
-                facultad = registros.iloc[0]['Facultad']
-                return str(facultad).strip() if facultad and str(facultad) != 'nan' else "No especificada"
-            
-            return "No especificada"
-            
-        except Exception as e:
-            print(f"Error al obtener facultad: {e}")
-            return "No especificada"
-    
-    def _filtrar_aulas_invalidas(self, df):
-        """Filtra registros donde el aula es NaN o vacía"""
-        if df.empty or 'Aula' not in df.columns:
-            return df
-        
-        try:
-            # Filtrar aulas NaN, None, vacías o que contengan 'nan'
-            df_filtrado = df.copy()
-            df_filtrado = df_filtrado[
-                df_filtrado['Aula'].notna() & 
-                (df_filtrado['Aula'].astype(str).str.strip() != '') &
-                (df_filtrado['Aula'].astype(str).str.lower() != 'nan')
-            ]
-            return df_filtrado
-        except Exception as e:
-            print(f"Error al filtrar aulas inválidas: {e}")
-            return df
-    
-    def _filtrar_clases_pasadas(self, df):
-        """
-        Filtra clases que ya terminaron.
-        Estrategia defensiva: si hay error al parsear, incluir la clase (no descartar).
-        """
-        if df.empty or 'Hora Fin' not in df.columns:
-            return df
-        
-        try:
-            ahora = datetime.now().time()
-            
-            def es_clase_valida(hora_fin):
-                """Retorna True si la clase aún no termina"""
-                try:
-                    # Manejar tanto string como time objects
-                    if isinstance(hora_fin, str):
-                        # Limpiar y parsear hora en formato HH:MM
-                        hora_str = str(hora_fin).strip()
-                        if ':' in hora_str:
-                            partes = hora_str.split(':')
-                            hora_obj = datetime.strptime(f"{partes[0]}:{partes[1]}", '%H:%M').time()
-                        else:
-                            # Si no tiene formato válido, incluir la clase
-                            return True
-                    elif isinstance(hora_fin, type(datetime.now().time())):
-                        hora_obj = hora_fin
-                    else:
-                        # Tipo desconocido, incluir para no perder datos
-                        return True
-                    
-                    # Comparar: la clase es válida si su hora fin es posterior a ahora
-                    return hora_obj > ahora
-                    
-                except (ValueError, AttributeError, IndexError):
-                    # Si hay cualquier error al parsear, incluir la clase (estrategia defensiva)
-                    return True
-            
-            return df[df['Hora Fin'].apply(es_clase_valida)].copy()
-        except Exception as e:
-            print(f"Error al filtrar clases pasadas: {e}. Retornando todas las clases.")
-            # Si hay error general, retornar todo sin filtrar (mejor que perder datos)
-            return df
-    
-    def _filtrar_docentes_con_llaves(self, df):
-        """
-        Filtra clases que ya fueron procesadas hoy (entrega de llaves).
-        Oculta clases que recibieron llave hoy, independientemente de si fueron devueltas.
-        Esto evita que una clase vuelva a aparecer después de devolver la llave el mismo día.
-        """
-        if df.empty:
-            return df
-        
-        try:
-            # Importar aquí para evitar dependencias circulares
-            from controllers.llave_controller import LlaveController
-            
-            llave_ctrl = LlaveController()
-            clases_procesadas = llave_ctrl.obtener_clases_procesadas_hoy()
-            
-            # Crear conjunto de tuplas (documento, horario) para clases procesadas hoy
-            clases_con_llaves = {
-                (str(clase['documento']).replace('.0', ''), str(clase.get('horario', '')).strip())
-                for clase in clases_procesadas
-            }
-            
-            # Filtrar DataFrame por clase específica
-            df_filtrado = df.copy()
-            df_filtrado['doc_limpio'] = df_filtrado['Número de Documento'].astype(str).str.replace('.0', '')
-            df_filtrado['horario_limpio'] = df_filtrado['Horario'].astype(str).str.strip()
-            
-            # Crear máscara: mantener clases que NO fueron procesadas hoy
-            mascara_mantener = ~df_filtrado.apply(
-                lambda row: (row['doc_limpio'], row['horario_limpio']) in clases_con_llaves,
-                axis=1
-            )
-            
-            df_filtrado = df_filtrado[mascara_mantener].drop(['doc_limpio', 'horario_limpio'], axis=1)
-            
-            return df_filtrado
-            
-        except Exception as e:
-            print(f"Error al filtrar clases con llaves prestadas: {e}")
-            return df
+        return self.service.obtener_facultad_desde_programacion(documento, docente, aula, materia)
     
     def exportar_programacion(self, df, ruta_destino):
         """
@@ -251,18 +93,4 @@ class ProgramacionController:
         Returns:
             tuple: (exito, mensaje)
         """
-        try:
-            # Verificar que el DataFrame no esté vacío
-            if df is None or df.empty:
-                return False, "No hay datos para exportar"
-            
-            # Exportar a Excel
-            df.to_excel(ruta_destino, index=False, engine='openpyxl')
-            
-            return True, f"Programación exportada exitosamente en:\n{ruta_destino}"
-            
-        except PermissionError:
-            return False, f"Error: No se puede escribir en el archivo.\nAsegúrese de que el archivo no esté abierto en otra aplicación."
-        
-        except Exception as e:
-            return False, f"Error al exportar programación:\n{str(e)}"
+        return self.service.exportar_programacion(df, ruta_destino)

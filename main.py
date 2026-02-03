@@ -3,8 +3,8 @@ Sistema de Control de Llaves - Arquitectura MVC
 Punto de entrada principal de la aplicación
 """
 from tkinter import Tk
-from views import MainView
-from assets.estiloTkinter import ConfigurarVentanaPrincipal, AplicarEstilo
+from presentation.views import MainView
+from presentation.assets.estiloTkinter import ConfigurarVentanaPrincipal, AplicarEstilo
 
 
 def main():
