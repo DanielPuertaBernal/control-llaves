@@ -12,8 +12,8 @@ from presentation.components import PaginacionComponent, TablaComponent, Buscado
 class HistorialView:
     """Vista para historial de llaves en préstamo"""
     
-    def __init__(self, parent_frame):
-        self.historial_controller = HistorialController()
+    def __init__(self, parent_frame, historial_controller: HistorialController):
+        self.historial_controller = historial_controller
         
         # Servicios
         self.paginacion_service = PaginacionComponent(items_por_pagina=15)

@@ -3,14 +3,13 @@ Controlador para la gestión de información de docentes
 Maneja la lógica de negocio de carga y consulta de docentes
 """
 from application.docente_service import DocenteService
-from infrastructure.repositories.docente_mongo_repository import DocenteMongoRepository
 
 
 class DocenteController:
     """Controlador para gestionar información de docentes"""
     
-    def __init__(self):
-        self.service = DocenteService(DocenteMongoRepository())
+    def __init__(self, docente_service: DocenteService):
+        self.service = docente_service
     
     def cargar_informacion_docentes(self, ruta_archivo):
         """

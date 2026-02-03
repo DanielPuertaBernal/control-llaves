@@ -12,9 +12,9 @@ from presentation.components import PaginacionComponent, TablaComponent, Buscado
 class EntregaView:
     """Vista para entrega y devolución de llaves"""
     
-    def __init__(self, parent_frame, programacion_controller):
+    def __init__(self, parent_frame, programacion_controller, llave_controller: LlaveController):
         self.programacion_controller = programacion_controller
-        self.llave_controller = LlaveController()
+        self.llave_controller = llave_controller
         
         # Servicios
         self.paginacion_service = PaginacionComponent(items_por_pagina=15)

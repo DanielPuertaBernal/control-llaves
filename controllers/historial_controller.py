@@ -3,14 +3,13 @@ Controlador para la gestión de historial de llaves
 Maneja la lógica de negocio de consultas y reportes
 """
 from application.historial_service import HistorialService
-from infrastructure.repositories.llave_mongo_repository import LlaveMongoRepository
 
 
 class HistorialController:
     """Controlador para gestionar historial de préstamos"""
     
-    def __init__(self):
-        self.service = HistorialService(LlaveMongoRepository())
+    def __init__(self, historial_service: HistorialService):
+        self.service = historial_service
     
     def obtener_historial_completo(self):
         """

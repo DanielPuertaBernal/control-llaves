@@ -5,13 +5,14 @@ Maneja solo la presentación y componentes visuales
 from tkinter import ttk, messagebox
 import tkinter as tk
 from datetime import datetime
-from controllers import ProgramacionController, LlaveController
+from controllers import ProgramacionController, LlaveController, HistorialController, DocenteController
 from presentation.views.entrega_view import EntregaView
 from presentation.views.programacion_view import ProgramacionView
 from presentation.views.historial_view import HistorialView
 from presentation.views.informes_view import InformesView
 from presentation.nfc_presenter import NFCPresenter
 from presentation.views.nfc_view import NFCView
+from application.service_factory import ServiceFactory
 
 
 class MainView:
@@ -27,9 +28,14 @@ class MainView:
         self.vista_actual = None
         self.botones_menu = {}
         
-        # Controladores
-        self.programacion_controller = ProgramacionController()
-        self.llave_controller = LlaveController()
+        # Service Factory para inyección de dependencias
+        factory = ServiceFactory()
+        
+        # Controladores con inyección de dependencias
+        self.programacion_controller = ProgramacionController(factory.get_programacion_service())
+        self.llave_controller = LlaveController(factory.get_llave_service())
+        self.docente_controller = DocenteController(factory.get_docente_service())
+        self.historial_controller = HistorialController(factory.get_historial_service())
         
         # Crear interfaz primero
         self._crear_interfaz()
@@ -235,15 +241,15 @@ class MainView:
         # Cargar vista correspondiente
         if nombre_vista == "programacion":
             self.titulo_contenido.config(text="GESTIÓN DE PROGRAMACIÓN ACADÉMICA")
-            self.vista_programacion = ProgramacionView(vista_frame, self.programacion_controller)
+            self.vista_programacion = ProgramacionView(vista_frame, self.programacion_controller, self.docente_controller)
         elif nombre_vista == "entrega":
             dia_actual = self._obtener_dia_actual()
             self.titulo_contenido.config(text=f"PROGRAMACIÓN DEL DÍA - {dia_actual}")
-            self.vista_entrega = EntregaView(vista_frame, self.programacion_controller)
+            self.vista_entrega = EntregaView(vista_frame, self.programacion_controller, self.llave_controller)
         elif nombre_vista == "historial":
             dia_actual = self._obtener_dia_actual()
             self.titulo_contenido.config(text=f"LLAVES EN PRÉSTAMO DEL DÍA - {dia_actual}")
-            self.vista_historial = HistorialView(vista_frame)
+            self.vista_historial = HistorialView(vista_frame, self.historial_controller)
             self.vista_historial.actualizar_datos()
         elif nombre_vista == "informes":
             dia_actual = self._obtener_dia_actual()

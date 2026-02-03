@@ -3,14 +3,13 @@ Controlador para la gestión de llaves
 Maneja la lógica de negocio de entregas y devoluciones
 """
 from application.llave_service import LlaveService
-from infrastructure.repositories.llave_mongo_repository import LlaveMongoRepository
 
 
 class LlaveController:
     """Controlador para gestionar préstamos de llaves"""
     
-    def __init__(self):
-        self.service = LlaveService(LlaveMongoRepository())
+    def __init__(self, llave_service: LlaveService):
+        self.service = llave_service
     
     def procesar_entrega(self, info_clase):
         """

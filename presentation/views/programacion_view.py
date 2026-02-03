@@ -10,9 +10,9 @@ from controllers import DocenteController
 class ProgramacionView:
     """Vista para gestión de programación académica"""
     
-    def __init__(self, parent_frame, programacion_controller):
+    def __init__(self, parent_frame, programacion_controller, docente_controller: DocenteController):
         self.programacion_controller = programacion_controller
-        self.docente_controller = DocenteController()
+        self.docente_controller = docente_controller
         
         # Frame principal - ahora recibe el parent directamente
         self.frame = ttk.Frame(parent_frame, padding="20")

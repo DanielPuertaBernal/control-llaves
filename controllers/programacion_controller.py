@@ -3,17 +3,13 @@ Controlador para la gestión de programación académica
 Maneja la lógica de negocio de carga y procesamiento de programación
 """
 from application.programacion_service import ProgramacionService
-from application.llave_service import LlaveService
-from infrastructure.repositories.programacion_mongo_repository import ProgramacionMongoRepository
-from infrastructure.repositories.llave_mongo_repository import LlaveMongoRepository
 
 
 class ProgramacionController:
     """Controlador para gestionar programación académica"""
     
-    def __init__(self):
-        llave_service = LlaveService(LlaveMongoRepository())
-        self.service = ProgramacionService(ProgramacionMongoRepository(), llave_service)
+    def __init__(self, programacion_service: ProgramacionService):
+        self.service = programacion_service
     
     def cargar_programacion_inicial(self):
         """

@@ -85,9 +85,9 @@ class ProcesarLecturaNFCUseCase:
     def _verificar_tiene_llave(self, numero_documento):
         """Verifica si un docente tiene llave prestada"""
         llaves_prestadas = self.llave_service.obtener_llaves_en_prestamo()
+        numero_limpio = str(numero_documento).replace('.0', '').strip()
         return any(
-            str(llave.get('nroidenti', '')).replace('.0', '').strip() == 
-            str(numero_documento).replace('.0', '').strip()
+            str(llave.get('documento', '')).replace('.0', '').strip() == numero_limpio
             for llave in llaves_prestadas
         )
     
