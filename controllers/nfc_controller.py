@@ -2,7 +2,8 @@
 Controlador especializado para operaciones NFC/RFID
 Maneja la lógica de procesamiento de carnets y validación de tiempos
 """
-from models.docente_model import DocenteModel
+from application.docente_service import DocenteService
+from infrastructure.repositories.docente_mongo_repository import DocenteMongoRepository
 from datetime import datetime, date
 
 
@@ -17,7 +18,7 @@ class NFCController:
         """
         self.llave_controller = llave_controller
         self.programacion_controller = programacion_controller
-        self.docente_model = DocenteModel()
+        self.docente_service = DocenteService(DocenteMongoRepository())
     
     def procesar_lectura_nfc(self, id_carnet):
         """
@@ -42,7 +43,7 @@ class NFCController:
         """
         try:
             # 1. Buscar docente por ID de carnet
-            docente = self.docente_model.buscar_docente_por_carnet(id_carnet)
+            docente = self.docente_service.buscar_docente_por_carnet(id_carnet)
             
             if not docente:
                 return {

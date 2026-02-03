@@ -1,40 +1,32 @@
-"""
-Modelo para la gestión de préstamos de llaves
-Maneja toda la lógica de datos relacionada con entregas y devoluciones
-"""
-from datetime import datetime, date, time, timedelta
+"""Repositorio Mongo para llaves"""
+from datetime import datetime, time, timedelta
 import pandas as pd
+from interfaces.llave_repository import LlaveRepository
 from services.mongo_client import MongoClientProvider
 
 
-class LlaveModel:
-    """Modelo para gestionar préstamos de llaves"""
+class LlaveMongoRepository(LlaveRepository):
+    """Adaptador de MongoDB para gestionar préstamos de llaves"""
     
     def __init__(self):
         self.collection = MongoClientProvider.get_collection("registros_llaves")
         self._asegurar_indices()
 
     def _asegurar_indices(self):
+        """Crea índices para optimizar búsquedas"""
         try:
             self.collection.create_index("Número de Documento")
             self.collection.create_index("Estado")
             self.collection.create_index("Fecha de entrega")
         except Exception:
             pass
-    
-    def registrar_entrega(self, info_clase):
+
+    def registrar_entrega(self, info_clase: dict) -> bool:
         """
         Registra la entrega de una llave
         
         Args:
-            info_clase (dict): Información de la clase con llaves:
-                - nroidenti: Número de documento
-                - profesor: Nombre del docente
-                - dia: Día de la semana
-                - horario: Horario de la clase
-                - aula: Salón
-                - facultad: Facultad
-                - materia: Materia de la clase
+            info_clase (dict): Información de la clase con llaves
         
         Returns:
             bool: True si se registró exitosamente, False si ya tiene una llave prestada
@@ -76,8 +68,8 @@ class LlaveModel:
         except Exception as e:
             print(f"Error en registrar_entrega: {e}")
             return False
-    
-    def registrar_devolucion(self, nroidenti):
+
+    def registrar_devolucion(self, nroidenti: str) -> bool:
         """
         Registra la devolución de una llave actualizando el registro existente
         
@@ -127,8 +119,8 @@ class LlaveModel:
         except Exception as e:
             print(f"Error en registrar_devolucion: {e}")
             return False
-    
-    def obtener_llaves_pendientes(self):
+
+    def obtener_llaves_pendientes(self) -> list:
         """
         Obtiene todas las llaves actualmente en préstamo
         
@@ -156,7 +148,32 @@ class LlaveModel:
         except Exception as e:
             print(f"Error al obtener llaves pendientes: {e}")
             return []
-    
+
+    def obtener_clases_procesadas_hoy(self, fecha_actual):
+        """
+        Obtiene todas las clases que recibieron llaves hoy
+        
+        Args:
+            fecha_actual (date): Fecha actual para filtrar
+        
+        Returns:
+            list: Lista de diccionarios con documento y horario de clases procesadas
+        """
+        try:
+            fecha_str = fecha_actual.strftime('%Y-%m-%d')
+            clases_procesadas = []
+            for registro in self.collection.find({"Fecha de entrega": fecha_str}, {"_id": 0, "Número de Documento": 1, "Horario": 1}):
+                clase_info = {
+                    'documento': self._limpiar_numero_documento(registro.get('Número de Documento')),
+                    'horario': str(registro.get('Horario', '')).strip()
+                }
+                clases_procesadas.append(clase_info)
+            return clases_procesadas
+            
+        except Exception as e:
+            print(f"Error al obtener clases procesadas hoy: {e}")
+            return []
+
     def obtener_llaves_prestadas_dia(self, fecha_actual):
         """
         Obtiene las llaves prestadas exclusivamente del día actual
@@ -168,7 +185,6 @@ class LlaveModel:
             list: Lista de diccionarios con información de llaves prestadas del día
         """
         try:
-            # Convertir fecha actual a string formato YYYY-MM-DD
             fecha_str = fecha_actual.strftime('%Y-%m-%d')
             llaves_del_dia = []
             for registro in self.collection.find({"Estado": "En Préstamo", "Fecha de entrega": fecha_str}, {"_id": 0}):
@@ -190,36 +206,8 @@ class LlaveModel:
         except Exception as e:
             print(f"Error al obtener llaves prestadas del día: {e}")
             return []
-    
-    def obtener_clases_procesadas_hoy(self, fecha_actual):
-        """
-        Obtiene todas las clases que recibieron llaves hoy (En Préstamo o Devueltas).
-        Sirve para evitar que una clase vuelva a aparecer en la vista de entrega
-        después de ser devuelta el mismo día.
-        
-        Args:
-            fecha_actual (date): Fecha actual para filtrar
-        
-        Returns:
-            list: Lista de diccionarios con documento y horario de clases procesadas
-        """
-        try:
-            # Convertir fecha actual a string formato YYYY-MM-DD
-            fecha_str = fecha_actual.strftime('%Y-%m-%d')
-            clases_procesadas = []
-            for registro in self.collection.find({"Fecha de entrega": fecha_str}, {"_id": 0, "Número de Documento": 1, "Horario": 1}):
-                clase_info = {
-                    'documento': self._limpiar_numero_documento(registro.get('Número de Documento')),
-                    'horario': str(registro.get('Horario', '')).strip()
-                }
-                clases_procesadas.append(clase_info)
-            return clases_procesadas
-            
-        except Exception as e:
-            print(f"Error al obtener clases procesadas hoy: {e}")
-            return []
-    
-    def obtener_historial_completo(self):
+
+    def obtener_historial_completo(self) -> pd.DataFrame:
         """
         Obtiene el historial completo de préstamos (activos y devueltos)
         
@@ -233,16 +221,40 @@ class LlaveModel:
         except Exception as e:
             print(f"Error al obtener historial completo: {e}")
             return pd.DataFrame()
-    
-    def _tiene_llave_prestada(self, ws, nroidenti):
-        """Verifica si un docente ya tiene una llave prestada"""
-        return self.collection.find_one({"Número de Documento": nroidenti, "Estado": "En Préstamo"}) is not None
+
+    def evaluar_retraso_entrega(self, horario: str) -> bool:
+        """
+        Evalúa si hay retraso en entrega (> 1 hora después de finalizar clase)
+        
+        Args:
+            horario: Horario de la clase (ej: "10:30-11:30" o "10:30 A 11:30")
+        
+        Returns:
+            bool: True si actualmente es > 1 hora después de fin de clase, False en caso contrario
+        """
+        try:
+            if not horario:
+                return False
+            
+            hora_fin = self._parse_hora_fin(horario)
+            if hora_fin is None:
+                return False
+            
+            ahora = datetime.now()
+            fin_clase_dt = datetime.combine(ahora.date(), hora_fin)
+            diferencia = ahora - fin_clase_dt
+            retraso_minutos = diferencia.total_seconds() / 60
+            
+            return retraso_minutos > 60
+            
+        except Exception as e:
+            print(f"Error en evaluar_retraso_entrega: {e}")
+            return False
 
     # ============ Helpers de tiempo ============
-    def _evaluar_reclamo_tiempo(self, horario, momento_entrega):
-        """Determina si se reclamó a tiempo y el retraso respecto al inicio de clase.
-        Retorna (se_reclamo_a_tiempo, tiempo_retraso_str).
-        """
+    
+    def _evaluar_reclamo_tiempo(self, horario: str, momento_entrega: datetime) -> tuple:
+        """Determina si se reclamó a tiempo y el retraso respecto al inicio de clase"""
         try:
             hora_inicio = self._parse_hora_inicio(horario)
             if hora_inicio is None:
@@ -256,8 +268,8 @@ class LlaveModel:
         except Exception:
             return 'No', 'N/A'
 
-    def _calcular_duracion(self, fecha_entrega, hora_entrega, momento_devolucion):
-        """Calcula duración desde entrega hasta devolución."""
+    def _calcular_duracion(self, fecha_entrega: str, hora_entrega: str, momento_devolucion: datetime) -> str:
+        """Calcula duración desde entrega hasta devolución"""
         try:
             if not fecha_entrega or not hora_entrega:
                 return ''
@@ -277,46 +289,49 @@ class LlaveModel:
         except Exception:
             return ''
 
-    def evaluar_retraso_entrega(self, horario, hora_entrega):
-        """Evalúa si hay retraso en entrega (> 1 hora después de finalizar clase).
-        Compara la hora actual contra la hora de fin de clase.
-        
-        Args:
-            horario: Horario de la clase (ej: "10:30-11:30" o "10:30 A 11:30")
-            hora_entrega: Hora de entrega de la llave (no se usa, solo para compatibilidad)
-        
-        Returns:
-            bool: True si actualmente es > 1 hora después de fin de clase, False en caso contrario
-        """
+    def _calcular_tiempo_retraso_devolucion(self, horario: str, fecha_entrega: str, momento_devolucion: datetime) -> str:
+        """Calcula cuánto tiempo transcurrió desde fin de clase hasta devolución"""
         try:
             if not horario:
-                return False
+                return ''
             
-            # Parsear hora de fin de clase
             hora_fin = self._parse_hora_fin(horario)
             if hora_fin is None:
-                return False
+                return ''
             
-            # Obtener hora actual
-            ahora = datetime.now()
+            if isinstance(fecha_entrega, datetime):
+                fecha_entrega_dt = fecha_entrega.date()
+            else:
+                fecha_entrega_dt = datetime.strptime(str(fecha_entrega), '%Y-%m-%d').date()
             
-            # Combinar hora de fin con la fecha actual
-            fin_clase_dt = datetime.combine(ahora.date(), hora_fin)
+            fin_clase_dt = datetime.combine(fecha_entrega_dt, hora_fin)
+            diferencia = momento_devolucion - fin_clase_dt
+            total_minutos = diferencia.total_seconds() / 60
             
-            # Calcular diferencia entre ahora y fin de clase
-            diferencia = ahora - fin_clase_dt
-            retraso_minutos = diferencia.total_seconds() / 60
+            if total_minutos <= 60:
+                return ''
             
-            # Si es > 60 minutos (1 hora), hay retraso
-            return retraso_minutos > 60
+            dias = int(total_minutos // (24 * 60))
+            horas = int((total_minutos % (24 * 60)) // 60)
+            minutos = int(total_minutos % 60)
+            
+            partes = []
+            if dias > 0:
+                partes.append(f"{dias}d")
+            if horas > 0:
+                partes.append(f"{horas}h")
+            if minutos > 0 or not partes:
+                partes.append(f"{minutos}m")
+            
+            return ' '.join(partes)
             
         except Exception as e:
-            print(f"Error en evaluar_retraso_entrega: {e}")
-            return False
+            print(f"Error calculando retraso devolución: {e}")
+            return ''
 
     @staticmethod
-    def _parse_hora_inicio(horario):
-        """Parses 'HH:MM-HH:MM' o 'HH:MM A HH:MM' y retorna time de inicio."""
+    def _parse_hora_inicio(horario: str) -> time:
+        """Parses 'HH:MM-HH:MM' o 'HH:MM A HH:MM' y retorna time de inicio"""
         if not horario:
             return None
         horario_str = str(horario).strip()
@@ -333,8 +348,8 @@ class LlaveModel:
             return None
 
     @staticmethod
-    def _parse_hora_fin(horario):
-        """Parses 'HH:MM-HH:MM' o 'HH:MM A HH:MM' y retorna time de fin."""
+    def _parse_hora_fin(horario: str) -> time:
+        """Parses 'HH:MM-HH:MM' o 'HH:MM A HH:MM' y retorna time de fin"""
         if not horario:
             return None
         horario_str = str(horario).strip()
@@ -351,66 +366,17 @@ class LlaveModel:
         except ValueError:
             return None
 
-    def _calcular_tiempo_retraso_devolucion(self, horario, fecha_entrega, momento_devolucion):
-        """Calcula cuánto tiempo transcurrió desde fin de clase hasta devolución.
-        Solo aplica si hay retraso (> 1 hora después de fin de clase).
-        Formato: días, horas, minutos si aplica.
-        """
-        try:
-            if not horario:
-                return ''
-            
-            # Parsear hora de fin de clase
-            hora_fin = self._parse_hora_fin(horario)
-            if hora_fin is None:
-                return ''
-            
-            # Obtener fecha de entrega
-            if isinstance(fecha_entrega, datetime):
-                fecha_entrega_dt = fecha_entrega.date()
-            else:
-                fecha_entrega_dt = datetime.strptime(str(fecha_entrega), '%Y-%m-%d').date()
-            
-            # Combinar fecha entrega con hora fin de clase
-            fin_clase_dt = datetime.combine(fecha_entrega_dt, hora_fin)
-            
-            # Calcular diferencia
-            diferencia = momento_devolucion - fin_clase_dt
-            total_minutos = diferencia.total_seconds() / 60
-            
-            # Si no hay retraso (< 60 min), retornar vacío
-            if total_minutos <= 60:
-                return ''
-            
-            # Formatear considerando días, horas y minutos
-            dias = int(total_minutos // (24 * 60))
-            horas = int((total_minutos % (24 * 60)) // 60)
-            minutos = int(total_minutos % 60)
-            
-            partes = []
-            if dias > 0:
-                partes.append(f"{dias}d")
-            if horas > 0:
-                partes.append(f"{horas}h")
-            if minutos > 0 or not partes:  # Mostrar minutos si no hay días/horas
-                partes.append(f"{minutos}m")
-            
-            return ' '.join(partes)
-            
-        except Exception as e:
-            print(f"Error calculando retraso devolución: {e}")
-            return ''
-
     @staticmethod
-    def _formatear_timedelta(td: timedelta):
+    def _formatear_timedelta(td: timedelta) -> str:
+        """Formatea un timedelta como HH:MM:SS"""
         total_seconds = int(td.total_seconds())
         horas = total_seconds // 3600
         minutos = (total_seconds % 3600) // 60
         segundos = total_seconds % 60
         return f"{horas:02d}:{minutos:02d}:{segundos:02d}"
-    
+
     @staticmethod
-    def _limpiar_numero_documento(doc):
+    def _limpiar_numero_documento(doc) -> str:
         """Limpia el número de documento eliminando .0 si existe"""
         doc_str = str(doc)
         return doc_str[:-2] if doc_str.endswith('.0') else doc_str

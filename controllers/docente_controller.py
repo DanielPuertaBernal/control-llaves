@@ -2,14 +2,15 @@
 Controlador para la gestión de información de docentes
 Maneja la lógica de negocio de carga y consulta de docentes
 """
-from models.docente_model import DocenteModel
+from application.docente_service import DocenteService
+from infrastructure.repositories.docente_mongo_repository import DocenteMongoRepository
 
 
 class DocenteController:
     """Controlador para gestionar información de docentes"""
     
     def __init__(self):
-        self.model = DocenteModel()
+        self.service = DocenteService(DocenteMongoRepository())
     
     def cargar_informacion_docentes(self, ruta_archivo):
         """
@@ -21,7 +22,7 @@ class DocenteController:
         Returns:
             tuple: (exito, dataframe, mensaje)
         """
-        return self.model.cargar_desde_excel(ruta_archivo)
+        return self.service.cargar_informacion_docentes(ruta_archivo)
     
     def obtener_docentes(self):
         """
@@ -30,7 +31,7 @@ class DocenteController:
         Returns:
             pd.DataFrame: DataFrame con información de docentes
         """
-        return self.model.obtener_docentes()
+        return self.service.obtener_docentes()
     
     def buscar_docente_por_documento(self, numero_documento):
         """
@@ -42,7 +43,7 @@ class DocenteController:
         Returns:
             dict: Información del docente o None
         """
-        return self.model.buscar_docente_por_documento(numero_documento)
+        return self.service.buscar_docente_por_documento(numero_documento)
     
     def buscar_docente_por_carnet(self, id_carnet):
         """
@@ -54,7 +55,7 @@ class DocenteController:
         Returns:
             dict: Información del docente o None
         """
-        return self.model.buscar_docente_por_carnet(id_carnet)
+        return self.service.buscar_docente_por_carnet(id_carnet)
     
     def verificar_docentes_cargados(self):
         """
@@ -63,5 +64,4 @@ class DocenteController:
         Returns:
             tuple: (hay_docentes, total_docentes)
         """
-        df = self.model.obtener_docentes()
-        return not df.empty, len(df)
+        return self.service.verificar_docentes_cargados()

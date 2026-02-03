@@ -1,16 +1,16 @@
-""">
+"""
 Controlador para la gestión de llaves
 Maneja la lógica de negocio de entregas y devoluciones
 """
-from models import LlaveModel
-from datetime import datetime, date
+from application.llave_service import LlaveService
+from infrastructure.repositories.llave_mongo_repository import LlaveMongoRepository
 
 
 class LlaveController:
     """Controlador para gestionar préstamos de llaves"""
     
     def __init__(self):
-        self.model = LlaveModel()
+        self.service = LlaveService(LlaveMongoRepository())
     
     def procesar_entrega(self, info_clase):
         """
@@ -22,17 +22,7 @@ class LlaveController:
         Returns:
             tuple: (exito, mensaje)
         """
-        # Validar información
-        if not self._validar_info_clase(info_clase):
-            return False, "Información de clase incompleta"
-        
-        # Intentar registrar entrega
-        exito = self.model.registrar_entrega(info_clase)
-        
-        if exito:
-            return True, f"✅ Llave entregada a {info_clase.get('profesor')}"
-        else:
-            return False, "❌ El docente ya tiene una llave prestada"
+        return self.service.procesar_entrega(info_clase)
     
     def procesar_devolucion(self, nroidenti, nombre_docente=None):
         """
@@ -45,13 +35,7 @@ class LlaveController:
         Returns:
             tuple: (exito, mensaje)
         """
-        exito = self.model.registrar_devolucion(nroidenti)
-        
-        if exito:
-            docente = nombre_docente if nombre_docente else "el docente"
-            return True, f"✅ Llave devuelta por {docente}"
-        else:
-            return False, "❌ No se encontró llave en préstamo para este docente"
+        return self.service.procesar_devolucion(nroidenti, nombre_docente)
     
     def obtener_llaves_en_prestamo(self):
         """
@@ -60,7 +44,7 @@ class LlaveController:
         Returns:
             list: Lista de diccionarios con información de préstamos activos
         """
-        return self.model.obtener_llaves_pendientes()
+        return self.service.obtener_llaves_en_prestamo()
     
     def obtener_clases_procesadas_hoy(self):
         """
@@ -70,8 +54,7 @@ class LlaveController:
         Returns:
             list: Lista de diccionarios con información de clases procesadas hoy
         """
-        fecha_actual = date.today()
-        return self.model.obtener_clases_procesadas_hoy(fecha_actual)
+        return self.service.obtener_clases_procesadas_hoy()
     
     def obtener_llaves_prestadas_dia(self):
         """
@@ -80,8 +63,7 @@ class LlaveController:
         Returns:
             list: Lista de diccionarios con información de préstamos del día
         """
-        fecha_actual = date.today()
-        return self.model.obtener_llaves_prestadas_dia(fecha_actual)
+        return self.service.obtener_llaves_prestadas_dia()
     
     def verificar_tiene_llave(self, nroidenti):
         """
@@ -93,13 +75,7 @@ class LlaveController:
         Returns:
             bool: True si tiene llave prestada
         """
-        llaves = self.model.obtener_llaves_pendientes()
-        nroidenti_limpio = str(nroidenti).replace('.0', '')
-        
-        for llave in llaves:
-            if llave['documento'] == nroidenti_limpio:
-                return True
-        return False
+        return self.service.verificar_tiene_llave(nroidenti)
     
     def obtener_info_llave(self, nroidenti):
         """
@@ -111,16 +87,9 @@ class LlaveController:
         Returns:
             dict: Información de la llave o None si no existe
         """
-        llaves = self.model.obtener_llaves_pendientes()
-        nroidenti_limpio = str(nroidenti).replace('.0', '')
-        
-        for llave in llaves:
-            if llave['documento'] == nroidenti_limpio:
-                return llave
-        return None
-    
-    def _validar_info_clase(self, info_clase):
-        """Valida que la información de clase tenga los campos requeridos"""
-        campos_requeridos = ['nroidenti', 'profesor', 'aula']
-        return all(campo in info_clase for campo in campos_requeridos)
+        return self.service.obtener_info_llave(nroidenti)
+
+    def evaluar_retraso_entrega(self, horario):
+        """Evalúa si hay retraso en entrega para un horario"""
+        return self.service.evaluar_retraso_entrega(horario)
 

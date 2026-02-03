@@ -5,7 +5,9 @@ Muestra todos los registros de llaves del día con colores según el estado
 from tkinter import ttk, messagebox, filedialog
 import tkinter as tk
 from datetime import date
-from controllers import LlaveController
+from application.historial_service import HistorialService
+from application.llave_service import LlaveService
+from infrastructure.repositories.llave_mongo_repository import LlaveMongoRepository
 from services import TablaService, PaginacionService
 from views.components import BuscadorComponent
 
@@ -19,7 +21,9 @@ class InformesView:
     COLOR_RETRASO = "#FFCDD2"    # Rojo suave
     
     def __init__(self, parent_frame):
-        self.llave_controller = LlaveController()
+        repo_llaves = LlaveMongoRepository()
+        self.historial_service = HistorialService(repo_llaves)
+        self.llave_service = LlaveService(repo_llaves)
         
         # Servicio de paginación
         self.paginacion_service = PaginacionService(items_por_pagina=15)
@@ -141,11 +145,9 @@ class InformesView:
     def _obtener_registros_dia(self):
         """Obtiene registros del día (entregadas hoy) y llaves en préstamo de días anteriores"""
         try:
-            from models import LlaveModel
             import pandas as pd
             
-            modelo = LlaveModel()
-            df = modelo.obtener_historial_completo()
+            df = self.historial_service.obtener_historial_completo()
             
             if df.empty:
                 return []
@@ -196,7 +198,6 @@ class InformesView:
     
     def _actualizar_tabla(self):
         """Actualiza la tabla con los datos filtrados"""
-        from models import LlaveModel
         from datetime import datetime, time, date
         
         # Obtener página actual
@@ -206,8 +207,6 @@ class InformesView:
         for item in self.tree.get_children():
             self.tree.delete(item)
         
-        modelo = LlaveModel()
-        
         # Insertar datos con colores según estado (sin mostrar Documento, Facultad y Día)
         for idx, registro in enumerate(datos_pagina):
             # Determinar estado con indicador de retraso si aplica
@@ -216,7 +215,7 @@ class InformesView:
             fecha_entrega_str = registro.get('Fecha de entrega', '')
             
             if estado == 'En Préstamo':
-                if modelo.evaluar_retraso_entrega(horario, None):
+                if self.llave_service.evaluar_retraso_entrega(horario):
                     estado_mostrado = 'En Préstamo - Retraso en Entrega'
                 else:
                     estado_mostrado = estado
@@ -249,13 +248,13 @@ class InformesView:
                 try:
                     fecha_entrega = datetime.strptime(fecha_entrega_str, '%Y-%m-%d').date()
                     if fecha_entrega == date.today():
-                        hay_retraso = modelo.evaluar_retraso_entrega(horario, None)
+                        hay_retraso = self.llave_service.evaluar_retraso_entrega(horario)
                     else:
                         # Si es de días anteriores: definitivamente está en retraso
                         hay_retraso = True
                 except:
                     # Por defecto, usar evaluar_retraso_entrega
-                    hay_retraso = modelo.evaluar_retraso_entrega(horario, None)
+                    hay_retraso = self.llave_service.evaluar_retraso_entrega(horario)
                 
                 tag = 'retraso' if hay_retraso else 'prestamo'
             
@@ -277,12 +276,10 @@ class InformesView:
     def _exportar_registros(self):
         """Exporta TODOS los registros de la base de datos a un archivo Excel"""
         try:
-            from models import LlaveModel
             import pandas as pd
             
             # Obtener TODOS los registros de la base de datos (no solo del día)
-            modelo = LlaveModel()
-            df_completo = modelo.obtener_historial_completo()
+            df_completo = self.historial_service.obtener_historial_completo()
             
             if df_completo.empty:
                 messagebox.showwarning("Advertencia", "No hay registros para exportar")
