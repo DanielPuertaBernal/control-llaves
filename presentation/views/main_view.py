@@ -126,10 +126,9 @@ class MainView:
         separador.pack(fill=tk.X, padx=20, pady=(0, 20))
         
         # Opciones del menú (filtradas según rol)
-        # ADMIN_PROG: Solo programación completa y gestión de usuarios
-        # AUX_PROG: Entrega de llaves, NFC, historial, informes
         opciones_menu = [
             {"texto": "  📋 Programación Completa", "vista": "programacion", "roles": [RolUsuario.ADMIN_PROG]},
+            {"texto": "  👥 Gestión de Usuarios", "vista": "usuarios", "roles": [RolUsuario.ADMIN_PROG]},
             {"texto": "  📅 Programación del Día", "vista": "entrega", "roles": [RolUsuario.AUX_PROG]},
             {"texto": "  🔓 Llaves en Préstamo", "vista": "historial", "roles": [RolUsuario.AUX_PROG]},
             {"texto": "  📊 Informes del Día", "vista": "informes", "roles": [RolUsuario.AUX_PROG]},
@@ -140,16 +139,14 @@ class MainView:
         if self.usuario:
             opciones_menu = [op for op in opciones_menu if self.usuario.rol in op["roles"]]
         
-        # Crear botones del menú (solo si el usuario tiene permiso)
+        # Crear botones del menú
         for opcion in opciones_menu:
-            # Verificar si el usuario tiene permiso para ver esta opción
-            if self.usuario and self.usuario.rol in opcion["roles"]:
-                btn = self._crear_boton_menu(
-                    self.sidebar,
-                    opcion["texto"],
-                    lambda v=opcion["vista"]: self._mostrar_vista(v)
-                )
-                self.botones_menu[opcion["vista"]] = btn
+            btn = self._crear_boton_menu(
+                self.sidebar,
+                opcion["texto"],
+                lambda v=opcion["vista"]: self._mostrar_vista(v)
+            )
+            self.botones_menu[opcion["vista"]] = btn
         
         # Espaciador
         tk.Frame(self.sidebar, bg="#37474F").pack(fill=tk.BOTH, expand=True)
@@ -277,6 +274,11 @@ class MainView:
             titulo = "GESTIÓN DE PROGRAMACIÓN ACADÉMICA - COMPLETA" if self.usuario and self.usuario.es_admin() else "GESTIÓN DE PROGRAMACIÓN ACADÉMICA"
             self.titulo_contenido.config(text=titulo)
             self.vista_programacion = ProgramacionView(vista_frame, self.programacion_controller, self.docente_controller)
+        elif nombre_vista == "usuarios":
+            self.titulo_contenido.config(text="GESTIÓN DE USUARIOS AUXILIARES")
+            from presentation.views.usuarios_view import UsuariosView
+            factory = ServiceFactory()
+            self.vista_usuarios = UsuariosView(vista_frame, factory.get_auth_service())
         elif nombre_vista == "entrega":
             dia_actual = self._obtener_dia_actual()
             self.titulo_contenido.config(text=f"PROGRAMACIÓN DEL DÍA - {dia_actual}")
@@ -304,8 +306,9 @@ class MainView:
     def _salir_aplicacion(self):
         """Cierra la aplicación"""
         if messagebox.askyesno("Salir", "¿Está seguro que desea salir?"):
-            # Desconectar NFC antes de cerrar
-            self.nfc_presenter.desconectar()
+            # Desconectar NFC antes de cerrar (solo si existe)
+            if self.nfc_presenter:
+                self.nfc_presenter.desconectar()
             self.root.quit()
     
     def _actualizar_vistas_despues_operacion(self):

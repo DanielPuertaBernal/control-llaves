@@ -11,32 +11,24 @@ class LoginView:
     """Vista para autenticación de usuarios"""
     
     def __init__(self, root):
-        """
-        Inicializa la vista de login
-        
-        Args:
-            root (tk.Tk): Ventana raíz
-        """
         self.root = root
         self.root.title("🔑 Control de Llaves - Login")
-        self.root.geometry("500x450")
+        self.root.geometry("450x350")
         self.root.resizable(False, False)
         
-        # Centra en pantalla
+        # Centrar en pantalla
         self.root.update_idletasks()
-        x = (self.root.winfo_screenwidth() // 2) - (500 // 2)
-        y = (self.root.winfo_screenheight() // 2) - (450 // 2)
+        x = (self.root.winfo_screenwidth() - 450) // 2
+        y = (self.root.winfo_screenheight() - 350) // 2
         self.root.geometry(f"+{x}+{y}")
         
         # Service
-        self.factory = ServiceFactory()
-        self.auth_service = self.factory.get_auth_service()
+        self.auth_service = ServiceFactory().get_auth_service()
         
-        # Resultado del login
+        # Resultado
         self.usuario_autenticado = None
         self.login_exitoso = False
         
-        # Crear interfaz
         self._crear_interfaz()
     
     def _crear_interfaz(self):
@@ -84,21 +76,6 @@ class LoginView:
         # Botón Login
         btn_login = ttk.Button(form_frame, text="Ingresar", command=self._hacer_login)
         btn_login.pack(fill='x', pady=(10, 0))
-        
-        # Frame de info
-        info_frame = ttk.Frame(main_frame)
-        info_frame.pack(fill='x', pady=(20, 0))
-        
-        info_text = ttk.Label(
-            info_frame,
-            text="📌 Usuarios de demostración:\n"
-                 "• admin / admin123\n"
-                 "• auxiliar / aux123",
-            font=('Segoe UI', 9),
-            foreground="#888",
-            justify=tk.LEFT
-        )
-        info_text.pack(anchor='w')
     
     def _hacer_login(self):
         """Procesa el login"""
@@ -106,29 +83,21 @@ class LoginView:
         password = self.entry_password.get()
         
         if not usuario or not password:
-            messagebox.showwarning("Error", "Por favor ingrese usuario y contraseña")
+            messagebox.showwarning("Campos vacíos", "Ingrese usuario y contraseña")
             return
         
-        # Intentar login
         exito, mensaje, usuario_obj = self.auth_service.login(usuario, password)
         
         if exito:
             self.usuario_autenticado = usuario_obj
             self.login_exitoso = True
-            messagebox.showinfo("Éxito", mensaje)
-            self.root.destroy()  # Destruir ventana en lugar de quit
+            self.root.destroy()
         else:
-            messagebox.showerror("Error de Login", mensaje)
+            messagebox.showerror("Error", mensaje)
             self.entry_password.delete(0, tk.END)
             self.entry_usuario.focus()
     
     def obtener_resultado(self):
-        """
-        Obtiene el resultado del login
-        
-        Returns:
-            tuple: (login_exitoso, usuario_autenticado)
-        """
         return self.login_exitoso, self.usuario_autenticado
 
 
