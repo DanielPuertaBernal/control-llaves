@@ -1,5 +1,5 @@
 """Casos de uso para llaves"""
-from datetime import date, datetime
+from datetime import date
 from interfaces.llave_repository import LlaveRepository
 
 

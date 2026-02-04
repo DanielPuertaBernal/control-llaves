@@ -4,7 +4,6 @@ Vista de Login - Autenticación de usuarios
 import tkinter as tk
 from tkinter import ttk, messagebox
 from application.service_factory import ServiceFactory
-from domain.usuario import RolUsuario
 
 
 class LoginView:

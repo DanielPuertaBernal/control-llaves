@@ -2,7 +2,6 @@
 Componente de búsqueda reutilizable
 Componente visual para búsqueda en tablas con debounce y diseño moderno
 """
-from tkinter import ttk
 import tkinter as tk
 
 

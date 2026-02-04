@@ -4,7 +4,6 @@ Representa una clase académica con sus datos
 """
 from dataclasses import dataclass
 from typing import Optional
-from datetime import datetime
 
 
 @dataclass

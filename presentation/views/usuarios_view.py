@@ -5,7 +5,6 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 from domain.usuario import RolUsuario
 from domain.value_objects import Email, Telefono, NombreUsuario, Password
-from application.service_factory import ServiceFactory
 
 
 class UsuariosView:

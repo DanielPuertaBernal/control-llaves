@@ -2,8 +2,7 @@
 Validadores de Dominio
 Centralizan la lógica de validación de negocio
 """
-from datetime import datetime, date, time
-import re
+from datetime import datetime, date
 
 
 class ValidadorLlave:
