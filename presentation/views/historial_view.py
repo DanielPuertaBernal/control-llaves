@@ -3,8 +3,6 @@ Vista de historial de llaves
 Maneja solo la presentación del historial de préstamos
 """
 from tkinter import ttk, messagebox
-import tkinter as tk
-from datetime import datetime
 from controllers import HistorialController, LlaveController
 from presentation.components import PaginacionComponent, TablaComponent, BuscadorComponent
 

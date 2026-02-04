@@ -3,7 +3,6 @@ Vista de programación académica
 Maneja solo la presentación de carga de programación
 """
 from tkinter import ttk, messagebox, filedialog
-import tkinter as tk
 from controllers import DocenteController
 
 

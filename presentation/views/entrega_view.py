@@ -3,7 +3,6 @@ Vista de entrega y devolución de llaves
 Maneja solo la presentación de la programación del día
 """
 from tkinter import ttk, messagebox
-import tkinter as tk
 from datetime import datetime
 from controllers import LlaveController
 from presentation.components import PaginacionComponent, TablaComponent, BuscadorComponent
