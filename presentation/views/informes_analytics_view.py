@@ -6,12 +6,8 @@ import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 from datetime import datetime
 import pandas as pd
-
-try:
-    from tkcalendar import DateEntry
-    CALENDARIO_DISPONIBLE = True
-except ImportError:
-    CALENDARIO_DISPONIBLE = False
+from application.helpers import DateHelper
+from presentation.components.date_widget_factory import DateWidgetFactory
 
 
 class InformesAnalyticsView:
@@ -36,21 +32,11 @@ class InformesAnalyticsView:
 
         # Fila 1: Fechas
         ttk.Label(filtros, text="Fecha inicio:").grid(row=0, column=0, sticky='w', padx=(0, 8), pady=8)
-        
-        if CALENDARIO_DISPONIBLE:
-            self.fecha_inicio = DateEntry(filtros, width=18, background='darkblue',
-                                         foreground='white', borderwidth=2, date_pattern='yyyy-mm-dd')
-        else:
-            self.fecha_inicio = ttk.Entry(filtros, width=20)
+        self.fecha_inicio = DateWidgetFactory.crear_selector_fecha(filtros)
         self.fecha_inicio.grid(row=0, column=1, padx=(0, 20), pady=8)
 
         ttk.Label(filtros, text="Fecha fin:").grid(row=0, column=2, sticky='w', padx=(0, 8), pady=8)
-        
-        if CALENDARIO_DISPONIBLE:
-            self.fecha_fin = DateEntry(filtros, width=18, background='darkblue',
-                                      foreground='white', borderwidth=2, date_pattern='yyyy-mm-dd')
-        else:
-            self.fecha_fin = ttk.Entry(filtros, width=20)
+        self.fecha_fin = DateWidgetFactory.crear_selector_fecha(filtros)
         self.fecha_fin.grid(row=0, column=3, padx=(0, 20), pady=8)
 
         # Fila 2: Facultad y Docente
@@ -112,24 +98,13 @@ class InformesAnalyticsView:
         if self.facultad_var.get() not in opciones:
             self.facultad_var.set("Todas")
 
-    def _validar_fecha(self, valor: str) -> bool:
-        if not valor:
-            return True
-        try:
-            datetime.strptime(valor, '%Y-%m-%d')
-            return True
-        except ValueError:
-            return False
-
     def _aplicar_filtros(self):
-        if CALENDARIO_DISPONIBLE:
-            fecha_inicio = self.fecha_inicio.get_date().strftime('%Y-%m-%d') if hasattr(self.fecha_inicio.get_date(), 'strftime') else str(self.fecha_inicio.get())
-            fecha_fin = self.fecha_fin.get_date().strftime('%Y-%m-%d') if hasattr(self.fecha_fin.get_date(), 'strftime') else str(self.fecha_fin.get())
-        else:
-            fecha_inicio = self.fecha_inicio.get().strip()
-            fecha_fin = self.fecha_fin.get().strip()
-
-        if not CALENDARIO_DISPONIBLE and (not self._validar_fecha(fecha_inicio) or not self._validar_fecha(fecha_fin)):
+        fecha_inicio = DateWidgetFactory.obtener_fecha(self.fecha_inicio)
+        fecha_fin = DateWidgetFactory.obtener_fecha(self.fecha_fin)
+        
+        # Validar fechas
+        if (fecha_inicio and not DateHelper.validar_formato(fecha_inicio)) or \
+           (fecha_fin and not DateHelper.validar_formato(fecha_fin)):
             messagebox.showwarning("Formato inválido", "Use formato de fecha YYYY-MM-DD")
             return
 
@@ -147,12 +122,8 @@ class InformesAnalyticsView:
         self._actualizar_info_exportacion()
 
     def _limpiar_filtros(self):
-        if CALENDARIO_DISPONIBLE:
-            self.fecha_inicio.set_date(datetime.now())
-            self.fecha_fin.set_date(datetime.now())
-        else:
-            self.fecha_inicio.delete(0, 'end')
-            self.fecha_fin.delete(0, 'end')
+        DateWidgetFactory.establecer_fecha(self.fecha_inicio, datetime.now())
+        DateWidgetFactory.establecer_fecha(self.fecha_fin, datetime.now())
         self.facultad_var.set("Todas")
         self.docente_entry.delete(0, 'end')
         self._aplicar_filtros()
