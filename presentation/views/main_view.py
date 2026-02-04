@@ -5,6 +5,7 @@ Maneja solo la presentación y componentes visuales
 from tkinter import ttk, messagebox
 import tkinter as tk
 from datetime import datetime
+from domain.usuario import RolUsuario, Usuario
 from controllers import ProgramacionController, LlaveController, HistorialController, DocenteController
 from presentation.views.entrega_view import EntregaView
 from presentation.views.programacion_view import ProgramacionView
@@ -13,16 +14,21 @@ from presentation.views.informes_view import InformesView
 from presentation.nfc_presenter import NFCPresenter
 from presentation.views.nfc_view import NFCView
 from application.service_factory import ServiceFactory
+from application.auth.session_manager import SessionManager
 
 
 class MainView:
     """Vista principal de la aplicación con menú lateral"""
     
-    def __init__(self, root):
+    def __init__(self, root, usuario_autenticado: Usuario = None):
         self.root = root
         self.root.title("Sistema de Control de Llaves")
         self.root.geometry("1280x820")
         self.root.minsize(1024, 600)
+        
+        # Usuario autenticado
+        self.usuario = usuario_autenticado
+        self.session_manager = SessionManager()
         
         # Inicializar variables ANTES de crear interfaz
         self.vista_actual = None
@@ -40,20 +46,27 @@ class MainView:
         # Crear interfaz primero
         self._crear_interfaz()
         
-        # Presenter NFC
-        self.nfc_presenter = NFCPresenter(self.root)
-        
-        # Establecer callback para ir a vista NFC automáticamente
-        self.nfc_presenter.establecer_callback_ir_nfc(lambda: self._mostrar_vista("nfc"))
+        # Presenter NFC - Solo para auxiliares
+        if self.usuario and self.usuario.puede_usar_nfc():
+            self.nfc_presenter = NFCPresenter(self.root)
+            
+            # Establecer callback para ir a vista NFC automáticamente
+            self.nfc_presenter.establecer_callback_ir_nfc(lambda: self._mostrar_vista("nfc"))
+            
+            # Inicializar NFC después de cargar programación
+        else:
+            self.nfc_presenter = None
         
         # Cargar programación inicial
         self._cargar_programacion_inicial()
         
-        # Mostrar vista inicial
-        self._mostrar_vista("programacion")
+        # Mostrar vista inicial según rol
+        vista_inicial = "entrega" if self.usuario and self.usuario.es_auxiliar() else "programacion"
+        self._mostrar_vista(vista_inicial)
         
-        # Inicializar NFC con callback de actualización
-        self.nfc_presenter.inicializar(self._actualizar_vistas_despues_operacion)
+        # Inicializar NFC con callback de actualización (solo auxiliares)
+        if self.nfc_presenter:
+            self.nfc_presenter.inicializar(self._actualizar_vistas_despues_operacion)
     
     def _cargar_programacion_inicial(self):
         """Carga la programación guardada al iniciar"""
@@ -94,20 +107,37 @@ class MainView:
             fg="#FFFFFF",
             justify=tk.CENTER
         )
-        titulo_sidebar.pack(pady=(5, 30))
+        titulo_sidebar.pack(pady=(5, 10))
+        
+        # Info del usuario autenticado
+        if self.usuario:
+            user_info = tk.Label(
+                self.sidebar,
+                text=f"👤 {self.usuario.nombre}\n({self.usuario.rol.value})",
+                font=('Segoe UI', 8),
+                bg="#37474F",
+                fg="#90CAF9",
+                justify=tk.CENTER
+            )
+            user_info.pack(pady=(0, 20))
         
         # Separador
         separador = tk.Frame(self.sidebar, bg="#64B5F6", height=2)
         separador.pack(fill=tk.X, padx=20, pady=(0, 20))
         
-        # Opciones del menú
+        # Opciones del menú (filtradas según rol)
         opciones_menu = [
-            {"texto": "  📋 Programación", "vista": "programacion", "icono": "📋"},
-            {"texto": "  📅 Programación del Día", "vista": "entrega", "icono": "📅"},
-            {"texto": "  🔓 Llaves en Préstamo", "vista": "historial", "icono": "🔓"},
-            {"texto": "  📊 Informes del Día", "vista": "informes", "icono": "📊"},
-            {"texto": "  📡 Sistema NFC", "vista": "nfc", "icono": "📡"}
+            {"texto": "  📋 Programación Completa", "vista": "programacion", "roles": [RolUsuario.ADMIN_PROG]},
+            {"texto": "  👥 Gestión de Usuarios", "vista": "usuarios", "roles": [RolUsuario.ADMIN_PROG]},
+            {"texto": "  📅 Programación del Día", "vista": "entrega", "roles": [RolUsuario.AUX_PROG]},
+            {"texto": "  🔓 Llaves en Préstamo", "vista": "historial", "roles": [RolUsuario.AUX_PROG]},
+            {"texto": "  📊 Informes del Día", "vista": "informes", "roles": [RolUsuario.AUX_PROG]},
+            {"texto": "  📡 Sistema NFC", "vista": "nfc", "roles": [RolUsuario.AUX_PROG]}
         ]
+        
+        # Filtrar opciones según rol del usuario
+        if self.usuario:
+            opciones_menu = [op for op in opciones_menu if self.usuario.rol in op["roles"]]
         
         # Crear botones del menú
         for opcion in opciones_menu:
@@ -240,8 +270,15 @@ class MainView:
         
         # Cargar vista correspondiente
         if nombre_vista == "programacion":
-            self.titulo_contenido.config(text="GESTIÓN DE PROGRAMACIÓN ACADÉMICA")
+            # Admin ve programación completa, sin filtro por día
+            titulo = "GESTIÓN DE PROGRAMACIÓN ACADÉMICA - COMPLETA" if self.usuario and self.usuario.es_admin() else "GESTIÓN DE PROGRAMACIÓN ACADÉMICA"
+            self.titulo_contenido.config(text=titulo)
             self.vista_programacion = ProgramacionView(vista_frame, self.programacion_controller, self.docente_controller)
+        elif nombre_vista == "usuarios":
+            self.titulo_contenido.config(text="GESTIÓN DE USUARIOS AUXILIARES")
+            from presentation.views.usuarios_view import UsuariosView
+            factory = ServiceFactory()
+            self.vista_usuarios = UsuariosView(vista_frame, factory.get_auth_service())
         elif nombre_vista == "entrega":
             dia_actual = self._obtener_dia_actual()
             self.titulo_contenido.config(text=f"PROGRAMACIÓN DEL DÍA - {dia_actual}")
@@ -269,8 +306,9 @@ class MainView:
     def _salir_aplicacion(self):
         """Cierra la aplicación"""
         if messagebox.askyesno("Salir", "¿Está seguro que desea salir?"):
-            # Desconectar NFC antes de cerrar
-            self.nfc_presenter.desconectar()
+            # Desconectar NFC antes de cerrar (solo si existe)
+            if self.nfc_presenter:
+                self.nfc_presenter.desconectar()
             self.root.quit()
     
     def _actualizar_vistas_despues_operacion(self):
