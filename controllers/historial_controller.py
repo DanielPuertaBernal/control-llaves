@@ -77,3 +77,23 @@ class HistorialController:
             dict: Diccionario con estadísticas
         """
         return self.service.obtener_estadisticas()
+
+    def filtrar_historial(self, fecha_inicio=None, fecha_fin=None, facultad=None, docente=None, historial_df=None):
+        """Filtra historial por fecha, facultad y/o docente"""
+        return self.service.filtrar_historial(fecha_inicio, fecha_fin, facultad, docente, historial_df)
+
+    def obtener_estadisticas_avanzadas(self, historial_df=None):
+        """Obtiene estadísticas avanzadas para analítica"""
+        return self.service.obtener_estadisticas_avanzadas(historial_df)
+
+    def obtener_facultades(self, historial_df=None):
+        """Obtiene lista de facultades disponibles"""
+        return self.service.obtener_facultades(historial_df)
+
+    def obtener_docentes(self, historial_df=None):
+        """Obtiene lista de docentes disponibles"""
+        return self.service.obtener_docentes(historial_df)
+
+    def exportar_excel(self, historial_df, ruta_guardado: str):
+        """Exporta el DataFrame a Excel"""
+        return self.service.exportar_excel(historial_df, ruta_guardado)

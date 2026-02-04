@@ -129,7 +129,9 @@ class MainView:
         opciones_menu = [
             {"texto": "  📋 Programación Completa", "vista": "programacion", "roles": [RolUsuario.ADMIN_PROG]},
             {"texto": "  👥 Gestión de Usuarios", "vista": "usuarios", "roles": [RolUsuario.ADMIN_PROG]},
-            {"texto": "  📅 Programación del Día", "vista": "entrega", "roles": [RolUsuario.AUX_PROG]},
+            {"texto": "  📈 Estadísticas de Llaves", "vista": "estadisticas", "roles": [RolUsuario.ADMIN_PROG]},
+            {"texto": "  📊 Informes de Llaves", "vista": "informes_admin", "roles": [RolUsuario.ADMIN_PROG]},
+            {"texto": "  �📅 Programación del Día", "vista": "entrega", "roles": [RolUsuario.AUX_PROG]},
             {"texto": "  🔓 Llaves en Préstamo", "vista": "historial", "roles": [RolUsuario.AUX_PROG]},
             {"texto": "  📊 Informes del Día", "vista": "informes", "roles": [RolUsuario.AUX_PROG]},
             {"texto": "  📡 Sistema NFC", "vista": "nfc", "roles": [RolUsuario.AUX_PROG]}
@@ -292,6 +294,14 @@ class MainView:
             dia_actual = self._obtener_dia_actual()
             self.titulo_contenido.config(text=f"INFORME DE LLAVES DEL DÍA - {dia_actual}")
             self.vista_informes = InformesView(vista_frame)
+        elif nombre_vista == "estadisticas":
+            self.titulo_contenido.config(text="ESTADÍSTICAS DE LLAVES")
+            from presentation.views.admin_analytics_view import AdminAnalyticsView
+            self.vista_estadisticas = AdminAnalyticsView(vista_frame, self.historial_controller)
+        elif nombre_vista == "informes_admin":
+            self.titulo_contenido.config(text="INFORMES DE LLAVES")
+            from presentation.views.informes_analytics_view import InformesAnalyticsView
+            self.vista_informes_admin = InformesAnalyticsView(vista_frame, self.historial_controller)
         elif nombre_vista == "nfc":
             self.titulo_contenido.config(text="MONITOREO DEL SISTEMA NFC")
             self.vista_nfc = NFCView(vista_frame, None)
