@@ -42,6 +42,21 @@ class UsuariosView:
             fg="#263238"
         ).pack(side=tk.LEFT)
         
+        # Botón actualizar (header)
+        btn_actualizar = tk.Button(
+            header,
+            text="🔄 Actualizar",
+            font=('Segoe UI', 10, 'bold'),
+            bg="#4CAF50",
+            fg="white",
+            cursor="hand2",
+            relief=tk.FLAT,
+            padx=18,
+            pady=8,
+            command=self._cargar_usuarios
+        )
+        btn_actualizar.pack(side=tk.RIGHT, padx=(0, 10))
+
         # Botón nuevo usuario
         btn_nuevo = tk.Button(
             header,
@@ -112,7 +127,7 @@ class UsuariosView:
         # Treeview
         self.tabla = ttk.Treeview(
             tabla_frame,
-            columns=("Usuario", "Nombre", "Email", "Contacto", "Estado"),
+            columns=("Usuario", "Nombre", "Email", "Contacto", "Estado", "Acción"),
             show="headings",
             yscrollcommand=scrollbar.set,
             height=15
@@ -125,63 +140,26 @@ class UsuariosView:
             "Nombre": 200,
             "Email": 200,
             "Contacto": 150,
-            "Estado": 100
+            "Estado": 100,
+            "Acción": 120
         }
         
         for col, ancho in columnas.items():
-            self.tabla.heading(col, text=col, anchor=tk.W)
-            self.tabla.column(col, width=ancho, anchor=tk.W)
+            if col == "Acción":
+                self.tabla.heading(col, text=col, anchor=tk.CENTER)
+                self.tabla.column(col, width=ancho, anchor=tk.CENTER)
+            else:
+                self.tabla.heading(col, text=col, anchor=tk.W)
+                self.tabla.column(col, width=ancho, anchor=tk.W)
         
         self.tabla.pack(fill=tk.BOTH, expand=True)
+        self.tabla.bind("<Button-1>", self._on_tabla_click)
+        self.tabla.bind("<Motion>", self._on_tabla_hover)
         
-        # Botones de acción
+        # Contador inferior
         acciones_frame = tk.Frame(self.frame, bg="#F5F7FA")
         acciones_frame.pack(fill=tk.X, padx=20, pady=(0, 20))
-        
-        # Lado izquierdo - botones de acción
-        left_frame = tk.Frame(acciones_frame, bg="#F5F7FA")
-        left_frame.pack(side=tk.LEFT)
-        
-        tk.Button(
-            left_frame,
-            text="🔄 Actualizar",
-            font=('Segoe UI', 10),
-            bg="#4CAF50",
-            fg="white",
-            cursor="hand2",
-            relief=tk.FLAT,
-            padx=15,
-            pady=8,
-            command=self._cargar_usuarios
-        ).pack(side=tk.LEFT, padx=(0, 10))
-        
-        tk.Button(
-            left_frame,
-            text="🔒 Desactivar",
-            font=('Segoe UI', 10),
-            bg="#FF9800",
-            fg="white",
-            cursor="hand2",
-            relief=tk.FLAT,
-            padx=15,
-            pady=8,
-            command=self._desactivar_usuario
-        ).pack(side=tk.LEFT, padx=(0, 10))
-        
-        tk.Button(
-            left_frame,
-            text="✅ Reactivar",
-            font=('Segoe UI', 10),
-            bg="#2196F3",
-            fg="white",
-            cursor="hand2",
-            relief=tk.FLAT,
-            padx=15,
-            pady=8,
-            command=self._reactivar_usuario
-        ).pack(side=tk.LEFT)
-        
-        # Lado derecho - contador
+
         self.label_contador = tk.Label(
             acciones_frame,
             text="",
@@ -212,12 +190,14 @@ class UsuariosView:
         # Cargar en tabla
         for aux in auxiliares:
             estado = "🟢 Activo" if aux.activo else "🔴 Inactivo"
+            accion = "Desactivar" if aux.activo else "Reactivar"
             self.tabla.insert("", tk.END, values=(
                 aux.usuario,
                 aux.nombre,
                 aux.email,
                 aux.contacto,
-                estado
+                estado,
+                accion
             ))
         
         # Actualizar contador
@@ -225,6 +205,36 @@ class UsuariosView:
         activos = sum(1 for aux in auxiliares if aux.activo)
         inactivos = total - activos
         self.label_contador.config(text=f"Total: {total} | 🟢 Activos: {activos} | 🔴 Inactivos: {inactivos}")
+
+    def _on_tabla_click(self, event):
+        """Ejecuta la acción de activar/desactivar al hacer clic en la columna Acción"""
+        row_id = self.tabla.identify_row(event.y)
+        col_id = self.tabla.identify_column(event.x)
+
+        if not row_id or col_id != "#6":
+            return
+
+        valores = self.tabla.item(row_id, "values")
+        if not valores or len(valores) < 6:
+            return
+
+        usuario = valores[0]
+        estado = valores[4]
+
+        if "Activo" in estado and "Inactivo" not in estado:
+            self._desactivar_usuario_por_nombre(usuario)
+        else:
+            self._reactivar_usuario_por_nombre(usuario)
+
+        return "break"
+
+    def _on_tabla_hover(self, event):
+        """Cambia el cursor cuando el usuario pasa por la columna Acción"""
+        col_id = self.tabla.identify_column(event.x)
+        if col_id == "#6":
+            self.tabla.configure(cursor="hand2")
+        else:
+            self.tabla.configure(cursor="")
     
     def _mostrar_formulario_nuevo(self):
         """Muestra formulario para crear nuevo auxiliar"""
@@ -540,12 +550,15 @@ class UsuariosView:
         
         item = self.tabla.item(seleccion[0])
         usuario = item['values'][0]
-        
+        self._desactivar_usuario_por_nombre(usuario)
+
+    def _desactivar_usuario_por_nombre(self, usuario: str):
+        """Desactiva el usuario por nombre"""
         confirmar = messagebox.askyesno(
             "Confirmar",
             f"¿Desea desactivar al usuario '{usuario}'?\n\nNo podrá iniciar sesión."
         )
-        
+
         if confirmar:
             exito, mensaje = self.auth_service.desactivar_usuario(usuario)
             if exito:
@@ -565,16 +578,19 @@ class UsuariosView:
         item = self.tabla.item(seleccion[0])
         usuario = item['values'][0]
         estado = item['values'][4]
-        
-        if "Activo" in estado and "Inactivo" not in estado:
+        self._reactivar_usuario_por_nombre(usuario, estado)
+
+    def _reactivar_usuario_por_nombre(self, usuario: str, estado: str = ""):
+        """Reactiva el usuario por nombre"""
+        if estado and "Activo" in estado and "Inactivo" not in estado:
             messagebox.showinfo("Usuario activo", f"El usuario '{usuario}' ya está activo")
             return
-        
+
         confirmar = messagebox.askyesno(
             "Confirmar",
             f"¿Desea reactivar al usuario '{usuario}'?\n\nPodrá iniciar sesión nuevamente."
         )
-        
+
         if confirmar:
             exito, mensaje = self.auth_service.reactivar_usuario(usuario)
             if exito:
