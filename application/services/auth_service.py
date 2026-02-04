@@ -124,9 +124,14 @@ class AuthService:
         """Verifica si el usuario actual tiene un rol"""
         return self.session_manager.usuario_tiene_rol(rol)
     
-    def obtener_auxiliares(self) -> List[Usuario]:
-        """Obtiene todos los auxiliares de programación"""
-        return self.repository.obtener_usuarios_por_rol(RolUsuario.AUX_PROG)
+    def obtener_auxiliares(self, incluir_inactivos: bool = True) -> List[Usuario]:
+        """
+        Obtiene todos los auxiliares de programación
+        
+        Args:
+            incluir_inactivos (bool): Si True, incluye usuarios inactivos
+        """
+        return self.repository.obtener_usuarios_por_rol(RolUsuario.AUX_PROG, incluir_inactivos)
     
     def obtener_admins(self) -> List[Usuario]:
         """Obtiene todos los administradores de programación"""
@@ -180,6 +185,34 @@ class AuthService:
             if exito:
                 return True, f"✅ Usuario '{nombre_usuario}' desactivado"
             return False, "❌ Usuario no encontrado"
+            
+        except Exception as e:
+            return False, f"❌ Error: {str(e)}"
+    
+    def reactivar_usuario(self, nombre_usuario: str) -> Tuple[bool, str]:
+        """
+        Reactiva un usuario inactivo
+        
+        Args:
+            nombre_usuario (str): Nombre de usuario
+            
+        Returns:
+            Tuple[bool, str]: (éxito, mensaje)
+        """
+        try:
+            usuario_obj = self.repository.buscar_por_usuario(nombre_usuario)
+            
+            if not usuario_obj:
+                return False, "❌ Usuario no encontrado"
+            
+            if usuario_obj.activo:
+                return False, f"⚠️ Usuario '{nombre_usuario}' ya está activo"
+            
+            # Reactivar
+            usuario_obj.activo = True
+            self.repository.actualizar_usuario(usuario_obj)
+            
+            return True, f"✅ Usuario '{nombre_usuario}' reactivado exitosamente"
             
         except Exception as e:
             return False, f"❌ Error: {str(e)}"

@@ -4,6 +4,7 @@ Define los roles y estructura de un usuario del sistema
 """
 from enum import Enum
 from datetime import datetime
+from domain.value_objects import Email, Telefono, NombreUsuario
 
 
 class RolUsuario(Enum):
@@ -13,13 +14,13 @@ class RolUsuario(Enum):
 
 
 class Usuario:
-    """Entidad Usuario con validaciones de dominio"""
+    """Entidad Usuario con validaciones de dominio usando Value Objects"""
     
     def __init__(self, usuario: str, nombre: str, email: str, contacto: str, 
                  rol: RolUsuario, hash_password: str, activo: bool = True, 
                  fecha_creacion: str = None):
         """
-        Inicializa un usuario
+        Inicializa un usuario con validaciones de dominio
         
         Args:
             usuario (str): Nombre de usuario único
@@ -30,32 +31,32 @@ class Usuario:
             hash_password (str): Contraseña hasheada con bcrypt
             activo (bool): Si el usuario está activo
             fecha_creacion (str): ISO format datetime
+            
+        Raises:
+            ValueError: Si algún campo no cumple las reglas de dominio
         """
-        self.usuario = usuario.strip().lower()
+        # Validar con Value Objects (lanza ValueError si inválido)
+        usuario_vo = NombreUsuario(usuario)
+        email_vo = Email(email)
+        telefono_vo = Telefono(contacto)
+        
+        # Asignar valores validados
+        self.usuario = usuario_vo.value
         self.nombre = nombre.strip()
-        self.email = email.strip().lower()
-        self.contacto = contacto.strip()
+        self.email = email_vo.value
+        self.contacto = telefono_vo.value
         self.rol = rol
         self.hash_password = hash_password
         self.activo = activo
         self.fecha_creacion = fecha_creacion or datetime.now().isoformat()
         
-        # Validar
+        # Validaciones adicionales de entidad
         self._validar()
     
     def _validar(self):
-        """Valida los datos del usuario"""
-        if not self.usuario or len(self.usuario) < 3:
-            raise ValueError("Usuario debe tener al menos 3 caracteres")
-        
+        """Valida reglas de negocio de la entidad"""
         if not self.nombre or len(self.nombre) < 2:
             raise ValueError("Nombre debe tener al menos 2 caracteres")
-        
-        if not self._es_email_valido(self.email):
-            raise ValueError("Email inválido")
-        
-        if not self.contacto:
-            raise ValueError("Contacto requerido")
         
         if not isinstance(self.rol, RolUsuario):
             raise ValueError("Rol debe ser RolUsuario")

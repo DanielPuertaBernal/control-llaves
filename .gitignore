@@ -198,6 +198,9 @@ Icon?
 # Excel and Office Files (Datos sensibles del proyecto)
 *.xlsx
 *.xls
+
+# Scripts locales (no versionar)
+crear_admin.py
 *.xlsm
 *.xlsb
 *.csv

@@ -78,19 +78,24 @@ class UsuarioMongoRepository:
         except Exception as e:
             raise Exception(f"Error al buscar por email: {str(e)}")
     
-    def obtener_usuarios_por_rol(self, rol: RolUsuario) -> List[Usuario]:
+    def obtener_usuarios_por_rol(self, rol: RolUsuario, incluir_inactivos: bool = False) -> List[Usuario]:
         """
         Obtiene todos los usuarios de un rol específico
         
         Args:
             rol (RolUsuario): Rol a filtrar
+            incluir_inactivos (bool): Si True, incluye usuarios inactivos
             
         Returns:
             List[Usuario]: Lista de usuarios del rol
         """
         try:
             usuarios = []
-            for datos in self.collection.find({"rol": rol.value, "activo": True}):
+            filtro = {"rol": rol.value}
+            if not incluir_inactivos:
+                filtro["activo"] = True
+            
+            for datos in self.collection.find(filtro):
                 usuarios.append(Usuario.desde_dict(datos))
             return usuarios
         except Exception as e:
