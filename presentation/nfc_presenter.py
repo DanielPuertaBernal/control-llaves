@@ -86,11 +86,10 @@ class NFCPresenter:
             if self.nfc_view:
                 self.nfc_view.actualizar_operacion(resultado)
             
-            # Actualizar vistas si hubo éxito en entrega/devolución
-            if resultado['accion'] in ['entrega', 'devolucion'] and resultado['exito']:
-                if self.callback_actualizar_vistas:
-                    self.callback_actualizar_vistas()
         
+            # Notificar vistas (equipos usa id_carnet; otras vistas solo se actualizan si hubo acción)
+            if self.callback_actualizar_vistas:
+                self.callback_actualizar_vistas(id_carnet, resultado)
         except Exception as e:
             print(f"Error en callback NFC: {e}")
     

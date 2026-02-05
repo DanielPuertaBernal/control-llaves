@@ -5,6 +5,7 @@ Muestra estadísticas generales o del día
 import tkinter as tk
 from tkinter import ttk, messagebox
 from datetime import datetime
+from application.helpers import TimeHelper
 
 
 class AdminAnalyticsView:
@@ -99,18 +100,6 @@ class AdminAnalyticsView:
         self.df_base = self.historial_controller.obtener_historial_completo()
         self._aplicar_filtros()
 
-    def _crear_tarjeta(self, parent, titulo, valor):
-        card = ttk.Frame(parent, padding="10")
-        card.pack(side='left', padx=6, fill='x', expand=True)
-        ttk.Label(card, text=titulo, font=('Segoe UI', 9)).pack(anchor='w')
-        lbl_valor = ttk.Label(card, text=valor, font=('Segoe UI', 14, 'bold'))
-        lbl_valor.pack(anchor='w')
-        return lbl_valor
-
-    def _cargar_datos_base(self):
-        self.df_base = self.historial_controller.obtener_historial_completo()
-        self._aplicar_filtros()
-
     def _aplicar_filtros(self):
         """Filtra datos según modo (general o día)"""
         if self.df_base is None or self.df_base.empty:
@@ -131,7 +120,7 @@ class AdminAnalyticsView:
 
         self.lbl_total.config(text=str(stats['total_registros']))
         self.lbl_activos.config(text=str(stats['prestamos_activos']))
-        self.lbl_promedio.config(text=self._minutos_a_hhmm(stats['promedio_retraso_entrega_min']))
+        self.lbl_promedio.config(text=TimeHelper.minutes_to_hhmm(stats['promedio_retraso_entrega_min']))
         self.lbl_puntual.config(text=f"{stats['porcentaje_puntual']}%")
 
         # Actualizar tablas
@@ -146,15 +135,9 @@ class AdminAnalyticsView:
         ])
 
         self._llenar_tree(self.tree_imp, [
-            (d['docente'], self._minutos_a_hhmm(d['promedio_retraso']))
+            (d['docente'], TimeHelper.minutes_to_hhmm(d['promedio_retraso']))
             for d in stats['docentes_impuntuales'][:8]
         ])
-
-    def _minutos_a_hhmm(self, minutos):
-        """Convierte minutos a formato HH:MM"""
-        horas = int(minutos // 60)
-        mins = int(minutos % 60)
-        return f"{horas:02d}:{mins:02d}"
 
     def _llenar_tree(self, tree: ttk.Treeview, rows):
         for item in tree.get_children():

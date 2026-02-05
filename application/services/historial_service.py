@@ -2,6 +2,7 @@
 import pandas as pd
 from typing import Optional, List, Dict
 from interfaces.llave_repository import LlaveRepository
+from application.helpers import TimeHelper, DateHelper
 
 
 class HistorialService:
@@ -45,24 +46,12 @@ class HistorialService:
         if historial_df is None:
             historial_df = self.repository.obtener_historial_completo()
 
-        if historial_df.empty or 'Fecha de entrega' not in historial_df.columns:
-            return historial_df
-
-        try:
-            historial_df['fecha_temp'] = pd.to_datetime(historial_df['Fecha de entrega'], errors='coerce')
-            fecha_inicio_dt = pd.to_datetime(fecha_inicio)
-            fecha_fin_dt = pd.to_datetime(fecha_fin)
-
-            resultado = historial_df[
-                (historial_df['fecha_temp'] >= fecha_inicio_dt) &
-                (historial_df['fecha_temp'] <= fecha_fin_dt)
-            ].drop('fecha_temp', axis=1)
-
-            return resultado
-
-        except Exception as e:
-            print(f"Error al filtrar por fecha: {e}")
-            return historial_df
+        return DateHelper.filtrar_por_rango(
+            historial_df,
+            'Fecha de entrega',
+            fecha_inicio,
+            fecha_fin
+        )
 
     def obtener_estadisticas(self):
         historial = self.repository.obtener_historial_completo()
@@ -94,18 +83,12 @@ class HistorialService:
 
         # Filtrado por fechas (sobre Fecha de entrega)
         if fecha_inicio or fecha_fin:
-            if 'Fecha de entrega' in resultado.columns:
-                resultado['fecha_temp'] = pd.to_datetime(resultado['Fecha de entrega'], errors='coerce')
-
-                if fecha_inicio:
-                    fecha_inicio_dt = pd.to_datetime(fecha_inicio)
-                    resultado = resultado[resultado['fecha_temp'] >= fecha_inicio_dt]
-
-                if fecha_fin:
-                    fecha_fin_dt = pd.to_datetime(fecha_fin)
-                    resultado = resultado[resultado['fecha_temp'] <= fecha_fin_dt]
-
-                resultado = resultado.drop('fecha_temp', axis=1)
+            resultado = DateHelper.filtrar_por_rango(
+                resultado,
+                'Fecha de entrega',
+                fecha_inicio,
+                fecha_fin
+            )
 
         # Filtrado por facultad
         if facultad and facultad.strip() and facultad != "Todas":
@@ -161,7 +144,7 @@ class HistorialService:
         if 'Tiempo de retraso' in historial_df.columns:
             retrasos_seg = []
             for valor in historial_df['Tiempo de retraso'].astype(str).tolist():
-                segundos = self._parse_hhmmss_to_seconds(valor)
+                segundos = TimeHelper.hhmmss_to_seconds(valor)
                 if segundos is not None:
                     retrasos_seg.append(segundos)
             if retrasos_seg:
@@ -211,7 +194,7 @@ class HistorialService:
             
             # Convertir tiempo de retraso a segundos
             df_con_retraso['retraso_segundos'] = df_con_retraso['Tiempo de retraso'].apply(
-                lambda x: self._parse_hhmmss_to_seconds(str(x)) if pd.notna(x) else None
+                lambda x: TimeHelper.hhmmss_to_seconds(str(x)) if pd.notna(x) else None
             )
             
             # Filtrar solo registros con retraso válido (mayor a 0)
@@ -245,25 +228,4 @@ class HistorialService:
             'docentes_impuntuales': docentes_impuntuales
         }
 
-    @staticmethod
-    def _parse_hhmmss_to_seconds(valor: str) -> Optional[int]:
-        """Convierte un string HH:MM:SS a segundos"""
-        if valor is None:
-            return None
-        valor = str(valor).strip()
-        if not valor or valor.lower() == 'n/a':
-            return None
-        if valor == '0':
-            return 0
-        if ':' not in valor:
-            return None
-        partes = valor.split(':')
-        if len(partes) != 3:
-            return None
-        try:
-            horas = int(partes[0])
-            minutos = int(partes[1])
-            segundos = int(partes[2])
-            return horas * 3600 + minutos * 60 + segundos
-        except ValueError:
-            return None
+
