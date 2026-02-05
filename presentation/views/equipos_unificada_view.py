@@ -72,7 +72,7 @@ class EquiposUnificadaView:
         self.tree_inventario = ttk.Treeview(
             frame_tabla,
             height=18,
-            columns=('codigo', 'nombre', 'marca', 'serie', 'estado'),
+            columns=('codigo', 'nombre', 'marca', 'serie', 'responsable'),
             show='headings'
         )
 
@@ -80,13 +80,13 @@ class EquiposUnificadaView:
         self.tree_inventario.heading('nombre', text='Nombre', anchor='center')
         self.tree_inventario.heading('marca', text='Marca', anchor='center')
         self.tree_inventario.heading('serie', text='Nº Serie', anchor='center')
-        self.tree_inventario.heading('estado', text='Estado', anchor='center')
+        self.tree_inventario.heading('responsable', text='Responsable', anchor='center')
 
         self.tree_inventario.column('codigo', width=100, anchor='center')
         self.tree_inventario.column('nombre', width=160, anchor='center')
         self.tree_inventario.column('marca', width=140, anchor='center')
         self.tree_inventario.column('serie', width=140, anchor='center')
-        self.tree_inventario.column('estado', width=100, anchor='center')
+        self.tree_inventario.column('responsable', width=140, anchor='center')
 
         scrollbar_inv = ttk.Scrollbar(frame_tabla, orient='vertical', command=self.tree_inventario.yview)
         self.tree_inventario.configure(yscrollcommand=scrollbar_inv.set)
@@ -490,12 +490,17 @@ class EquiposUnificadaView:
             equipos = self.equipo_controller.obtener_inventario()
             prestamos_activos = self.prestamo_controller.obtener_activos() or []
             self.equipos_prestados_ids = set()
+            self.equipo_docente_responsable = {}  # Mapeo equipo_id -> docente_nombre
+            
+            # Crear mapeo de equipo a docente responsable
             for prestamo in prestamos_activos:
                 prestamo_dict = prestamo.to_dict() if hasattr(prestamo, 'to_dict') else prestamo
+                docente_nombre = prestamo_dict.get('docente_nombre', '')
                 for item in prestamo_dict.get('equipos', []):
                     equipo_id = item.get('equipo_id')
                     if equipo_id:
                         self.equipos_prestados_ids.add(str(equipo_id))
+                        self.equipo_docente_responsable[str(equipo_id)] = docente_nombre
             
             self.equipos_dict = {}
             self.equipos_filtrados = []
@@ -522,7 +527,9 @@ class EquiposUnificadaView:
                 e for e in self.equipos_dict.values()
                 if termino in str(e.get('nombre', '')).lower() or
                    termino in str(e.get('marca', '')).lower() or
-                   termino in str(e.get('codigo_inventario', '')).lower()
+                   termino in str(e.get('codigo_inventario', '')).lower() or
+                   termino in str(e.get('numero_serie', '')).lower() or
+                   termino in str(self.equipo_docente_responsable.get(str(e.get('_id', '')), '')).lower()
             ]
         
         self._actualizar_tabla_inventario()
@@ -531,6 +538,12 @@ class EquiposUnificadaView:
         """Actualiza la tabla de inventario"""
         for item in self.tree_inventario.get_children():
             self.tree_inventario.delete(item)
+        
+        # Configurar los estilos de fondo para las filas (colores pastel)
+        self.tree_inventario.tag_configure('row_verde', background='#C8E6C9')
+        self.tree_inventario.tag_configure('row_amarillo', background='#FFFACD')
+        self.tree_inventario.tag_configure('row_rojo', background='#FFB6C1')
+        self.tree_inventario.tag_configure('row_gris', background='#E8E8E8')
         
         for equipo in self.equipos_filtrados:
             codigo = equipo.get('codigo_inventario', '')
@@ -544,24 +557,26 @@ class EquiposUnificadaView:
             if estado == 'activo' and hasattr(self, 'equipos_prestados_ids') and equipo_id in self.equipos_prestados_ids:
                 estado = 'prestado'
             
-            # Colorear según estado
-            if estado == 'dañado':
-                tag = 'rojo'
-            elif estado == 'descartado':
-                tag = 'gris'
-            elif estado == 'prestado':
-                tag = 'naranja'
+            # Determinar el responsable
+            responsable = ''
+            if estado == 'prestado' and equipo_id in self.equipo_docente_responsable:
+                responsable = self.equipo_docente_responsable[equipo_id]
             else:
-                tag = 'verde'
+                responsable = 'N/A'
+            
+            # Colorear fila según estado
+            if estado == 'dañado':
+                tag = 'row_rojo'
+            elif estado == 'descartado':
+                tag = 'row_gris'
+            elif estado == 'prestado':
+                tag = 'row_amarillo'
+            else:
+                tag = 'row_verde'
             
             self.tree_inventario.insert('', 'end', iid=equipo_id, 
-                                       values=(codigo, nombre, marca, numero_serie, estado),
+                                       values=(codigo, nombre, marca, numero_serie, responsable),
                                        tags=(tag,))
-        
-        self.tree_inventario.tag_configure('verde', foreground='green')
-        self.tree_inventario.tag_configure('rojo', foreground='red')
-        self.tree_inventario.tag_configure('gris', foreground='gray')
-        self.tree_inventario.tag_configure('naranja', foreground='orange')
     
     def _abrir_formulario_nuevo_equipo(self):
         """Abre formulario para nuevo equipo"""
