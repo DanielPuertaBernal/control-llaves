@@ -2,11 +2,15 @@
 Vista Unificada de Sistema de Equipos
 Incluye gestión, préstamos, devoluciones e historial en pestañas
 """
-from tkinter import ttk, messagebox
+from tkinter import ttk, messagebox, filedialog
 import tkinter as tk
+import os
+import shutil
+import subprocess
 from datetime import datetime
 from controllers import DocenteController, EquipoController, PréstamoController, DevolucionController
 from presentation.nfc_presenter import NFCPresenter
+from application.services.barcode_service import BarcodeService
 
 
 class EquiposUnificadaView:
@@ -64,6 +68,7 @@ class EquiposUnificadaView:
         self.entrada_busqueda_inv.pack(side='left', fill='x', expand=True, padx=(10, 10))
         self.entrada_busqueda_inv.bind('<KeyRelease>', lambda e: self._filtrar_inventario())
 
+        ttk.Button(frame_top, text="🏷️ Imprimir Código", command=self._imprimir_codigo_barras).pack(side='right', padx=5)
         ttk.Button(frame_top, text="➕ Nuevo Equipo", command=self._abrir_formulario_nuevo_equipo).pack(side='right')
 
         frame_tabla = ttk.Frame(frame)
@@ -72,21 +77,23 @@ class EquiposUnificadaView:
         self.tree_inventario = ttk.Treeview(
             frame_tabla,
             height=18,
-            columns=('codigo', 'nombre', 'marca', 'serie', 'responsable'),
+            columns=('codigo', 'nombre', 'marca', 'consecutivo', 'codigo_barras', 'responsable'),
             show='headings'
         )
 
         self.tree_inventario.heading('codigo', text='Código', anchor='center')
         self.tree_inventario.heading('nombre', text='Nombre', anchor='center')
         self.tree_inventario.heading('marca', text='Marca', anchor='center')
-        self.tree_inventario.heading('serie', text='Nº Serie', anchor='center')
+        self.tree_inventario.heading('consecutivo', text='Consecutivo', anchor='center')
+        self.tree_inventario.heading('codigo_barras', text='Código Barras', anchor='center')
         self.tree_inventario.heading('responsable', text='Responsable', anchor='center')
 
-        self.tree_inventario.column('codigo', width=100, anchor='center')
-        self.tree_inventario.column('nombre', width=160, anchor='center')
-        self.tree_inventario.column('marca', width=140, anchor='center')
-        self.tree_inventario.column('serie', width=140, anchor='center')
-        self.tree_inventario.column('responsable', width=140, anchor='center')
+        self.tree_inventario.column('codigo', width=80, anchor='center')
+        self.tree_inventario.column('nombre', width=120, anchor='center')
+        self.tree_inventario.column('marca', width=100, anchor='center')
+        self.tree_inventario.column('consecutivo', width=80, anchor='center')
+        self.tree_inventario.column('codigo_barras', width=120, anchor='center')
+        self.tree_inventario.column('responsable', width=120, anchor='center')
 
         scrollbar_inv = ttk.Scrollbar(frame_tabla, orient='vertical', command=self.tree_inventario.yview)
         self.tree_inventario.configure(yscrollcommand=scrollbar_inv.set)
@@ -95,7 +102,6 @@ class EquiposUnificadaView:
         scrollbar_inv.pack(side='right', fill='y')
 
         self.tree_inventario.bind('<Double-1>', self._editar_equipo)
-        self.tree_inventario.bind('<Button-3>', self._mostrar_menu_contextual_equipo)
     
     # ==================== TAB 2: MOVIMIENTO INTELIGENTE ====================
     def _crear_tab_movimiento(self):
@@ -199,78 +205,67 @@ class EquiposUnificadaView:
             return False
     
     def _mostrar_formulario_prestamo(self):
-        """Muestra formulario para hacer un préstamo"""
+        """Muestra formulario con carrito de lectura de códigos de barras"""
         # Limpiar contenido anterior
         for widget in self.frame_contenido_mov.winfo_children():
             widget.destroy()
         
-        frame = ttk.LabelFrame(self.frame_contenido_mov, text="📤 Nuevo Préstamo", padding="15")
+        frame = ttk.LabelFrame(self.frame_contenido_mov, text="📤 Nuevo Préstamo - Lectura de Códigos", padding="15")
         frame.pack(fill='both', expand=True)
         
-        ttk.Label(frame, text="Buscar Equipo:").grid(row=0, column=0, sticky='w', pady=5)
-        entrada_busqueda = ttk.Entry(frame)
-        entrada_busqueda.grid(row=0, column=1, sticky='ew', pady=5)
+        # Sección entrada de códigos
+        frame_entrada = ttk.LabelFrame(frame, text="📖 Escanea Equipos", padding="10")
+        frame_entrada.pack(fill='x', pady=(0, 15))
         
-        # Tabla de equipos disponibles
-        frame_tabla = ttk.Frame(frame)
-        frame_tabla.grid(row=1, column=0, columnspan=3, sticky='nsew', pady=10)
+        ttk.Label(frame_entrada, text="Código de Barras:").pack(side='left', padx=(0, 10))
+        self.entrada_codigo_barras = ttk.Entry(frame_entrada, width=40)
+        self.entrada_codigo_barras.pack(side='left', fill='x', expand=True)
+        self.entrada_codigo_barras.focus()
         
-        tree = ttk.Treeview(frame_tabla, height=8, columns=('codigo', 'nombre', 'serie', 'accion'), show='headings')
-        tree.heading('codigo', text='Código', anchor='center')
-        tree.heading('nombre', text='Nombre', anchor='center')
-        tree.heading('serie', text='Nº Serie', anchor='center')
-        tree.heading('accion', text='Acción', anchor='center')
+        self.entrada_codigo_barras.bind('<Return>', lambda e: self._agregar_equipo_al_carrito())
         
-        tree.column('codigo', width=80, anchor='center')
-        tree.column('nombre', width=120, anchor='center')
-        tree.column('serie', width=140, anchor='center')
-        tree.column('accion', width=100, anchor='center')
+        # Tabla carrito
+        frame_carrito = ttk.LabelFrame(frame, text="🛒 Carrito de Préstamo", padding="10")
+        frame_carrito.pack(fill='both', expand=True, pady=(0, 15))
         
-        # Cargar equipos disponibles
-        equipos_disp = self.equipo_controller.obtener_disponibles()
+        self.tree_carrito = ttk.Treeview(
+            frame_carrito,
+            height=10,
+            columns=('codigo', 'nombre', 'consecutivo', 'codigo_barras', 'eliminar'),
+            show='headings'
+        )
+        
+        self.tree_carrito.heading('codigo', text='Código', anchor='center')
+        self.tree_carrito.heading('nombre', text='Nombre', anchor='center')
+        self.tree_carrito.heading('consecutivo', text='Consecutivo', anchor='center')
+        self.tree_carrito.heading('codigo_barras', text='Código Barras', anchor='center')
+        self.tree_carrito.heading('eliminar', text='Acción', anchor='center')
+        
+        self.tree_carrito.column('codigo', width=80, anchor='center')
+        self.tree_carrito.column('nombre', width=120, anchor='center')
+        self.tree_carrito.column('consecutivo', width=80, anchor='center')
+        self.tree_carrito.column('codigo_barras', width=140, anchor='center')
+        self.tree_carrito.column('eliminar', width=80, anchor='center')
+        
+        scrollbar_carrito = ttk.Scrollbar(frame_carrito, orient='vertical', command=self.tree_carrito.yview)
+        self.tree_carrito.configure(yscrollcommand=scrollbar_carrito.set)
+        
+        self.tree_carrito.pack(side='left', fill='both', expand=True)
+        scrollbar_carrito.pack(side='right', fill='y')
+        
+        self.tree_carrito.bind('<ButtonRelease-1>', self._on_click_eliminar_carrito)
+        
+        # Botones
+        frame_botones = ttk.Frame(frame)
+        frame_botones.pack(fill='x', pady=10)
+        
+        ttk.Button(frame_botones, text="✔️ Confirmar Préstamo", 
+                   command=self._confirmar_prestamo_carrito).pack(side='left', padx=5)
+        ttk.Button(frame_botones, text="🗑️ Limpiar Carrito", 
+                   command=self._limpiar_carrito).pack(side='left', padx=5)
+        
+        self.carrito_equipos = []
 
-        prestamos_activos = self.prestamo_controller.obtener_activos() or []
-        equipos_prestados = set()
-        for prestamo in prestamos_activos:
-            prestamo_dict = prestamo.to_dict() if hasattr(prestamo, 'to_dict') else prestamo
-            for item in prestamo_dict.get('equipos', []):
-                equipo_id = item.get('equipo_id')
-                if equipo_id:
-                    equipos_prestados.add(str(equipo_id))
-
-        for eq in equipos_disp:
-            eq_dict = eq.to_dict() if hasattr(eq, 'to_dict') else eq
-            if str(eq_dict.get('_id')) in equipos_prestados:
-                continue
-            tree.insert('', 'end', values=(
-                eq_dict.get('codigo_inventario', ''),
-                eq_dict.get('nombre', ''),
-                eq_dict.get('numero_serie', ''),
-                'Prestar'
-            ))
-        
-        scrollbar = ttk.Scrollbar(frame_tabla, orient='vertical', command=tree.yview)
-        tree.configure(yscrollcommand=scrollbar.set)
-        tree.pack(side='left', fill='both', expand=True)
-        scrollbar.pack(side='right', fill='y')
-        
-        frame.columnconfigure(1, weight=1)
-        frame.rowconfigure(1, weight=1)
-
-        def on_click_prestar(event):
-            region = tree.identify('region', event.x, event.y)
-            if region != 'cell':
-                return
-            col = tree.identify_column(event.x)
-            if col != '#4':
-                return
-            item_id = tree.identify_row(event.y)
-            if not item_id:
-                return
-            self._crear_prestamo_simple(tree, item_id)
-
-        tree.bind('<ButtonRelease-1>', on_click_prestar)
-    
     def _mostrar_formulario_devolucion(self):
         """Muestra formulario para devolver un préstamo"""
         # Limpiar contenido anterior
@@ -292,31 +287,31 @@ class EquiposUnificadaView:
         frame_tabla = ttk.Frame(frame)
         frame_tabla.pack(fill='both', expand=True, pady=10)
         
-        tree = ttk.Treeview(frame_tabla, height=8, columns=('codigo', 'nombre', 'serie', 'accion'), show='headings')
+        tree = ttk.Treeview(frame_tabla, height=8, columns=('codigo', 'nombre', 'consecutivo', 'accion'), show='headings')
         tree.heading('codigo', text='Código', anchor='center')
         tree.heading('nombre', text='Nombre', anchor='center')
-        tree.heading('serie', text='Nº Serie', anchor='center')
+        tree.heading('consecutivo', text='Consecutivo', anchor='center')
         tree.heading('accion', text='Acción', anchor='center')
         
         tree.column('codigo', width=80, anchor='center')
         tree.column('nombre', width=120, anchor='center')
-        tree.column('serie', width=140, anchor='center')
+        tree.column('consecutivo', width=140, anchor='center')
         tree.column('accion', width=100, anchor='center')
         
         # Cargar equipos del préstamo
         equipos = self.prestamo_actual.get('equipos', [])
         for eq in equipos:
             equipo_id = eq.get('equipo_id')
-            numero_serie = ''
+            consecutivo = ''
             if equipo_id:
                 equipo_obj = self.equipo_controller.obtener_equipo(equipo_id)
                 if equipo_obj:
                     equipo_dict = equipo_obj.to_dict() if hasattr(equipo_obj, 'to_dict') else equipo_obj
-                    numero_serie = equipo_dict.get('numero_serie', '')
+                    consecutivo = equipo_dict.get('consecutivo', '')
             tree.insert('', 'end', values=(
                 eq.get('equipo_codigo', ''),
                 eq.get('equipo_nombre', ''),
-                numero_serie,
+                consecutivo,
                 'Devolver'
             ))
         
@@ -348,15 +343,15 @@ class EquiposUnificadaView:
         item = item_id or tree.selection()[0]
         valores = tree.item(item, 'values')
         
-        # Los valores son: (codigo, nombre, numero_serie, accion)
-        numero_serie = valores[2]
+        # Los valores son: (codigo, nombre, consecutivo, accion)
+        consecutivo = valores[2]
         nombre_equipo = valores[1]
         
         try:
-            # Buscar el equipo por número de serie
-            equipo = self.equipo_controller.obtener_por_numero_serie(numero_serie)
+            # Buscar el equipo por consecutivo
+            equipo = self.equipo_controller.obtener_por_consecutivo(consecutivo)
             if not equipo:
-                messagebox.showerror("Error", f"Equipo no encontrado: {numero_serie}")
+                messagebox.showerror("Error", f"Equipo no encontrado: {consecutivo}")
                 return
             
             # Crear el préstamo con este equipo
@@ -528,7 +523,7 @@ class EquiposUnificadaView:
                 if termino in str(e.get('nombre', '')).lower() or
                    termino in str(e.get('marca', '')).lower() or
                    termino in str(e.get('codigo_inventario', '')).lower() or
-                   termino in str(e.get('numero_serie', '')).lower() or
+                   termino in str(e.get('consecutivo', '')).lower() or
                    termino in str(self.equipo_docente_responsable.get(str(e.get('_id', '')), '')).lower()
             ]
         
@@ -549,7 +544,8 @@ class EquiposUnificadaView:
             codigo = equipo.get('codigo_inventario', '')
             nombre = equipo.get('nombre', '')
             marca = equipo.get('marca', '')
-            numero_serie = equipo.get('numero_serie', '')
+            consecutivo = equipo.get('consecutivo', '')
+            codigo_barras = equipo.get('codigo_barras', '')
             estado = equipo.get('estado', 'activo')
             
             equipo_id = str(equipo.get('_id', ''))
@@ -562,7 +558,7 @@ class EquiposUnificadaView:
             if estado == 'prestado' and equipo_id in self.equipo_docente_responsable:
                 responsable = self.equipo_docente_responsable[equipo_id]
             else:
-                responsable = 'N/A'
+                responsable = 'Disponible'
             
             # Colorear fila según estado
             if estado == 'dañado':
@@ -575,7 +571,7 @@ class EquiposUnificadaView:
                 tag = 'row_verde'
             
             self.tree_inventario.insert('', 'end', iid=equipo_id, 
-                                       values=(codigo, nombre, marca, numero_serie, responsable),
+                                       values=(codigo, nombre, marca, consecutivo, codigo_barras, responsable),
                                        tags=(tag,))
     
     def _abrir_formulario_nuevo_equipo(self):
@@ -599,9 +595,9 @@ class EquiposUnificadaView:
         entrada_marca = ttk.Entry(frame)
         entrada_marca.grid(row=2, column=1, sticky='ew', pady=5)
         
-        ttk.Label(frame, text="Número de Serie:").grid(row=3, column=0, sticky='w', pady=5)
-        entrada_numero_serie = ttk.Entry(frame)
-        entrada_numero_serie.grid(row=3, column=1, sticky='ew', pady=5)
+        ttk.Label(frame, text="Consecutivo:").grid(row=3, column=0, sticky='w', pady=5)
+        entrada_consecutivo = ttk.Entry(frame)
+        entrada_consecutivo.grid(row=3, column=1, sticky='ew', pady=5)
         
         ttk.Label(frame, text="Descripción:").grid(row=4, column=0, sticky='w', pady=5)
         entrada_desc = ttk.Entry(frame)
@@ -614,17 +610,17 @@ class EquiposUnificadaView:
                 codigo = entrada_codigo.get().strip()
                 nombre = entrada_nombre.get().strip()
                 marca = entrada_marca.get().strip()
-                numero_serie = entrada_numero_serie.get().strip()
+                consecutivo = entrada_consecutivo.get().strip()
                 desc = entrada_desc.get().strip()
                 
-                if not all([codigo, nombre, marca, numero_serie]):
+                if not all([codigo, nombre, marca, consecutivo]):
                     messagebox.showwarning("Advertencia", "Completa todos los campos obligatorios")
                     return
                 
                 equipo = self.equipo_controller.registrar_equipo(
-                    nombre, marca, numero_serie, codigo, desc
+                    nombre, marca, consecutivo, codigo, desc
                 )
-                messagebox.showinfo("Éxito", f"Equipo {equipo.nombre} #{equipo.numero_serie} registrado")
+                messagebox.showinfo("Éxito", f"Equipo {equipo.nombre} #{equipo.consecutivo} registrado")
                 ventana.destroy()
                 self.cargar_inventario()
             except ValueError as e:
@@ -642,12 +638,12 @@ class EquiposUnificadaView:
         if not items:
             return
         
-        equipo_id = items[0]
-        equipo = self.equipos_dict.get(equipo_id, {})
+        equipo_id_str = items[0]
+        equipo = self.equipos_dict.get(equipo_id_str, {})
         
         ventana = tk.Toplevel(self.frame)
         ventana.title("Editar Equipo")
-        ventana.geometry("400x250")
+        ventana.geometry("400x400")
         
         frame = ttk.Frame(ventana, padding="15")
         frame.pack(fill='both', expand=True)
@@ -662,9 +658,10 @@ class EquiposUnificadaView:
         entrada_marca.insert(0, equipo.get('marca', ''))
         entrada_marca.grid(row=1, column=1, sticky='ew', pady=5)
         
-        ttk.Label(frame, text="Número de Serie:").grid(row=2, column=0, sticky='w', pady=5)
-        label_numero = ttk.Label(frame, text=equipo.get('numero_serie', ''))
-        label_numero.grid(row=2, column=1, sticky='w', pady=5)
+        ttk.Label(frame, text="Consecutivo:").grid(row=2, column=0, sticky='w', pady=5)
+        entrada_consecutivo = ttk.Entry(frame)
+        entrada_consecutivo.insert(0, str(equipo.get('consecutivo', '')))
+        entrada_consecutivo.grid(row=2, column=1, sticky='ew', pady=5)
         
         ttk.Label(frame, text="Descripción:").grid(row=3, column=0, sticky='w', pady=5)
         entrada_desc = ttk.Entry(frame)
@@ -675,11 +672,27 @@ class EquiposUnificadaView:
         
         def guardar():
             try:
+                from bson import ObjectId
+                
                 nombre = entrada_nombre.get().strip()
                 marca = entrada_marca.get().strip()
+                consecutivo = entrada_consecutivo.get().strip()
                 desc = entrada_desc.get().strip()
                 
-                equipo = self.equipo_controller.actualizar_equipo(equipo_id, nombre, marca, desc)
+                if not consecutivo:
+                    messagebox.showwarning("Advertencia", "El consecutivo es obligatorio")
+                    return
+                
+                # Convertir el ID de string a ObjectId
+                equipo_id = ObjectId(equipo_id_str)
+                
+                equipo = self.equipo_controller.actualizar_equipo(
+                    equipo_id, 
+                    nombre=nombre, 
+                    marca=marca, 
+                    consecutivo=consecutivo, 
+                    descripcion=desc
+                )
                 messagebox.showinfo("Éxito", f"Equipo actualizado")
                 ventana.destroy()
                 self.cargar_inventario()
@@ -692,36 +705,12 @@ class EquiposUnificadaView:
         ttk.Button(frame_botones, text="Guardar", command=guardar).pack(side='left', padx=5)
         ttk.Button(frame_botones, text="Cancelar", command=ventana.destroy).pack(side='left')
     
-    def _mostrar_menu_contextual_equipo(self, event):
-        """Muestra menú contextual"""
-        items = self.tree_inventario.selection()
-        if not items:
-            return
-        
-        equipo_id = items[0]
-        equipo = self.equipos_dict.get(equipo_id, {})
-        estado = equipo.get('estado', 'activo')
-        
-        menu = tk.Menu(self.tree_inventario, tearoff=False)
-        menu.add_command(label="✏️ Editar", command=lambda: self._editar_equipo(event))
-        
-        if estado == 'activo':
-            menu.add_command(label="⚠️ Marcar Dañado", command=lambda: self._marcar_danado(equipo_id))
-        elif estado == 'dañado':
-            menu.add_command(label="🔧 Reparar", command=lambda: self._reparar_equipo(equipo_id))
-        
-        menu.add_command(label="🗑️ Descartar", command=lambda: self._descartar_equipo(equipo_id))
-        
-        try:
-            menu.tk_popup(event.x_root, event.y_root)
-        finally:
-            menu.grab_release()
     
     def _marcar_danado(self, equipo_id):
         """Marca equipo como dañado"""
         equipo = self.equipos_dict.get(equipo_id, {})
         
-        if messagebox.askyesno("Confirmar", f"¿Marcar {equipo.get('nombre')} #{equipo.get('numero_serie')} como dañado?"):
+        if messagebox.askyesno("Confirmar", f"¿Marcar {equipo.get('nombre')} #{equipo.get('consecutivo')} como dañado?"):
             try:
                 self.equipo_controller.marcar_dañado(equipo_id)
                 messagebox.showinfo("Éxito", "Equipo marcado como dañado")
@@ -733,7 +722,7 @@ class EquiposUnificadaView:
         """Marca equipo como reparado"""
         equipo = self.equipos_dict.get(equipo_id, {})
         
-        if messagebox.askyesno("Confirmar", f"¿Reparar {equipo.get('nombre')} #{equipo.get('numero_serie')}?"):
+        if messagebox.askyesno("Confirmar", f"¿Reparar {equipo.get('nombre')} #{equipo.get('consecutivo')}?"):
             try:
                 self.equipo_controller.reparar_equipo(equipo_id)
                 messagebox.showinfo("Éxito", "Equipo marcado como reparado")
@@ -745,7 +734,7 @@ class EquiposUnificadaView:
         """Descarta un equipo"""
         equipo = self.equipos_dict.get(equipo_id, {})
         
-        if messagebox.askyesno("Confirmar", f"¿Descartar {equipo.get('nombre')} #{equipo.get('numero_serie')} permanentemente?"):
+        if messagebox.askyesno("Confirmar", f"¿Descartar {equipo.get('nombre')} #{equipo.get('consecutivo')} permanentemente?"):
             try:
                 self.equipo_controller.eliminar_equipo(equipo_id)
                 messagebox.showinfo("Éxito", "Equipo descartado")
@@ -754,6 +743,71 @@ class EquiposUnificadaView:
                 messagebox.showerror("Error", str(e))
             except Exception as e:
                 messagebox.showerror("Error", str(e))
+    
+    def _imprimir_codigo_barras(self):
+        """Imprime código de barras para el equipo seleccionado"""
+        items = self.tree_inventario.selection()
+        if not items:
+            messagebox.showwarning("Advertencia", "Selecciona un equipo para imprimir su código de barras")
+            return
+        
+        equipo_id_str = items[0]
+        equipo = self.equipos_dict.get(equipo_id_str, {})
+        
+        if not equipo:
+            messagebox.showerror("Error", "No se encontró el equipo")
+            return
+        
+        # Obtener datos del equipo
+        codigo_barras = equipo.get('codigo_barras', '')
+        nombre = equipo.get('nombre', 'articulo')
+        consecutivo = equipo.get('consecutivo', '0')
+        
+        if not codigo_barras:
+            messagebox.showerror("Error", "El equipo no tiene código de barras asignado")
+            return
+        
+        try:
+            servicio = BarcodeService()
+            
+            # Generar código de barras temporal
+            ruta_barcode_temp = servicio.generar_codigo_barras(codigo_barras)
+            
+            if not ruta_barcode_temp:
+                messagebox.showerror("Error", "No se pudo generar el código de barras")
+                return
+            
+            # Crear nombre del archivo con nombre del artículo, consecutivo y código de barras
+            nombre_archivo = f"{nombre}_{consecutivo}_{codigo_barras.replace('-', '_')}.png"
+            
+            # Pedir al usuario dónde guardar
+            archivo_destino = filedialog.asksaveasfilename(
+                defaultextension=".png",
+                filetypes=[("Imágenes PNG", "*.png")],
+                initialfile=nombre_archivo
+            )
+            
+            if not archivo_destino:
+                # Usuario canceló
+                try:
+                    os.remove(ruta_barcode_temp)
+                except:
+                    pass
+                return
+            
+            # Copiar el archivo a la ubicación seleccionada
+            shutil.copy(ruta_barcode_temp, archivo_destino)
+            
+            # Limpiar temporal
+            try:
+                os.remove(ruta_barcode_temp)
+            except:
+                pass
+            
+            messagebox.showinfo("Éxito", f"Código de barras guardado en:\n{archivo_destino}")
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Error al generar código de barras: {str(e)}")
     
     # ==================== MÉTODOS TAB HISTORIAL ====================
     def cargar_historial(self):
@@ -811,3 +865,107 @@ class EquiposUnificadaView:
             fecha = devolucion.get('fecha_devolucion', '')
             
             self.tree_devoluciones.insert('', 'end', values=(docente, equipos_str, fecha, estados_str))
+
+    def _agregar_equipo_al_carrito(self):
+        """Agrega un equipo al carrito por código de barras"""
+        codigo_barras = self.entrada_codigo_barras.get().strip()
+        
+        if not codigo_barras:
+            messagebox.showwarning("Advertencia", "Ingresa un código de barras")
+            self.entrada_codigo_barras.focus()
+            return
+        
+        # Buscar equipo por código de barras
+        equipo = self.equipo_controller.obtener_por_codigo_barras(codigo_barras)
+        
+        if not equipo:
+            messagebox.showerror("Error", f"Equipo no encontrado: {codigo_barras}")
+            self.entrada_codigo_barras.delete(0, 'end')
+            self.entrada_codigo_barras.focus()
+            return
+        
+        # Verificar si está disponible
+        equipo_dict = equipo.to_dict() if hasattr(equipo, 'to_dict') else equipo
+        if equipo_dict.get('estado') != 'activo':
+            messagebox.showerror("Error", f"Equipo no disponible: {equipo_dict.get('nombre')}")
+            self.entrada_codigo_barras.delete(0, 'end')
+            self.entrada_codigo_barras.focus()
+            return
+        
+        # Verificar que no esté ya en el carrito
+        equipo_id = str(equipo_dict.get('_id', ''))
+        for eq_carrito in self.carrito_equipos:
+            if str(eq_carrito.get('_id', '')) == equipo_id:
+                messagebox.showwarning("Advertencia", "Este equipo ya está en el carrito")
+                self.entrada_codigo_barras.delete(0, 'end')
+                self.entrada_codigo_barras.focus()
+                return
+        
+        # Agregar al carrito
+        self.carrito_equipos.append(equipo_dict)
+        
+        # Mostrar en tabla
+        self.tree_carrito.insert('', 'end', 
+            values=(
+                equipo_dict.get('codigo_inventario', ''),
+                equipo_dict.get('nombre', ''),
+                equipo_dict.get('consecutivo', ''),
+                equipo_dict.get('codigo_barras', ''),
+                'Eliminar'
+            )
+        )
+        
+        # Limpiar entrada
+        self.entrada_codigo_barras.delete(0, 'end')
+        self.entrada_codigo_barras.focus()
+
+    def _on_click_eliminar_carrito(self, event):
+        """Elimina un equipo del carrito cuando se hace clic en 'Eliminar'"""
+        region = self.tree_carrito.identify('region', event.x, event.y)
+        if region != 'cell':
+            return
+        col = self.tree_carrito.identify_column(event.x)
+        if col != '#5':  # Columna de "Eliminar"
+            return
+        
+        item_id = self.tree_carrito.identify_row(event.y)
+        if not item_id:
+            return
+        
+        # Obtener índice del equipo
+        items = self.tree_carrito.get_children()
+        idx = list(items).index(item_id)
+        
+        # Eliminar del carrito
+        self.carrito_equipos.pop(idx)
+        self.tree_carrito.delete(item_id)
+
+    def _limpiar_carrito(self):
+        """Limpia todos los equipos del carrito"""
+        self.carrito_equipos.clear()
+        for item in self.tree_carrito.get_children():
+            self.tree_carrito.delete(item)
+
+    def _confirmar_prestamo_carrito(self):
+        """Confirma el préstamo con todos los equipos del carrito"""
+        if not self.carrito_equipos:
+            messagebox.showwarning("Advertencia", "El carrito está vacío")
+            return
+        
+        try:
+            # Crear préstamo con equipos del carrito
+            prestamo = self.prestamo_controller.crear_prestamo_simple(
+                self.docente_nfc_mov,
+                self.docente_nombre_mov,
+                self.carrito_equipos
+            )
+            
+            messagebox.showinfo(
+                "Éxito",
+                f"Préstamo creado para {self.docente_nombre_mov}\nEquipos prestados: {len(self.carrito_equipos)}"
+            )
+            
+            self._limpiar_movimiento()
+            self.cargar_historial()
+        except Exception as e:
+            messagebox.showerror("Error", f"Error al crear préstamo: {str(e)}")

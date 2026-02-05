@@ -56,9 +56,13 @@ class EquipoMongoRepository(EquipoRepository):
         """Actualiza un equipo"""
         equipo.fecha_actualizacion = datetime.now()
         
+        equipo_dict = equipo.to_dict()
+        # Remover _id para no intentar actualizarlo
+        equipo_dict.pop('_id', None)
+        
         resultado = self.collection.update_one(
             {"_id": equipo_id},
-            {"$set": equipo.to_dict()}
+            {"$set": equipo_dict}
         )
         
         if resultado.modified_count > 0:

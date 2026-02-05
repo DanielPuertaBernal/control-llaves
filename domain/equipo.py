@@ -15,11 +15,11 @@ class Equipo:
     
     nombre: str  # Ej: "Bafle", "Cable HDMI", "Proyector"
     marca: str  # Ej: "Sony", "Belkin", "Epson"
-    numero_serie: str  # Identificador único (Ej: "BAFLE_001", "CABLE_HDMI_005")
+    consecutivo: int  # Consecutivo único por tipo de equipo (Ej: 1, 2, 5)
     codigo_inventario: str  # Código del tipo de equipo en inventario
     descripcion: Optional[str] = None
-    ubicacion: Optional[str] = None  # Donde se guarda normalmente
     estado: str = "activo"  # "activo", "dañado", "descartado"
+    codigo_barras: str = ""  # Código de barras único, generado automáticamente
     
     id: Optional[ObjectId] = None
     fecha_creacion: datetime = field(default_factory=datetime.now)
@@ -27,8 +27,16 @@ class Equipo:
     
     def __post_init__(self):
         """Validaciones después de inicializar"""
-        if not self.numero_serie or not self.numero_serie.strip():
-            raise ValueError("El número de serie es requerido")
+        if not self.codigo_inventario or not self.codigo_inventario.strip():
+            raise ValueError("El código de inventario es requerido")
+        if self.consecutivo <= 0:
+            raise ValueError("El consecutivo debe ser mayor a 0")
+        if not self.codigo_barras:
+            self.codigo_barras = self.generar_codigo_barras()
+    
+    def generar_codigo_barras(self) -> str:
+        """Genera un código de barras único: INV-{codigo}-{consecutivo:03d}"""
+        return f"INV-{self.codigo_inventario}-{self.consecutivo:03d}"
     
     def está_disponible(self) -> bool:
         """Verifica si el equipo está disponible para prestar"""
@@ -49,10 +57,10 @@ class Equipo:
         data = {
             'nombre': self.nombre,
             'marca': self.marca,
-            'numero_serie': self.numero_serie,
+            'consecutivo': self.consecutivo,
             'codigo_inventario': self.codigo_inventario,
+            'codigo_barras': self.codigo_barras,
             'descripcion': self.descripcion,
-            'ubicacion': self.ubicacion,
             'estado': self.estado,
             'fecha_creacion': self.fecha_creacion,
             'fecha_actualizacion': self.fecha_actualizacion
@@ -70,10 +78,10 @@ class Equipo:
         obj = cls(
             nombre=data['nombre'],
             marca=data['marca'],
-            numero_serie=data['numero_serie'],
+            consecutivo=data.get('consecutivo', 1),
             codigo_inventario=data['codigo_inventario'],
+            codigo_barras=data.get('codigo_barras', ''),
             descripcion=data.get('descripcion'),
-            ubicacion=data.get('ubicacion'),
             estado=data.get('estado', 'activo')
         )
         obj.id = data.get('_id')

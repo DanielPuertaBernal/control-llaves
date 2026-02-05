@@ -11,9 +11,9 @@ class EquipoController:
     def __init__(self, equipo_service: EquipoService = None):
         self.service = equipo_service or EquipoService()
     
-    def registrar_equipo(self, nombre, marca, numero_serie, codigo_inventario, descripcion=None, ubicacion=None):
+    def registrar_equipo(self, nombre, marca, consecutivo, codigo_inventario, descripcion=None):
         """Registra una nueva instancia de equipo"""
-        return self.service.registrar_equipo(nombre, marca, numero_serie, codigo_inventario, descripcion, ubicacion)
+        return self.service.registrar_equipo(nombre, marca, consecutivo, codigo_inventario, descripcion)
     
     def obtener_inventario(self):
         """Obtiene todo el inventario"""
@@ -27,13 +27,17 @@ class EquipoController:
         """Obtiene un equipo específico"""
         return self.service.obtener_equipo(equipo_id)
     
-    def obtener_por_numero_serie(self, numero_serie):
-        """Obtiene un equipo por número de serie"""
-        return self.service.obtener_por_numero_serie(numero_serie)
+    def obtener_por_consecutivo(self, consecutivo):
+        """Obtiene un equipo por su consecutivo"""
+        return self.service.obtener_por_numero_serie(consecutivo)
     
-    def actualizar_equipo(self, equipo_id, nombre=None, marca=None, descripcion=None, ubicacion=None, estado=None):
+    def obtener_por_codigo_barras(self, codigo_barras):
+        """Obtiene un equipo por código de barras"""
+        return self.service.obtener_por_codigo_barras(codigo_barras)
+    
+    def actualizar_equipo(self, equipo_id, nombre=None, marca=None, consecutivo=None, descripcion=None, estado=None):
         """Actualiza un equipo"""
-        return self.service.actualizar_equipo(equipo_id, nombre, marca, descripcion, ubicacion, estado)
+        return self.service.actualizar_equipo(equipo_id, nombre, marca, consecutivo, descripcion, estado)
     
     def marcar_dañado(self, equipo_id):
         """Marca equipo como dañado"""

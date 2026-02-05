@@ -19,26 +19,24 @@ class EquipoService:
         self,
         nombre: str,
         marca: str,
-        numero_serie: str,
+        consecutivo: str,
         codigo_inventario: str,
-        descripcion: str = None,
-        ubicacion: str = None
+        descripcion: str = None
     ) -> Equipo:
         """Registra una nueva instancia de equipo en el inventario"""
         
-        # Validar que no exista número de serie duplicado
-        existente = self.repository.obtener_por_numero_serie(numero_serie)
-        if existente:
-            raise ValueError(f"Ya existe un equipo con número de serie: {numero_serie}")
+        # Validar que el código de inventario sea único en todo el sistema
+        existente_codigo = self.repository.obtener_por_codigo(codigo_inventario)
+        if existente_codigo:
+            raise ValueError(f"Ya existe un equipo con código de inventario '{codigo_inventario}'. El código debe ser único.")
         
         # Crear equipo
         equipo = Equipo(
             nombre=nombre,
             marca=marca,
-            numero_serie=numero_serie,
+            consecutivo=int(consecutivo),
             codigo_inventario=codigo_inventario,
-            descripcion=descripcion,
-            ubicacion=ubicacion
+            descripcion=descripcion
         )
         
         return self.repository.crear(equipo)
@@ -65,8 +63,8 @@ class EquipoService:
         equipo_id: ObjectId,
         nombre: str = None,
         marca: str = None,
+        consecutivo: str = None,
         descripcion: str = None,
-        ubicacion: str = None,
         estado: str = None
     ) -> Optional[Equipo]:
         """Actualiza información de un equipo"""
@@ -79,10 +77,10 @@ class EquipoService:
             equipo.nombre = nombre
         if marca:
             equipo.marca = marca
+        if consecutivo:
+            equipo.consecutivo = int(consecutivo)
         if descripcion:
             equipo.descripcion = descripcion
-        if ubicacion:
-            equipo.ubicacion = ubicacion
         if estado:
             equipo.estado = estado
         

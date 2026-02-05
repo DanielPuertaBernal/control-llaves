@@ -10,13 +10,14 @@ from bson import ObjectId
 
 @dataclass
 class DetallePréstamo:
-    """Detalle de un equipo prestado (item individual)"""
+    """Detalle de un equipo prestado (instancia individual única)"""
     
     equipo_id: ObjectId
     equipo_nombre: str
     equipo_marca: str
     equipo_codigo: str
-    cantidad: int
+    equipo_consecutivo: int  # Consecutivo del equipo
+    equipo_codigo_barras: str  # Código de barras del equipo
     
     def to_dict(self):
         return {
@@ -24,7 +25,8 @@ class DetallePréstamo:
             'equipo_nombre': self.equipo_nombre,
             'equipo_marca': self.equipo_marca,
             'equipo_codigo': self.equipo_codigo,
-            'cantidad': self.cantidad
+            'equipo_consecutivo': self.equipo_consecutivo,
+            'equipo_codigo_barras': self.equipo_codigo_barras
         }
 
 
@@ -50,13 +52,12 @@ class Préstamo:
     fecha_creacion: datetime = field(default_factory=datetime.now)
     fecha_actualizacion: datetime = field(default_factory=datetime.now)
     
-    def agregar_equipo(self, equipo_id: ObjectId, nombre: str, marca: str, codigo: str, cantidad: int):
-        """Agrega un equipo al préstamo"""
+    def agregar_equipo(self, equipo_id: ObjectId, nombre: str, marca: str, codigo: str, consecutivo: int, codigo_barras: str):
+        """Agrega un equipo al préstamo (cada equipo es único, sin cantidad)"""
         # Verificar que no esté duplicado
         for det in self.equipos:
             if det.equipo_id == equipo_id:
-                det.cantidad += cantidad
-                return
+                return  # Ya está en el préstamo, no agregar duplicado
         
         # Agregar nuevo
         self.equipos.append(DetallePréstamo(
@@ -64,12 +65,13 @@ class Préstamo:
             equipo_nombre=nombre,
             equipo_marca=marca,
             equipo_codigo=codigo,
-            cantidad=cantidad
+            equipo_consecutivo=consecutivo,
+            equipo_codigo_barras=codigo_barras
         ))
     
     def obtener_total_items(self) -> int:
-        """Retorna la cantidad total de items prestados"""
-        return sum(item.cantidad for item in self.equipos)
+        """Retorna la cantidad total de equipos prestados (cada equipo cuenta como 1)"""
+        return len(self.equipos)
     
     def está_vencido(self) -> bool:
         """Verifica si el plazo de devolución pasó"""
@@ -110,7 +112,8 @@ class Préstamo:
                 equipo_nombre=item['equipo_nombre'],
                 equipo_marca=item['equipo_marca'],
                 equipo_codigo=item['equipo_codigo'],
-                cantidad=item['cantidad']
+                equipo_consecutivo=item.get('equipo_consecutivo', 1),
+                equipo_codigo_barras=item.get('equipo_codigo_barras', '')
             )
             for item in data.get('equipos', [])
         ]
