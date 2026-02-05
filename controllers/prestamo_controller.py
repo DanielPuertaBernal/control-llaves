@@ -14,6 +14,10 @@ class PréstamoController:
     def crear_prestamo(self, docente_nfc, docente_nombre, auxiliar, equipos, dias_plazo=None, notas=None):
         """Crea un nuevo préstamo"""
         return self.service.crear_prestamo(docente_nfc, docente_nombre, auxiliar, equipos, dias_plazo, notas)
+
+    def crear_prestamo_simple(self, docente_nfc, docente_nombre, equipos, auxiliar="Auxiliar"):
+        """Crea un préstamo simple con equipos individuales"""
+        return self.service.crear_prestamo_simple(docente_nfc, docente_nombre, equipos, auxiliar)
     
     def obtener_activos(self):
         """Obtiene préstamos activos"""

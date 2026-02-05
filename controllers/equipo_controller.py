@@ -11,9 +11,9 @@ class EquipoController:
     def __init__(self, equipo_service: EquipoService = None):
         self.service = equipo_service or EquipoService()
     
-    def registrar_equipo(self, nombre, marca, codigo, cantidad, descripcion=None, ubicacion=None):
-        """Registra un nuevo equipo"""
-        return self.service.registrar_equipo(nombre, marca, codigo, cantidad, descripcion, ubicacion)
+    def registrar_equipo(self, nombre, marca, numero_serie, codigo_inventario, descripcion=None, ubicacion=None):
+        """Registra una nueva instancia de equipo"""
+        return self.service.registrar_equipo(nombre, marca, numero_serie, codigo_inventario, descripcion, ubicacion)
     
     def obtener_inventario(self):
         """Obtiene todo el inventario"""
@@ -27,18 +27,22 @@ class EquipoController:
         """Obtiene un equipo específico"""
         return self.service.obtener_equipo(equipo_id)
     
-    def actualizar_equipo(self, equipo_id, nombre=None, marca=None, descripcion=None, ubicacion=None):
+    def obtener_por_numero_serie(self, numero_serie):
+        """Obtiene un equipo por número de serie"""
+        return self.service.obtener_por_numero_serie(numero_serie)
+    
+    def actualizar_equipo(self, equipo_id, nombre=None, marca=None, descripcion=None, ubicacion=None, estado=None):
         """Actualiza un equipo"""
-        return self.service.actualizar_equipo(equipo_id, nombre, marca, descripcion, ubicacion)
+        return self.service.actualizar_equipo(equipo_id, nombre, marca, descripcion, ubicacion, estado)
     
-    def reponer_equipo(self, equipo_id, cantidad):
-        """Repone un equipo"""
-        return self.service.reponer_equipo(equipo_id, cantidad)
-    
-    def marcar_dañado(self, equipo_id, cantidad=1):
+    def marcar_dañado(self, equipo_id):
         """Marca equipo como dañado"""
-        return self.service.marcar_equipo_dañado(equipo_id, cantidad)
+        return self.service.marcar_dañado(equipo_id)
     
-    def obtener_estadisticas(self):
-        """Obtiene estadísticas"""
-        return self.service.obtener_estadisticas()
+    def reparar_equipo(self, equipo_id):
+        """Marca equipo como reparado"""
+        return self.service.reparar_equipo(equipo_id)
+    
+    def eliminar_equipo(self, equipo_id):
+        """Elimina (descarta) un equipo"""
+        return self.service.eliminar_equipo(equipo_id)

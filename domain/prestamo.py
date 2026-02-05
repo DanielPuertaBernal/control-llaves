@@ -79,7 +79,7 @@ class Préstamo:
     
     def to_dict(self):
         """Convierte a diccionario para persistencia"""
-        return {
+        data = {
             'docente_codigo_nfc': self.docente_codigo_nfc,
             'docente_nombre': self.docente_nombre,
             'docente_id': self.docente_id,
@@ -93,6 +93,12 @@ class Préstamo:
             'fecha_creacion': self.fecha_creacion,
             'fecha_actualizacion': self.fecha_actualizacion
         }
+        
+        # Incluir _id si existe
+        if self.id:
+            data['_id'] = self.id
+            
+        return data
     
     @classmethod
     def from_dict(cls, data):

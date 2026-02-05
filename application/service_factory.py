@@ -7,10 +7,16 @@ from application.services.llave_service import LlaveService
 from application.services.historial_service import HistorialService
 from application.services.programacion_service import ProgramacionService
 from application.services.auth_service import AuthService
+from application.services.equipo_service import EquipoService
+from application.services.prestamo_service import PréstamoService
+from application.services.devolucion_service import DevolucionService
 from infrastructure.repositories.docente_mongo_repository import DocenteMongoRepository
 from infrastructure.repositories.llave_mongo_repository import LlaveMongoRepository
 from infrastructure.repositories.programacion_mongo_repository import ProgramacionMongoRepository
 from infrastructure.repositories.usuario_mongo_repository import UsuarioMongoRepository
+from infrastructure.repositories.equipo_mongo_repository import EquipoMongoRepository
+from infrastructure.repositories.prestamo_mongo_repository import PréstamoMongoRepository
+from infrastructure.repositories.devolucion_mongo_repository import DevolucionMongoRepository
 
 
 # Configurar logger centralizado
@@ -42,6 +48,9 @@ class ServiceFactory:
         self._llave_repo = LlaveMongoRepository()
         self._programacion_repo = ProgramacionMongoRepository()
         self._usuario_repo = UsuarioMongoRepository()
+        self._equipo_repo = EquipoMongoRepository()
+        self._prestamo_repo = PréstamoMongoRepository()
+        self._devolucion_repo = DevolucionMongoRepository()
         
         # Crear servicios con inyección de dependencias
         self._services['docente'] = DocenteService(self._docente_repo)
@@ -56,6 +65,11 @@ class ServiceFactory:
             self._programacion_repo,
             self._services['llave']
         )
+        
+        # Servicios de equipos
+        self._services['equipo'] = EquipoService(self._equipo_repo)
+        self._services['prestamo'] = PréstamoService(self._prestamo_repo, self._equipo_repo)
+        self._services['devolucion'] = DevolucionService(self._devolucion_repo, self._prestamo_repo, self._equipo_repo)
         
         logger.info("ServiceFactory inicializado exitosamente")
     
@@ -82,6 +96,18 @@ class ServiceFactory:
     def get_programacion_service(self) -> ProgramacionService:
         """Obtiene servicio de programación"""
         return self._services['programacion']
+    
+    def get_equipo_service(self) -> EquipoService:
+        """Obtiene servicio de equipos"""
+        return self._services['equipo']
+    
+    def get_prestamo_service(self) -> PréstamoService:
+        """Obtiene servicio de préstamos"""
+        return self._services['prestamo']
+    
+    def get_devolucion_service(self) -> DevolucionService:
+        """Obtiene servicio de devoluciones"""
+        return self._services['devolucion']
     
     @classmethod
     def reset(cls):

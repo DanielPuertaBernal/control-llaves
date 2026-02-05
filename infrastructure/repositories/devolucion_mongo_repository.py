@@ -6,7 +6,7 @@ from bson import ObjectId
 from datetime import datetime
 from domain.devolucion import Devolución
 from interfaces.devolucion_repository import DevolucionRepository
-from infrastructure.services.mongo_client import MongoClient
+from infrastructure.services.mongo_client import MongoClientProvider
 
 
 class DevolucionMongoRepository(DevolucionRepository):
@@ -14,10 +14,8 @@ class DevolucionMongoRepository(DevolucionRepository):
     
     COLECCION = "devoluciones"
     
-    def __init__(self, mongo_client: MongoClient = None):
-        self.client = mongo_client or MongoClient()
-        self.db = self.client.get_database()
-        self.collection = self.db[self.COLECCION]
+    def __init__(self):
+        self.collection = MongoClientProvider.get_collection(self.COLECCION)
     
     def crear(self, devolucion: Devolución) -> Devolución:
         """Crea una nueva devolución"""

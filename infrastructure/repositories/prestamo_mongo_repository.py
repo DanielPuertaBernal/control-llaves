@@ -6,7 +6,7 @@ from bson import ObjectId
 from datetime import datetime
 from domain.prestamo import Préstamo
 from interfaces.prestamo_repository import PréstamoRepository
-from infrastructure.services.mongo_client import MongoClient
+from infrastructure.services.mongo_client import MongoClientProvider
 
 
 class PréstamoMongoRepository(PréstamoRepository):
@@ -14,10 +14,8 @@ class PréstamoMongoRepository(PréstamoRepository):
     
     COLECCION = "prestamos"
     
-    def __init__(self, mongo_client: MongoClient = None):
-        self.client = mongo_client or MongoClient()
-        self.db = self.client.get_database()
-        self.collection = self.db[self.COLECCION]
+    def __init__(self):
+        self.collection = MongoClientProvider.get_collection(self.COLECCION)
     
     def crear(self, prestamo: Préstamo) -> Préstamo:
         """Crea un nuevo préstamo"""

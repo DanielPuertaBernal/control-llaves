@@ -6,11 +6,13 @@ from tkinter import ttk, messagebox
 import tkinter as tk
 from datetime import datetime
 from domain.usuario import RolUsuario, Usuario
-from controllers import ProgramacionController, LlaveController, HistorialController, DocenteController
+from controllers import (ProgramacionController, LlaveController, HistorialController, DocenteController,
+                         EquipoController, PréstamoController, DevolucionController)
 from presentation.views.entrega_view import EntregaView
 from presentation.views.programacion_view import ProgramacionView
 from presentation.views.historial_view import HistorialView
 from presentation.views.informes_view import InformesView
+from presentation.views.equipos_unificada_view import EquiposUnificadaView
 from presentation.nfc_presenter import NFCPresenter
 from presentation.views.nfc_view import NFCView
 from application.service_factory import ServiceFactory
@@ -43,6 +45,11 @@ class MainView:
         self.docente_controller = DocenteController(factory.get_docente_service())
         self.historial_controller = HistorialController(factory.get_historial_service())
         
+        # Controladores para sistema de equipos
+        self.equipo_controller = EquipoController(factory.get_equipo_service())
+        self.prestamo_controller = PréstamoController(factory.get_prestamo_service())
+        self.devolucion_controller = DevolucionController(factory.get_devolucion_service())
+        
         # Crear interfaz primero
         self._crear_interfaz()
         
@@ -51,7 +58,8 @@ class MainView:
             self.nfc_presenter = NFCPresenter(self.root)
             
             # Establecer callback para ir a vista NFC automáticamente
-            self.nfc_presenter.establecer_callback_ir_nfc(lambda: self._mostrar_vista("nfc"))
+            # Pero NO navega si estamos en vista de equipos
+            self.nfc_presenter.establecer_callback_ir_nfc(self._callback_ir_nfc_inteligente)
             
             # Inicializar NFC después de cargar programación
         else:
@@ -131,7 +139,8 @@ class MainView:
             {"texto": "  👥 Gestión de Usuarios", "vista": "usuarios", "roles": [RolUsuario.ADMIN_PROG]},
             {"texto": "  📈 Estadísticas de Llaves", "vista": "estadisticas", "roles": [RolUsuario.ADMIN_PROG]},
             {"texto": "  📊 Informes de Llaves", "vista": "informes_admin", "roles": [RolUsuario.ADMIN_PROG]},
-            {"texto": "  �📅 Programación del Día", "vista": "entrega", "roles": [RolUsuario.AUX_PROG]},
+            {"texto": "  📦 Sistema de Equipos", "vista": "equipos", "roles": [RolUsuario.ADMIN_PROG, RolUsuario.AUX_PROG]},
+            {"texto": "  📅 Programación del Día", "vista": "entrega", "roles": [RolUsuario.AUX_PROG]},
             {"texto": "  🔓 Llaves en Préstamo", "vista": "historial", "roles": [RolUsuario.AUX_PROG]},
             {"texto": "  📊 Informes del Día", "vista": "informes", "roles": [RolUsuario.AUX_PROG]},
             {"texto": "  📡 Sistema NFC", "vista": "nfc", "roles": [RolUsuario.AUX_PROG]}
@@ -307,6 +316,11 @@ class MainView:
             self.vista_nfc = NFCView(vista_frame, None)
             # Establecer referencia en el presenter NFC para actualizaciones en tiempo real
             self.nfc_presenter.establecer_nfc_view(self.vista_nfc)
+        elif nombre_vista == "equipos":
+            self.titulo_contenido.config(text="SISTEMA COMPLETO DE GESTIÓN DE EQUIPOS")
+            self.vista_equipos = EquiposUnificadaView(vista_frame, self.equipo_controller,
+                                                     self.prestamo_controller, self.devolucion_controller,
+                                                     self.nfc_presenter, self.docente_controller)
     
     def _obtener_dia_actual(self):
         """Obtiene el día actual en español"""
@@ -321,20 +335,35 @@ class MainView:
                 self.nfc_presenter.desconectar()
             self.root.quit()
     
-    def _actualizar_vistas_despues_operacion(self):
+    
+    def _actualizar_vistas_despues_operacion(self, id_carnet=None, resultado=None):
         """Actualiza las vistas después de una operación de entrega/devolución"""
         try:
-            # Actualizar vista de entrega si está activa
-            if hasattr(self, 'vista_entrega') and self.vista_actual == "entrega":
-                self.vista_entrega.cargar_clases_del_dia()
+            # Si se está en equipos y hay id_carnet, detectar estado del docente
+            if id_carnet and hasattr(self, 'vista_equipos') and self.vista_actual == "equipos":
+                self.vista_equipos.detectar_nfc_automático(id_carnet)
             
-            # Actualizar vista de historial si está activa
-            if hasattr(self, 'vista_historial') and self.vista_actual == "historial":
-                self.vista_historial.actualizar_datos()
-            
-            # Actualizar vista de informes si está activa
-            if hasattr(self, 'vista_informes') and self.vista_actual == "informes":
-                self.vista_informes.actualizar_datos()
+            if resultado and resultado.get('accion') in ['entrega', 'devolucion'] and resultado.get('exito'):
+                # Actualizar vista de entrega si está activa
+                if hasattr(self, 'vista_entrega') and self.vista_actual == "entrega":
+                    self.vista_entrega.cargar_clases_del_dia()
+                
+                # Actualizar vista de historial si está activa
+                if hasattr(self, 'vista_historial') and self.vista_actual == "historial":
+                    self.vista_historial.actualizar_datos()
+                
+                # Actualizar vista de informes si está activa
+                if hasattr(self, 'vista_informes') and self.vista_actual == "informes":
+                    self.vista_informes.actualizar_datos()
         
         except Exception as e:
             print(f"Error al actualizar vistas: {e}")
+    def _callback_ir_nfc_inteligente(self):
+        """Callback para NFC que NO navega si estás en vista de equipos"""
+        # Si estamos en equipos, NO navegar automáticamente
+        if self.vista_actual == "equipos":
+            print("📦 Escaneo en vista de equipos - sin navegación automática")
+            return
+        
+        # En cualquier otra vista, navegar a NFC
+        self._mostrar_vista("nfc")

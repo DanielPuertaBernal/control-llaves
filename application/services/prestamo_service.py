@@ -54,12 +54,12 @@ class PréstamoService:
             equipo = self.equipo_repo.obtener_por_id(equipo_id)
             if not equipo:
                 raise ValueError(f"Equipo con ID {equipo_id} no existe")
-            
-            if not equipo.está_disponible(cantidad):
-                raise ValueError(
-                    f"No hay suficiente cantidad de {equipo.nombre}. "
-                    f"Disponibles: {equipo.cantidad_disponible}, Solicitados: {cantidad}"
-                )
+
+            if cantidad != 1:
+                raise ValueError("El modelo actual usa equipos individuales (cantidad=1)")
+
+            if not equipo.está_disponible():
+                raise ValueError(f"Equipo no disponible: {equipo.nombre}")
         
         # Crear préstamo
         prestamo = Préstamo(
@@ -72,7 +72,7 @@ class PréstamoService:
         if dias_plazo:
             prestamo.fecha_prevista_devolucion = datetime.now() + timedelta(days=dias_plazo)
         
-        # Agregar equipos y descontar del inventario
+        # Agregar equipos al préstamo
         for equipo_id, cantidad in equipos_a_prestar:
             equipo = self.equipo_repo.obtener_por_id(equipo_id)
             
@@ -81,14 +81,49 @@ class PréstamoService:
                 nombre=equipo.nombre,
                 marca=equipo.marca,
                 codigo=equipo.codigo_inventario,
-                cantidad=cantidad
+                cantidad=1
             )
-            
-            # Actualizar inventario
-            equipo.prestar(cantidad)
-            self.equipo_repo.actualizar(equipo)
         
         # Guardar préstamo
+        return self.prestamo_repo.crear(prestamo)
+
+    def crear_prestamo_simple(
+        self,
+        docente_codigo_nfc: str,
+        docente_nombre: str,
+        equipos: List[Dict],
+        auxiliar_prestamista: str = "Auxiliar"
+    ) -> Préstamo:
+        """Crea un préstamo simple con equipos individuales"""
+        if not equipos:
+            raise ValueError("Debe prestar al menos un equipo")
+
+        prestamo = Préstamo(
+            docente_codigo_nfc=docente_codigo_nfc,
+            docente_nombre=docente_nombre,
+            auxiliar_prestamista=auxiliar_prestamista
+        )
+
+        for equipo_data in equipos:
+            equipo_id = equipo_data.get('_id') or equipo_data.get('equipo_id') or equipo_data.get('id')
+            if isinstance(equipo_id, str):
+                equipo_id = ObjectId(equipo_id)
+
+            equipo = self.equipo_repo.obtener_por_id(equipo_id) if equipo_id else None
+            if not equipo:
+                raise ValueError("Equipo no encontrado para préstamo")
+
+            if not equipo.está_disponible():
+                raise ValueError(f"Equipo no disponible: {equipo.nombre}")
+
+            prestamo.agregar_equipo(
+                equipo_id=equipo_id,
+                nombre=equipo.nombre,
+                marca=equipo.marca,
+                codigo=equipo.codigo_inventario,
+                cantidad=1
+            )
+
         return self.prestamo_repo.crear(prestamo)
     
     def obtener_prestamos_activos(self) -> List[Préstamo]:
@@ -133,11 +168,11 @@ class PréstamoService:
         if not equipo:
             raise ValueError(f"Equipo con ID {equipo_id} no existe")
         
-        if not equipo.está_disponible(cantidad):
-            raise ValueError(
-                f"No hay suficiente cantidad de {equipo.nombre}. "
-                f"Disponibles: {equipo.cantidad_disponible}, Solicitados: {cantidad}"
-            )
+        if cantidad != 1:
+            raise ValueError("El modelo actual usa equipos individuales (cantidad=1)")
+
+        if not equipo.está_disponible():
+            raise ValueError(f"Equipo no disponible: {equipo.nombre}")
         
         # Agregar equipo
         prestamo.agregar_equipo(
@@ -145,12 +180,8 @@ class PréstamoService:
             nombre=equipo.nombre,
             marca=equipo.marca,
             codigo=equipo.codigo_inventario,
-            cantidad=cantidad
+            cantidad=1
         )
-        
-        # Descontar del inventario
-        equipo.prestar(cantidad)
-        self.equipo_repo.actualizar(equipo)
         
         # Actualizar préstamo
         self.prestamo_repo.actualizar(prestamo)

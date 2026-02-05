@@ -6,7 +6,7 @@ from bson import ObjectId
 from datetime import datetime
 from domain.equipo import Equipo
 from interfaces.equipo_repository import EquipoRepository
-from infrastructure.services.mongo_client import MongoClient
+from infrastructure.services.mongo_client import MongoClientProvider
 
 
 class EquipoMongoRepository(EquipoRepository):
@@ -14,13 +14,11 @@ class EquipoMongoRepository(EquipoRepository):
     
     COLECCION = "equipos"
     
-    def __init__(self, mongo_client: MongoClient = None):
-        self.client = mongo_client or MongoClient()
-        self.db = self.client.get_database()
-        self.collection = self.db[self.COLECCION]
+    def __init__(self):
+        self.collection = MongoClientProvider.get_collection(self.COLECCION)
     
     def crear(self, equipo: Equipo) -> Equipo:
-        """Crea un nuevo equipo"""
+        """Crea una nueva instancia de equipo"""
         equipo.fecha_creacion = datetime.now()
         equipo.fecha_actualizacion = datetime.now()
         
@@ -34,37 +32,41 @@ class EquipoMongoRepository(EquipoRepository):
         doc = self.collection.find_one({"_id": equipo_id})
         return Equipo.from_dict(doc) if doc else None
     
+    def obtener_por_numero_serie(self, numero_serie: str) -> Optional[Equipo]:
+        """Obtiene un equipo por número de serie"""
+        doc = self.collection.find_one({"numero_serie": numero_serie})
+        return Equipo.from_dict(doc) if doc else None
+    
     def obtener_por_codigo(self, codigo_inventario: str) -> Optional[Equipo]:
-        """Obtiene un equipo por código de inventario"""
+        """Obtiene el primer equipo por código de inventario"""
         doc = self.collection.find_one({"codigo_inventario": codigo_inventario})
         return Equipo.from_dict(doc) if doc else None
     
     def obtener_todos(self) -> List[Equipo]:
-        """Obtiene todos los equipos"""
+        """Obtiene todos los equipos activos"""
         docs = self.collection.find({"estado": "activo"}).sort("nombre", 1)
         return [Equipo.from_dict(doc) for doc in docs]
     
     def obtener_disponibles(self) -> List[Equipo]:
-        """Obtiene solo equipos disponibles"""
-        docs = self.collection.find({
-            "estado": "activo",
-            "cantidad_disponible": {"$gt": 0}
-        }).sort("nombre", 1)
+        """Obtiene solo equipos disponibles (activos)"""
+        docs = self.collection.find({"estado": "activo"}).sort("nombre", 1)
         return [Equipo.from_dict(doc) for doc in docs]
     
-    def actualizar(self, equipo: Equipo) -> bool:
+    def actualizar(self, equipo_id: ObjectId, equipo: Equipo) -> Optional[Equipo]:
         """Actualiza un equipo"""
         equipo.fecha_actualizacion = datetime.now()
         
         resultado = self.collection.update_one(
-            {"_id": equipo.id},
+            {"_id": equipo_id},
             {"$set": equipo.to_dict()}
         )
         
-        return resultado.modified_count > 0
+        if resultado.modified_count > 0:
+            return equipo
+        return None
     
     def eliminar(self, equipo_id: ObjectId) -> bool:
-        """Marca un equipo como inactivo (soft delete)"""
+        """Marca un equipo como descartado (soft delete)"""
         resultado = self.collection.update_one(
             {"_id": equipo_id},
             {

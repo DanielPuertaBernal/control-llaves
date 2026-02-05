@@ -83,11 +83,7 @@ class DevolucionService:
             
             total_items_devueltos += cantidad
             
-            # Actualizar inventario (devolver cantidad, excepto si está extraviado)
-            if estado != "extraviado":
-                equipo.devolver(cantidad)
-            
-            self.equipo_repo.actualizar(equipo)
+            # Inventario individual: no se ajusta cantidad, solo se registra devolución
         
         # Determinar si es devolucion completa
         devolucion.es_devolucion_completa = total_items_devueltos >= total_items_prestados
@@ -103,6 +99,62 @@ class DevolucionService:
         self.prestamo_repo.actualizar(prestamo)
         
         return devolucion, prestamo
+
+    def crear_devolucion(
+        self,
+        prestamo_id: ObjectId,
+        docente_codigo_nfc: str,
+        docente_nombre: str,
+        equipos: List[Dict],
+        auxiliar_que_recibio: str = "Auxiliar"
+    ) -> Devolución:
+        """Registra una devolución completa de equipos individuales"""
+        if isinstance(prestamo_id, str):
+            prestamo_id = ObjectId(prestamo_id)
+
+        prestamo = self.prestamo_repo.obtener_por_id(prestamo_id)
+        if not prestamo:
+            raise ValueError(f"Préstamo con ID {prestamo_id} no existe")
+
+        if prestamo.estado == "completamente_devuelto":
+            raise ValueError("Este préstamo ya fue completamente devuelto")
+
+        devolucion = Devolución(
+            prestamo_id=prestamo_id,
+            docente_codigo_nfc=docente_codigo_nfc,
+            docente_nombre=docente_nombre,
+            auxiliar_que_recibio=auxiliar_que_recibio
+        )
+
+        if not equipos:
+            equipos = prestamo.to_dict().get('equipos', [])
+
+        for equipo_data in equipos:
+            equipo_id = equipo_data.get('equipo_id') or equipo_data.get('_id')
+            if isinstance(equipo_id, str):
+                equipo_id = ObjectId(equipo_id)
+
+            equipo = self.equipo_repo.obtener_por_id(equipo_id) if equipo_id else None
+            nombre = None
+            if equipo:
+                nombre = equipo.nombre
+            else:
+                nombre = equipo_data.get('nombre') or equipo_data.get('equipo_nombre', '')
+
+            devolucion.agregar_equipo_devuelto(
+                equipo_id=equipo_id,
+                nombre=nombre,
+                cantidad=1,
+                estado="bueno"
+            )
+
+        devolucion.es_devolucion_completa = True
+        prestamo.estado = "completamente_devuelto"
+
+        devolucion = self.devolucion_repo.crear(devolucion)
+        self.prestamo_repo.actualizar(prestamo)
+
+        return devolucion
     
     def obtener_devoluciones_prestamo(self, prestamo_id: ObjectId) -> List[Devolución]:
         """Obtiene todas las devoluciones de un préstamo"""

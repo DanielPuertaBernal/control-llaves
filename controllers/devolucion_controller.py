@@ -14,6 +14,10 @@ class DevolucionController:
     def registrar_devolucion(self, prestamo_id, auxiliar, equipos_devueltos, notas=None):
         """Registra una devolución"""
         return self.service.registrar_devolucion(prestamo_id, auxiliar, equipos_devueltos, notas)
+
+    def crear_devolucion(self, prestamo_id, docente_nfc, docente_nombre, equipos, auxiliar="Auxiliar"):
+        """Registra una devolución completa de equipos individuales"""
+        return self.service.crear_devolucion(prestamo_id, docente_nfc, docente_nombre, equipos, auxiliar)
     
     def obtener_devoluciones_prestamo(self, prestamo_id):
         """Obtiene devoluciones de un préstamo"""

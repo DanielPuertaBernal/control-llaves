@@ -1,6 +1,7 @@
 """
 Entidad Equipo - Modelo de dominio
-Representa un equipo/elemento que puede ser prestado
+Representa una instancia individual de un equipo que puede ser prestado
+(Ej: Bafle 1, Bafle 2, Cable HDMI #5, etc.)
 """
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -10,15 +11,14 @@ from bson import ObjectId
 
 @dataclass
 class Equipo:
-    """Representación de un equipo de inventario"""
+    """Representación de una instancia individual de equipo"""
     
-    nombre: str  # Ej: "Bafle", "Cable de Internet", "HDMI"
-    marca: str  # Ej: "Sony", "Belkin", "Generic"
-    codigo_inventario: str  # Código único del inventario
-    cantidad_total: int  # Cantidad total de unidades disponibles
-    cantidad_disponible: int = None  # Se calcula automáticamente
+    nombre: str  # Ej: "Bafle", "Cable HDMI", "Proyector"
+    marca: str  # Ej: "Sony", "Belkin", "Epson"
+    numero_serie: str  # Identificador único (Ej: "BAFLE_001", "CABLE_HDMI_005")
+    codigo_inventario: str  # Código del tipo de equipo en inventario
     descripcion: Optional[str] = None
-    ubicacion: Optional[str] = None  # Donde se guarda
+    ubicacion: Optional[str] = None  # Donde se guarda normalmente
     estado: str = "activo"  # "activo", "dañado", "descartado"
     
     id: Optional[ObjectId] = None
@@ -27,45 +27,42 @@ class Equipo:
     
     def __post_init__(self):
         """Validaciones después de inicializar"""
-        if self.cantidad_disponible is None:
-            self.cantidad_disponible = self.cantidad_total
-        
-        if self.cantidad_total <= 0:
-            raise ValueError("La cantidad total debe ser mayor a 0")
-        
-        if self.cantidad_disponible > self.cantidad_total:
-            raise ValueError("La cantidad disponible no puede superar la total")
+        if not self.numero_serie or not self.numero_serie.strip():
+            raise ValueError("El número de serie es requerido")
     
-    def está_disponible(self, cantidad: int = 1) -> bool:
-        """Verifica si hay suficiente cantidad disponible"""
-        return self.cantidad_disponible >= cantidad
+    def está_disponible(self) -> bool:
+        """Verifica si el equipo está disponible para prestar"""
+        return self.estado == "activo"
     
-    def prestar(self, cantidad: int = 1):
-        """Reduce la cantidad disponible al prestar"""
-        if not self.está_disponible(cantidad):
-            raise ValueError(f"Solo hay {self.cantidad_disponible} disponibles")
-        self.cantidad_disponible -= cantidad
+    def marcar_dañado(self):
+        """Marca el equipo como dañado"""
+        self.estado = "dañado"
+        self.fecha_actualizacion = datetime.now()
     
-    def devolver(self, cantidad: int = 1):
-        """Aumenta la cantidad disponible al devolver"""
-        self.cantidad_disponible += cantidad
-        if self.cantidad_disponible > self.cantidad_total:
-            self.cantidad_disponible = self.cantidad_total
+    def reparar(self):
+        """Marca el equipo como reparado (activo)"""
+        self.estado = "activo"
+        self.fecha_actualizacion = datetime.now()
     
     def to_dict(self):
         """Convierte a diccionario para persistencia"""
-        return {
+        data = {
             'nombre': self.nombre,
             'marca': self.marca,
+            'numero_serie': self.numero_serie,
             'codigo_inventario': self.codigo_inventario,
-            'cantidad_total': self.cantidad_total,
-            'cantidad_disponible': self.cantidad_disponible,
             'descripcion': self.descripcion,
             'ubicacion': self.ubicacion,
             'estado': self.estado,
             'fecha_creacion': self.fecha_creacion,
             'fecha_actualizacion': self.fecha_actualizacion
         }
+        
+        # Incluir _id si existe
+        if self.id:
+            data['_id'] = self.id
+            
+        return data
     
     @classmethod
     def from_dict(cls, data):
@@ -73,9 +70,8 @@ class Equipo:
         obj = cls(
             nombre=data['nombre'],
             marca=data['marca'],
+            numero_serie=data['numero_serie'],
             codigo_inventario=data['codigo_inventario'],
-            cantidad_total=data['cantidad_total'],
-            cantidad_disponible=data.get('cantidad_disponible', data['cantidad_total']),
             descripcion=data.get('descripcion'),
             ubicacion=data.get('ubicacion'),
             estado=data.get('estado', 'activo')
