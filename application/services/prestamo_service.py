@@ -9,6 +9,7 @@ from domain.prestamo import Préstamo, DetallePréstamo
 from domain.equipo import Equipo
 from infrastructure.repositories.prestamo_mongo_repository import PréstamoMongoRepository
 from infrastructure.repositories.equipo_mongo_repository import EquipoMongoRepository
+from application.helpers import ValidationHelper
 
 
 class PréstamoService:
@@ -133,14 +134,9 @@ class PréstamoService:
             cantidad = equipo_data.get('cantidad', 1)
             
             equipo = self.equipo_repo.obtener_por_id(equipo_id)
-            if not equipo:
-                raise ValueError(f"Equipo con ID {equipo_id} no existe")
-            
-            if cantidad != 1:
-                raise ValueError("El modelo actual usa equipos individuales (cantidad=1)")
-            
-            if not equipo.está_disponible():
-                raise ValueError(f"Equipo no disponible: {equipo.nombre}")
+            ValidationHelper.validar_equipo_existe(equipo, equipo_id)
+            ValidationHelper.validar_cantidad_individual(cantidad)
+            ValidationHelper.validar_equipo_disponible(equipo)
     
     def obtener_prestamos_activos(self) -> List[Préstamo]:
         """Obtiene todos los préstamos activos"""
@@ -181,14 +177,9 @@ class PréstamoService:
             raise ValueError("Solo se puede agregar equipos a préstamos activos")
         
         equipo = self.equipo_repo.obtener_por_id(equipo_id)
-        if not equipo:
-            raise ValueError(f"Equipo con ID {equipo_id} no existe")
-        
-        if cantidad != 1:
-            raise ValueError("El modelo actual usa equipos individuales (cantidad=1)")
-
-        if not equipo.está_disponible():
-            raise ValueError(f"Equipo no disponible: {equipo.nombre}")
+        ValidationHelper.validar_equipo_existe(equipo, equipo_id)
+        ValidationHelper.validar_cantidad_individual(cantidad)
+        ValidationHelper.validar_equipo_disponible(equipo)
         
         # Agregar equipo
         prestamo.agregar_equipo(

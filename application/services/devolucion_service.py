@@ -10,6 +10,7 @@ from domain.prestamo import Préstamo
 from infrastructure.repositories.devolucion_mongo_repository import DevolucionMongoRepository
 from infrastructure.repositories.prestamo_mongo_repository import PréstamoMongoRepository
 from infrastructure.repositories.equipo_mongo_repository import EquipoMongoRepository
+from application.helpers import ValidationHelper
 
 
 class DevolucionService:
@@ -46,14 +47,9 @@ class DevolucionService:
         """
         
         prestamo = self.prestamo_repo.obtener_por_id(prestamo_id)
-        if not prestamo:
-            raise ValueError(f"Préstamo con ID {prestamo_id} no existe")
-        
-        if prestamo.estado == "completamente_devuelto":
-            raise ValueError("Este préstamo ya fue completamente devuelto")
-        
-        if not equipos_devueltos:
-            raise ValueError("Debe devolver al menos un equipo")
+        ValidationHelper.validar_prestamo_existe(prestamo, prestamo_id)
+        ValidationHelper.validar_prestamo_no_devuelto(prestamo)
+        ValidationHelper.validar_lista_no_vacia(equipos_devueltos, "Debe devolver al menos un equipo")
         
         # Crear devolución
         devolucion = Devolución(
@@ -71,8 +67,7 @@ class DevolucionService:
         # Procesar equipos devueltos
         for equipo_id, cantidad, estado in equipos_devueltos:
             equipo = self.equipo_repo.obtener_por_id(equipo_id)
-            if not equipo:
-                raise ValueError(f"Equipo con ID {equipo_id} no existe")
+            ValidationHelper.validar_equipo_existe(equipo, equipo_id)
             
             devolucion.agregar_equipo_devuelto(
                 equipo_id=equipo_id,
@@ -109,15 +104,11 @@ class DevolucionService:
         auxiliar_que_recibio: str = "Auxiliar"
     ) -> Devolución:
         """Registra una devolución completa de equipos individuales"""
-        if isinstance(prestamo_id, str):
-            prestamo_id = ObjectId(prestamo_id)
+        prestamo_id = ValidationHelper.normalizar_object_id(prestamo_id)
 
         prestamo = self.prestamo_repo.obtener_por_id(prestamo_id)
-        if not prestamo:
-            raise ValueError(f"Préstamo con ID {prestamo_id} no existe")
-
-        if prestamo.estado == "completamente_devuelto":
-            raise ValueError("Este préstamo ya fue completamente devuelto")
+        ValidationHelper.validar_prestamo_existe(prestamo, prestamo_id)
+        ValidationHelper.validar_prestamo_no_devuelto(prestamo)
 
         devolucion = Devolución(
             prestamo_id=prestamo_id,
