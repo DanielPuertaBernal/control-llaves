@@ -42,7 +42,3 @@ class PréstamoController:
     def marcar_vencido(self, prestamo_id):
         """Marca préstamo como vencido"""
         return self.service.marcar_vencido(prestamo_id)
-    
-    def obtener_estadisticas(self):
-        """Obtiene estadísticas"""
-        return self.service.obtener_estadisticas()

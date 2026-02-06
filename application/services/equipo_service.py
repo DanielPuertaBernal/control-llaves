@@ -92,17 +92,4 @@ class EquipoService:
         
         return self.repository.actualizar(equipo_id, equipo)
     
-    def obtener_estadisticas(self) -> Dict:
-        """Obtiene estadísticas del inventario"""
-        equipos = self.repository.obtener_todos()
-        
-        total_equipos = len(equipos)
-        equipos_disponibles = len([e for e in equipos if e.está_disponible()])
-        equipos_dañados = len([e for e in equipos if e.estado == "dañado"])
-        
-        return {
-            'total_equipos': total_equipos,
-            'equipos_disponibles': equipos_disponibles,
-            'equipos_dañados': equipos_dañados,
-            'porcentaje_disponible': round((equipos_disponibles / total_equipos * 100) if total_equipos > 0 else 0, 2)
-        }
+

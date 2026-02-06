@@ -34,7 +34,3 @@ class DevolucionController:
     def obtener_devolucion(self, devolucion_id):
         """Obtiene una devolución"""
         return self.service.obtener_devolucion(devolucion_id)
-    
-    def obtener_estadisticas(self):
-        """Obtiene estadísticas"""
-        return self.service.obtener_estadisticas()

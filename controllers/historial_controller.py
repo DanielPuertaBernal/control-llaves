@@ -68,15 +68,6 @@ class HistorialController:
             pd.DataFrame: Historial filtrado
         """
         return self.service.filtrar_por_fecha(fecha_inicio, fecha_fin, historial_df)
-    
-    def obtener_estadisticas(self):
-        """
-        Obtiene estadísticas del historial
-        
-        Returns:
-            dict: Diccionario con estadísticas
-        """
-        return self.service.obtener_estadisticas()
 
     def filtrar_historial(self, fecha_inicio=None, fecha_fin=None, facultad=None, docente=None, historial_df=None):
         """Filtra historial por fecha, facultad y/o docente"""

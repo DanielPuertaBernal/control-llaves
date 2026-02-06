@@ -207,22 +207,4 @@ class PréstamoService:
         self.prestamo_repo.actualizar(prestamo)
         
         return prestamo
-    
-    def obtener_estadisticas(self) -> Dict:
-        """Obtiene estadísticas de préstamos"""
-        
-        todos = self.prestamo_repo.obtener_todos()
-        activos = self.prestamo_repo.obtener_activos()
-        
-        total_prestamos = len(todos)
-        total_activos = len(activos)
-        total_devueltos = len([p for p in todos if p.estado == "completamente_devuelto"])
-        total_items_prestados = sum(p.obtener_total_items() for p in todos)
-        
-        return {
-            'total_prestamos': total_prestamos,
-            'total_activos': total_activos,
-            'total_devueltos': total_devueltos,
-            'total_items_prestados': total_items_prestados,
-            'promedio_items_por_prestamo': round(total_items_prestados / total_prestamos if total_prestamos > 0 else 0, 2)
-        }
+

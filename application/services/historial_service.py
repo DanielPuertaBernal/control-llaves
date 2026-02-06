@@ -53,17 +53,6 @@ class HistorialService:
             fecha_fin
         )
 
-    def obtener_estadisticas(self):
-        historial = self.repository.obtener_historial_completo()
-        prestamos_activos = self.repository.obtener_llaves_pendientes()
-
-        return {
-            'total_registros': len(historial),
-            'prestamos_activos': len(prestamos_activos),
-            'llaves_devueltas': len(historial[historial['Estado'] == 'Devuelta']) if not historial.empty else 0,
-            'docentes_unicos': historial['Docente'].nunique() if not historial.empty else 0
-        }
-
     def filtrar_historial(
         self,
         fecha_inicio: Optional[str] = None,

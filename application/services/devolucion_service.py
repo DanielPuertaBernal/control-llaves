@@ -161,28 +161,3 @@ class DevolucionService:
         """Obtiene una devolución específica"""
         return self.devolucion_repo.obtener_por_id(devolucion_id)
     
-    def obtener_estadisticas(self) -> Dict:
-        """Obtiene estadísticas de devoluciones"""
-        
-        todas = self.devolucion_repo.obtener_todas()
-        
-        total_devoluciones = len(todas)
-        devoluciones_completas = len([d for d in todas if d.es_devolucion_completa])
-        devoluciones_parciales = total_devoluciones - devoluciones_completas
-        
-        total_items_devueltos = sum(d.obtener_total_items_devueltos() for d in todas)
-        items_extraviados = sum(
-            sum(item.cantidad_devuelta for item in d.equipos_devueltos if item.estado_equipo == "extraviado")
-            for d in todas
-        )
-        
-        return {
-            'total_devoluciones': total_devoluciones,
-            'devoluciones_completas': devoluciones_completas,
-            'devoluciones_parciales': devoluciones_parciales,
-            'total_items_devueltos': total_items_devueltos,
-            'items_extraviados': items_extraviados,
-            'porcentaje_completitud': round(
-                (devoluciones_completas / total_devoluciones * 100) if total_devoluciones > 0 else 0, 2
-            )
-        }
