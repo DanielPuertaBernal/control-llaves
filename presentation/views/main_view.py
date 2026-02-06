@@ -8,13 +8,13 @@ from datetime import datetime
 from domain.usuario import RolUsuario, Usuario
 from controllers import (ProgramacionController, LlaveController, HistorialController, DocenteController,
                          EquipoController, PréstamoController, DevolucionController)
-from presentation.views.entrega_view import EntregaView
-from presentation.views.programacion_view import ProgramacionView
-from presentation.views.historial_view import HistorialView
-from presentation.views.informes_view import InformesView
-from presentation.views.equipos_unificada_view import EquiposUnificadaView
+from presentation.views.llaves.entrega_view import EntregaView
+from presentation.views.programacion.programacion_view import ProgramacionView
+from presentation.views.llaves.historial_view import HistorialView
+from presentation.views.informes.informes_view import InformesView
+from presentation.views.equipos.equipos_unificada_view import EquiposUnificadaView
 from presentation.nfc_presenter import NFCPresenter
-from presentation.views.nfc_view import NFCView
+from presentation.views.nfc.nfc_view import NFCView
 from application.service_factory import ServiceFactory
 from application.auth.session_manager import SessionManager
 
@@ -287,7 +287,7 @@ class MainView:
             self.vista_programacion = ProgramacionView(vista_frame, self.programacion_controller, self.docente_controller)
         elif nombre_vista == "usuarios":
             self.titulo_contenido.config(text="GESTIÓN DE USUARIOS AUXILIARES")
-            from presentation.views.usuarios_view import UsuariosView
+            from presentation.views.usuarios.usuarios_view import UsuariosView
             factory = ServiceFactory()
             self.vista_usuarios = UsuariosView(vista_frame, factory.get_auth_service())
         elif nombre_vista == "entrega":
@@ -305,11 +305,11 @@ class MainView:
             self.vista_informes = InformesView(vista_frame)
         elif nombre_vista == "estadisticas":
             self.titulo_contenido.config(text="ESTADÍSTICAS DE LLAVES")
-            from presentation.views.admin_analytics_view import AdminAnalyticsView
+            from presentation.views.informes.admin_analytics_view import AdminAnalyticsView
             self.vista_estadisticas = AdminAnalyticsView(vista_frame, self.historial_controller)
         elif nombre_vista == "informes_admin":
             self.titulo_contenido.config(text="INFORMES DE LLAVES")
-            from presentation.views.informes_analytics_view import InformesAnalyticsView
+            from presentation.views.informes.informes_analytics_view import InformesAnalyticsView
             self.vista_informes_admin = InformesAnalyticsView(vista_frame, self.historial_controller)
         elif nombre_vista == "nfc":
             self.titulo_contenido.config(text="MONITOREO DEL SISTEMA NFC")
@@ -318,9 +318,13 @@ class MainView:
             self.nfc_presenter.establecer_nfc_view(self.vista_nfc)
         elif nombre_vista == "equipos":
             self.titulo_contenido.config(text="SISTEMA COMPLETO DE GESTIÓN DE EQUIPOS")
-            self.vista_equipos = EquiposUnificadaView(vista_frame, self.equipo_controller,
-                                                     self.prestamo_controller, self.devolucion_controller,
-                                                     self.nfc_presenter, self.docente_controller)
+            self.vista_equipos = EquiposUnificadaView(
+                vista_frame,
+                self.equipo_controller,
+                self.prestamo_controller,
+                self.devolucion_controller,
+                self.docente_controller
+            )
     
     def _obtener_dia_actual(self):
         """Obtiene el día actual en español"""

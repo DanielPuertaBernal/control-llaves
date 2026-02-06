@@ -41,6 +41,11 @@ class EquipoMongoRepository(EquipoRepository):
         """Obtiene el primer equipo por código de inventario"""
         doc = self.collection.find_one({"codigo_inventario": codigo_inventario})
         return Equipo.from_dict(doc) if doc else None
+
+    def obtener_por_codigo_barras(self, codigo_barras: str) -> Optional[Equipo]:
+        """Obtiene un equipo por código de barras"""
+        doc = self.collection.find_one({"codigo_barras": codigo_barras})
+        return Equipo.from_dict(doc) if doc else None
     
     def obtener_todos(self) -> List[Equipo]:
         """Obtiene todos los equipos activos"""

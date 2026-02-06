@@ -3,11 +3,19 @@ Vistas del sistema MVC
 Capa de presentación visual
 """
 from .main_view import MainView
-from .entrega_view import EntregaView
-from .programacion_view import ProgramacionView
-from .historial_view import HistorialView
-from .informes_view import InformesView
-from .admin_analytics_view import AdminAnalyticsView
-from .informes_analytics_view import InformesAnalyticsView
+from .auth.login_view import LoginView
+from .llaves.entrega_view import EntregaView
+from .llaves.historial_view import HistorialView
+from .programacion.programacion_view import ProgramacionView
+from .informes.informes_view import InformesView
+from .informes.admin_analytics_view import AdminAnalyticsView
+from .informes.informes_analytics_view import InformesAnalyticsView
+from .usuarios.usuarios_view import UsuariosView
+from .nfc.nfc_view import NFCView
+from .equipos.equipos_unificada_view import EquiposUnificadaView
 
-__all__ = ['MainView', 'EntregaView', 'ProgramacionView', 'HistorialView', 'InformesView', 'AdminAnalyticsView', 'InformesAnalyticsView']
+__all__ = [
+    'MainView', 'LoginView', 'EntregaView', 'HistorialView', 'ProgramacionView',
+    'InformesView', 'AdminAnalyticsView', 'InformesAnalyticsView', 'UsuariosView',
+    'NFCView', 'EquiposUnificadaView'
+]

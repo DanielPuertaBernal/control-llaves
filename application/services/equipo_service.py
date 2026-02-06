@@ -57,6 +57,10 @@ class EquipoService:
     def obtener_por_numero_serie(self, numero_serie: str) -> Optional[Equipo]:
         """Obtiene un equipo por su número de serie"""
         return self.repository.obtener_por_numero_serie(numero_serie)
+
+    def obtener_por_codigo_barras(self, codigo_barras: str) -> Optional[Equipo]:
+        """Obtiene un equipo por su código de barras"""
+        return self.repository.obtener_por_codigo_barras(codigo_barras)
     
     def actualizar_equipo(
         self,
@@ -87,58 +91,6 @@ class EquipoService:
         equipo.fecha_actualizacion = datetime.now()
         
         return self.repository.actualizar(equipo_id, equipo)
-    
-    def marcar_dañado(self, equipo_id: ObjectId) -> Optional[Equipo]:
-        """Marca un equipo como dañado"""
-        equipo = self.repository.obtener_por_id(equipo_id)
-        if not equipo:
-            return None
-        
-        equipo.marcar_dañado()
-        return self.repository.actualizar(equipo_id, equipo)
-    
-    def reparar_equipo(self, equipo_id: ObjectId) -> Optional[Equipo]:
-        """Marca un equipo como reparado (activo)"""
-        equipo = self.repository.obtener_por_id(equipo_id)
-        if not equipo:
-            return None
-        
-        equipo.reparar()
-        return self.repository.actualizar(equipo_id, equipo)
-    
-    def eliminar_equipo(self, equipo_id: ObjectId) -> bool:
-        """Elimina un equipo del inventario"""
-        return self.repository.eliminar(equipo_id)
-        
-        self.repository.actualizar(equipo)
-        return equipo
-    
-    def reponer_equipo(self, equipo_id: ObjectId, cantidad: int) -> Optional[Equipo]:
-        """Agrega más cantidad de un equipo (reposición)"""
-        
-        equipo = self.repository.obtener_por_id(equipo_id)
-        if not equipo:
-            return None
-        
-        if cantidad <= 0:
-            raise ValueError("La cantidad a reponer debe ser mayor a 0")
-        
-        equipo.cantidad_total += cantidad
-        equipo.cantidad_disponible += cantidad
-        
-        self.repository.actualizar(equipo)
-        return equipo
-    
-    def marcar_equipo_dañado(self, equipo_id: ObjectId, cantidad: int = 1) -> Optional[Equipo]:
-        """Marca equipo como dañado, reduciendo cantidad disponible"""
-        
-        equipo = self.repository.obtener_por_id(equipo_id)
-        if not equipo:
-            return None
-    
-    def eliminar_equipo(self, equipo_id: ObjectId) -> bool:
-        """Elimina un equipo del inventario"""
-        return self.repository.eliminar(equipo_id)
     
     def obtener_estadisticas(self) -> Dict:
         """Obtiene estadísticas del inventario"""
