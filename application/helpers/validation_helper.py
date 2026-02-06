@@ -112,3 +112,20 @@ class ValidationHelper:
         if isinstance(valor, str):
             return ObjectId(valor)
         return valor
+    
+    @staticmethod
+    def extraer_equipo_id(equipo_data: dict) -> Optional[ObjectId]:
+        """
+        Extrae el ID de equipo de un diccionario con múltiples formatos posibles
+        
+        Args:
+            equipo_data: Diccionario con datos del equipo
+            
+        Returns:
+            ObjectId del equipo o None si no se encuentra
+            
+        Ejemplos de formato soportados:
+            {'_id': ...}, {'equipo_id': ...}, {'id': ...}
+        """
+        equipo_id = equipo_data.get('_id') or equipo_data.get('equipo_id') or equipo_data.get('id')
+        return ValidationHelper.normalizar_object_id(equipo_id)

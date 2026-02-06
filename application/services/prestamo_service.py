@@ -109,9 +109,7 @@ class PréstamoService:
                 resultado.append({"equipo_id": equipo_id, "cantidad": cantidad})
             elif isinstance(item, dict):
                 # Formato: {"_id": ..., "equipo_id": ..., "id": ...}
-                equipo_id = item.get('_id') or item.get('equipo_id') or item.get('id')
-                if isinstance(equipo_id, str):
-                    equipo_id = ObjectId(equipo_id)
+                equipo_id = ValidationHelper.extraer_equipo_id(item)
                 cantidad = item.get('cantidad', 1)
                 resultado.append({"equipo_id": equipo_id, "cantidad": cantidad})
             else:

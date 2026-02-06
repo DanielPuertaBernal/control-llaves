@@ -121,9 +121,7 @@ class DevolucionService:
             equipos = prestamo.to_dict().get('equipos', [])
 
         for equipo_data in equipos:
-            equipo_id = equipo_data.get('equipo_id') or equipo_data.get('_id')
-            if isinstance(equipo_id, str):
-                equipo_id = ObjectId(equipo_id)
+            equipo_id = ValidationHelper.extraer_equipo_id(equipo_data)
 
             equipo = self.equipo_repo.obtener_por_id(equipo_id) if equipo_id else None
             nombre = None
