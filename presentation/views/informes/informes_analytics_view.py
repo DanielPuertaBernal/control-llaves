@@ -3,11 +3,12 @@ Vista de Informes para Administrador
 Filtros avanzados + exportación a Excel
 """
 import tkinter as tk
-from tkinter import ttk, messagebox, filedialog
+from tkinter import ttk
 from datetime import datetime
 import pandas as pd
 from application.helpers import DateHelper
 from presentation.components.date_widget_factory import DateWidgetFactory
+from presentation.helpers import ViewHelper
 
 
 class InformesAnalyticsView:
@@ -105,7 +106,7 @@ class InformesAnalyticsView:
         # Validar fechas
         if (fecha_inicio and not DateHelper.validar_formato(fecha_inicio)) or \
            (fecha_fin and not DateHelper.validar_formato(fecha_fin)):
-            messagebox.showwarning("Formato inválido", "Use formato de fecha YYYY-MM-DD")
+            ViewHelper.mostrar_advertencia("Formato inválido", "Use formato de fecha YYYY-MM-DD")
             return
 
         facultad = self.facultad_var.get()
@@ -137,30 +138,15 @@ class InformesAnalyticsView:
             self.lbl_info.config(text=f"📄 {total} registros (con filtros aplicados)")
 
     def _exportar_excel(self):
-        if self.df_base is None:
-            messagebox.showwarning("Sin datos", "No hay datos para exportar")
-            return
-
         df_exportar = self.df_base if self.exportar_todo_var.get() else self.df_filtrada
-        if df_exportar is None or df_exportar.empty:
-            messagebox.showwarning("Sin datos", "No hay registros para exportar")
-            return
-
+        
         fecha_hoy = datetime.now().strftime('%Y-%m-%d')
         nombre_archivo = f"Informes_Llaves_{fecha_hoy}.xlsx"
-
-        ruta = filedialog.asksaveasfilename(
-            title="Guardar informe",
-            defaultextension=".xlsx",
-            filetypes=[("Archivo Excel", "*.xlsx"), ("Todos los archivos", "*.*")],
-            initialfile=nombre_archivo
+        
+        # Usar ViewHelper para exportar
+        ViewHelper.exportar_excel_dialogo(
+            df_exportar,
+            lambda df, ruta: self.historial_controller.exportar_excel(df, ruta),
+            nombre_archivo,
+            "Guardar informe"
         )
-
-        if not ruta:
-            return
-
-        try:
-            self.historial_controller.exportar_excel(df_exportar, ruta)
-            messagebox.showinfo("Éxito", f"Informe exportado en:\n{ruta}")
-        except Exception as e:
-            messagebox.showerror("Error", f"Error al exportar:\n{str(e)}")

@@ -90,9 +90,9 @@ class HistorialController:
         """Obtiene lista de facultades disponibles"""
         return self.service.obtener_facultades(historial_df)
 
-    def obtener_docentes(self, historial_df=None):
-        """Obtiene lista de docentes disponibles"""
-        return self.service.obtener_docentes(historial_df)
+    def obtener_docentes_en_historial(self, historial_df=None):
+        """Obtiene lista de docentes disponibles en el historial de prestamos"""
+        return self.service.obtener_docentes_en_historial(historial_df)
 
     def exportar_excel(self, historial_df, ruta_guardado: str):
         """Exporta el DataFrame a Excel"""

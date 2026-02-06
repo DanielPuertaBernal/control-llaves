@@ -109,7 +109,8 @@ class HistorialService:
             return []
         return sorted([f for f in historial_df['Facultad'].dropna().unique().tolist() if str(f).strip()])
 
-    def obtener_docentes(self, historial_df: Optional[pd.DataFrame] = None) -> List[str]:
+    def obtener_docentes_en_historial(self, historial_df: Optional[pd.DataFrame] = None) -> List[str]:
+        """Obtiene lista de docentes únicos en el historial de prestamos"""
         if historial_df is None:
             historial_df = self.repository.obtener_historial_completo()
         if historial_df.empty or 'Docente' not in historial_df.columns:

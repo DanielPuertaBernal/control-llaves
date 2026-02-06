@@ -2,11 +2,12 @@
 Vista de Informes del día
 Muestra todos los registros de llaves del día con colores según el estado
 """
-from tkinter import ttk, messagebox, filedialog
+from tkinter import ttk
 from datetime import date
 from application.services.historial_service import HistorialService
 from application.services.llave_service import LlaveService
 from presentation.components import PaginacionComponent, BuscadorComponent
+from presentation.helpers import ViewHelper
 
 
 class InformesView:
@@ -164,7 +165,7 @@ class InformesView:
             
         except Exception as e:
             print(f"Error al obtener registros del día: {e}")
-            messagebox.showerror("Error", f"Error al cargar datos: {str(e)}")
+            ViewHelper.mostrar_error("Error", f"Error al cargar datos: {str(e)}")
             return []
     
     def _realizar_busqueda(self):
@@ -277,27 +278,6 @@ class InformesView:
             # Obtener TODOS los registros de la base de datos (no solo del día)
             df_completo = self.historial_service.obtener_historial_completo()
             
-            if df_completo.empty:
-                messagebox.showwarning("Advertencia", "No hay registros para exportar")
-                return
-            
-            # Seleccionar ubicación de guardado
-            fecha_hoy = date.today().strftime('%Y-%m-%d')
-            nombre_archivo = f"Registro_Completo_Llaves_{fecha_hoy}.xlsx"
-            
-            ruta_guardado = filedialog.asksaveasfilename(
-                title="Guardar registro completo de llaves",
-                defaultextension=".xlsx",
-                filetypes=[
-                    ("Archivo Excel", "*.xlsx"),
-                    ("Todos los archivos", "*.*")
-                ],
-                initialfile=nombre_archivo
-            )
-            
-            if not ruta_guardado:
-                return
-            
             # Mantener el orden original de columnas tal como están en el archivo
             columnas_orden = [
                 'Número de Documento', 'Docente', 'Día', 'Horario', 'Aula', 'Facultad',
@@ -314,11 +294,16 @@ class InformesView:
             columnas_validas = [col for col in columnas_orden if col in df_completo.columns]
             df_exportar = df_completo[columnas_validas]
             
-            # Exportar a Excel
-            df_exportar.to_excel(ruta_guardado, index=False, engine='openpyxl')
+            # Nombre del archivo
+            fecha_hoy = date.today().strftime('%Y-%m-%d')
+            nombre_archivo = f"Registro_Completo_Llaves_{fecha_hoy}.xlsx"
             
-            total_registros = len(df_exportar)
-            messagebox.showinfo("Éxito", f"Registro completo exportado ({total_registros} registros)\nUbicación:\n{ruta_guardado}")
+            # Usar ViewHelper para exportar
+            ViewHelper.exportar_excel_simple(
+                df_exportar,
+                nombre_archivo,
+                "Guardar registro completo de llaves"
+            )
             
         except Exception as e:
-            messagebox.showerror("Error", f"Error al exportar:\n{str(e)}")
+            ViewHelper.mostrar_error("Error", f"Error al exportar:\n{str(e)}")
