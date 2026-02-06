@@ -26,19 +26,23 @@ class PréstamoService:
         self,
         docente_codigo_nfc: str,
         docente_nombre: str,
-        auxiliar_prestamista: str,
-        equipos_a_prestar: List[Tuple[ObjectId, int]],  # [(equipo_id, cantidad), ...]
+        equipos: List,  # Acepta List[Tuple[ObjectId, int]] o List[Dict]
+        auxiliar_prestamista: str = "Auxiliar",
         dias_plazo: int = None,
         notas: str = None
     ) -> Préstamo:
         """
         Crea un nuevo préstamo de equipos
         
+        Acepta múltiples formatos de entrada para equipos:
+        - Lista de tuplas: [(equipo_id, cantidad), ...]
+        - Lista de diccionarios: [{"_id": ..., "equipo_id": ..., "id": ...}, ...]
+        
         Args:
             docente_codigo_nfc: Código NFC del docente
             docente_nombre: Nombre del docente
-            auxiliar_prestamista: Nombre del auxiliar que hace el préstamo
-            equipos_a_prestar: Lista de tuplas (equipo_id, cantidad)
+            equipos: Lista de equipos (tuplas o diccionarios)
+            auxiliar_prestamista: Nombre del auxiliar que hace el préstamo (default: "Auxiliar")
             dias_plazo: Días para devolver (opcional)
             notas: Notas adicionales
             
@@ -46,20 +50,14 @@ class PréstamoService:
             Préstamo creado
         """
         
-        if not equipos_a_prestar:
+        if not equipos:
             raise ValueError("Debe prestar al menos un equipo")
         
+        # Normalizar equipos a lista de dicts
+        equipos_normalizados = self._normalizar_equipos(equipos)
+        
         # Validar disponibilidad de equipos
-        for equipo_id, cantidad in equipos_a_prestar:
-            equipo = self.equipo_repo.obtener_por_id(equipo_id)
-            if not equipo:
-                raise ValueError(f"Equipo con ID {equipo_id} no existe")
-
-            if cantidad != 1:
-                raise ValueError("El modelo actual usa equipos individuales (cantidad=1)")
-
-            if not equipo.está_disponible():
-                raise ValueError(f"Equipo no disponible: {equipo.nombre}")
+        self._validar_equipos_disponibles(equipos_normalizados)
         
         # Crear préstamo
         prestamo = Préstamo(
@@ -73,7 +71,8 @@ class PréstamoService:
             prestamo.fecha_prevista_devolucion = datetime.now() + timedelta(days=dias_plazo)
         
         # Agregar equipos al préstamo
-        for equipo_id, cantidad in equipos_a_prestar:
+        for equipo_data in equipos_normalizados:
+            equipo_id = equipo_data['equipo_id']
             equipo = self.equipo_repo.obtener_por_id(equipo_id)
             
             prestamo.agregar_equipo(
@@ -87,46 +86,61 @@ class PréstamoService:
         
         # Guardar préstamo
         return self.prestamo_repo.crear(prestamo)
-
-    def crear_prestamo_simple(
-        self,
-        docente_codigo_nfc: str,
-        docente_nombre: str,
-        equipos: List[Dict],
-        auxiliar_prestamista: str = "Auxiliar"
-    ) -> Préstamo:
-        """Crea un préstamo simple con equipos individuales"""
+    
+    def _normalizar_equipos(self, equipos: List) -> List[Dict]:
+        """
+        Convierte múltiples formatos de entrada a formato estándar
+        
+        Args:
+            equipos: Lista de tuplas [(equipo_id, cantidad)] o dicts
+            
+        Returns:
+            Lista de diccionarios [{"equipo_id": ObjectId, "cantidad": int}]
+        """
         if not equipos:
-            raise ValueError("Debe prestar al menos un equipo")
-
-        prestamo = Préstamo(
-            docente_codigo_nfc=docente_codigo_nfc,
-            docente_nombre=docente_nombre,
-            auxiliar_prestamista=auxiliar_prestamista
-        )
-
-        for equipo_data in equipos:
-            equipo_id = equipo_data.get('_id') or equipo_data.get('equipo_id') or equipo_data.get('id')
-            if isinstance(equipo_id, str):
-                equipo_id = ObjectId(equipo_id)
-
-            equipo = self.equipo_repo.obtener_por_id(equipo_id) if equipo_id else None
+            return []
+        
+        resultado = []
+        for item in equipos:
+            if isinstance(item, tuple):
+                # Formato: (equipo_id, cantidad)
+                equipo_id, cantidad = item
+                resultado.append({"equipo_id": equipo_id, "cantidad": cantidad})
+            elif isinstance(item, dict):
+                # Formato: {"_id": ..., "equipo_id": ..., "id": ...}
+                equipo_id = item.get('_id') or item.get('equipo_id') or item.get('id')
+                if isinstance(equipo_id, str):
+                    equipo_id = ObjectId(equipo_id)
+                cantidad = item.get('cantidad', 1)
+                resultado.append({"equipo_id": equipo_id, "cantidad": cantidad})
+            else:
+                raise ValueError(f"Formato de equipo no reconocido: {type(item)}")
+        
+        return resultado
+    
+    def _validar_equipos_disponibles(self, equipos_normalizados: List[Dict]) -> None:
+        """
+        Valida que todos los equipos existan y estén disponibles
+        
+        Args:
+            equipos_normalizados: Lista de dicts con equipo_id y cantidad
+            
+        Raises:
+            ValueError: Si algún equipo no existe, no está disponible o cantidad != 1
+        """
+        for equipo_data in equipos_normalizados:
+            equipo_id = equipo_data['equipo_id']
+            cantidad = equipo_data.get('cantidad', 1)
+            
+            equipo = self.equipo_repo.obtener_por_id(equipo_id)
             if not equipo:
-                raise ValueError("Equipo no encontrado para préstamo")
-
+                raise ValueError(f"Equipo con ID {equipo_id} no existe")
+            
+            if cantidad != 1:
+                raise ValueError("El modelo actual usa equipos individuales (cantidad=1)")
+            
             if not equipo.está_disponible():
                 raise ValueError(f"Equipo no disponible: {equipo.nombre}")
-
-            prestamo.agregar_equipo(
-                equipo_id=equipo_id,
-                nombre=equipo.nombre,
-                marca=equipo.marca,
-                codigo=equipo.codigo_inventario,
-                consecutivo=equipo.consecutivo,
-                codigo_barras=equipo.codigo_barras
-            )
-
-        return self.prestamo_repo.crear(prestamo)
     
     def obtener_prestamos_activos(self) -> List[Préstamo]:
         """Obtiene todos los préstamos activos"""

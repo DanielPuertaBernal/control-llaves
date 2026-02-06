@@ -6,7 +6,6 @@ from tkinter import ttk, messagebox, filedialog
 from datetime import date
 from application.services.historial_service import HistorialService
 from application.services.llave_service import LlaveService
-from infrastructure.repositories.llave_mongo_repository import LlaveMongoRepository
 from presentation.components import PaginacionComponent, BuscadorComponent
 
 
@@ -18,10 +17,9 @@ class InformesView:
     COLOR_PRESTAMO = "#FFE0B2"   # Naranja suave
     COLOR_RETRASO = "#FFCDD2"    # Rojo suave
     
-    def __init__(self, parent_frame):
-        repo_llaves = LlaveMongoRepository()
-        self.historial_service = HistorialService(repo_llaves)
-        self.llave_service = LlaveService(repo_llaves)
+    def __init__(self, parent_frame, historial_service: HistorialService, llave_service: LlaveService):
+        self.historial_service = historial_service
+        self.llave_service = llave_service
         
         # Servicio de paginación
         self.paginacion_service = PaginacionComponent(items_por_pagina=15)

@@ -333,7 +333,7 @@ class EquiposMovimientoView:
             return
 
         try:
-            self.prestamo_controller.crear_prestamo_simple(
+            self.prestamo_controller.crear_prestamo(
                 self.docente_nfc_mov,
                 self.docente_nombre_mov,
                 self.carrito_equipos

@@ -302,7 +302,12 @@ class MainView:
         elif nombre_vista == "informes":
             dia_actual = self._obtener_dia_actual()
             self.titulo_contenido.config(text=f"INFORME DE LLAVES DEL DÍA - {dia_actual}")
-            self.vista_informes = InformesView(vista_frame)
+            factory = ServiceFactory()
+            self.vista_informes = InformesView(
+                vista_frame,
+                factory.get_historial_service(),
+                factory.get_llave_service()
+            )
         elif nombre_vista == "estadisticas":
             self.titulo_contenido.config(text="ESTADÍSTICAS DE LLAVES")
             from presentation.views.informes.admin_analytics_view import AdminAnalyticsView
