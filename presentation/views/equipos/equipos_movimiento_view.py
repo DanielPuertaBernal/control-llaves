@@ -275,12 +275,13 @@ class EquiposMovimientoView:
         
         # Obtener y normalizar el texto actual
         codigo_actual = self.entrada_codigo_barras.get()
-        if codigo_actual and "'" in codigo_actual:
-            # Normalizar: reemplazar comillas simples por guiones
-            codigo_normalizado = codigo_actual.replace("'", "-")
-            self.entrada_codigo_barras.delete(0, 'end')
-            self.entrada_codigo_barras.insert(0, codigo_normalizado)
-            print(f"[CARRITO] Código normalizado: {codigo_actual} → {codigo_normalizado}")
+        if codigo_actual:
+            # Normalizar: reemplazar comillas simples por guiones y convertir a mayúsculas
+            codigo_normalizado = codigo_actual.replace("'", "-").upper()
+            if codigo_normalizado != codigo_actual:
+                self.entrada_codigo_barras.delete(0, 'end')
+                self.entrada_codigo_barras.insert(0, codigo_normalizado)
+                print(f"[CARRITO] Código normalizado: {codigo_actual} → {codigo_normalizado}")
         
         # Si hay contenido, programar auto-submit después de 200ms (cuando el lector termina)
         if self.entrada_codigo_barras.get().strip():
