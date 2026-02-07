@@ -260,13 +260,20 @@ class EquiposMovimientoView:
             self.tree_carrito.delete(item_id)
             del self.equipos_tabla_map[item_id]
 
-            messagebox.showinfo("Éxito", f"✅ {equipo_data.get('equipo_nombre', 'Equipo')} devuelto")
+            print(f"[DEVOLUCION] ✅ {equipo_data.get('equipo_nombre', 'Equipo')} devuelto")
             
             if self.on_actualizar_historial:
                 self.on_actualizar_historial()
-                
-            # Recargar estado del docente
-            self._detectar_estado_docente(self.docente_nfc_mov)
+            
+            # Verificar si quedan equipos prestados en la tabla
+            equipos_prestados_restantes = [
+                info for info in self.equipos_tabla_map.values() 
+                if info['tipo'] == 'prestado'
+            ]
+            
+            # Si no quedan equipos prestados, recargar estado (para mostrar sin préstamo)
+            if not equipos_prestados_restantes:
+                self._limpiar_movimiento()
             
         except Exception as e:
             messagebox.showerror("Error", str(e))
@@ -371,7 +378,7 @@ class EquiposMovimientoView:
         self._agregar_equipo_interno(codigo_barras)
 
     def _agregar_equipo_interno(self, codigo_barras):
-        """Lógica interna para agregar equipo (reutilizable desde NFC)"""
+        """Lógica interna para agregar equipo o devolverlo si está prestado"""
         equipo = self.equipo_controller.obtener_por_codigo_barras(codigo_barras)
 
         if not equipo:
@@ -382,6 +389,35 @@ class EquiposMovimientoView:
             return
 
         equipo_dict = equipo.to_dict() if hasattr(equipo, 'to_dict') else equipo
+        equipo_id = str(equipo_dict.get('_id', ''))
+        
+        # Verificar si este equipo está en la lista de prestados actual
+        if hasattr(self, 'equipos_tabla_map') and self.prestamo_actual:
+            for item_id, info in self.equipos_tabla_map.items():
+                if info['tipo'] == 'prestado':
+                    equipo_prestado_id = str(info['data'].get('equipo_id', ''))
+                    if equipo_prestado_id == equipo_id:
+                        # Equipo encontrado en prestados - devolverlo
+                        print(f"[DEVOLUCION] Equipo escaneado está prestado, devolviendo: {codigo_barras}")
+                        
+                        # Limpiar entrada ANTES de devolver (para evitar problemas si se destruye la vista)
+                        if hasattr(self, 'entrada_codigo_barras'):
+                            try:
+                                self.entrada_codigo_barras.delete(0, 'end')
+                            except:
+                                pass  # Widget ya destruido
+                        
+                        self._devolver_equipo_individual(item_id, info['data'])
+                        
+                        # Re-enfocar si el widget aún existe
+                        if hasattr(self, 'entrada_codigo_barras'):
+                            try:
+                                self.entrada_codigo_barras.focus()
+                            except:
+                                pass  # Widget ya destruido
+                        return
+        
+        # No está en prestados, intentar agregar como nuevo
         if equipo_dict.get('estado') != 'activo':
             messagebox.showerror("Error", f"Equipo no disponible: {equipo_dict.get('nombre')}")
             if hasattr(self, 'entrada_codigo_barras'):
@@ -389,9 +425,8 @@ class EquiposMovimientoView:
                 self.entrada_codigo_barras.focus()
             return
 
-        # Validar si el equipo ya está en préstamo activo
-        equipo_id = equipo_dict.get('_id')
-        prestamo_info = self.prestamo_controller.verificar_equipo_prestado(equipo_id)
+        # Validar si el equipo ya está en préstamo activo de otro docente
+        prestamo_info = self.prestamo_controller.verificar_equipo_prestado(equipo_dict.get('_id'))
         if prestamo_info:
             esta_prestado, docente_nombre = prestamo_info
             messagebox.showerror(
@@ -403,7 +438,7 @@ class EquiposMovimientoView:
                 self.entrada_codigo_barras.focus()
             return
 
-        equipo_id = str(equipo_dict.get('_id', ''))
+        # Verificar si ya está en el carrito de nuevos
         for eq_carrito in self.carrito_equipos:
             if str(eq_carrito.get('_id', '')) == equipo_id:
                 messagebox.showwarning("Advertencia", "Este equipo ya está en el carrito")

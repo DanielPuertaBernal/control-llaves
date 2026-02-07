@@ -185,7 +185,8 @@ class PréstamoService:
             nombre=equipo.nombre,
             marca=equipo.marca,
             codigo=equipo.codigo_inventario,
-            cantidad=1
+            consecutivo=equipo.consecutivo,
+            codigo_barras=equipo.codigo_barras
         )
         
         # Actualizar préstamo

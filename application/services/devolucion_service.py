@@ -137,8 +137,28 @@ class DevolucionService:
                 estado="bueno"
             )
 
-        devolucion.es_devolucion_completa = True
-        prestamo.estado = "completamente_devuelto"
+        # Verificar si es devolución completa comparando equipos devueltos con equipos del préstamo
+        prestamo_dict = prestamo.to_dict() if hasattr(prestamo, 'to_dict') else prestamo
+        equipos_prestamo = prestamo_dict.get('equipos', [])
+        equipos_devueltos_ids = [ValidationHelper.extraer_equipo_id(eq) for eq in equipos]
+        
+        # Contar equipos que quedan en el préstamo
+        equipos_restantes = [
+            eq for eq in equipos_prestamo 
+            if ValidationHelper.extraer_equipo_id(eq) not in equipos_devueltos_ids
+        ]
+        
+        devolucion.es_devolucion_completa = len(equipos_restantes) == 0
+        
+        # Solo marcar préstamo como completamente devuelto si NO quedan equipos
+        if devolucion.es_devolucion_completa:
+            prestamo.estado = "completamente_devuelto"
+        
+        # Remover equipos devueltos de la lista de equipos del préstamo
+        prestamo.equipos = [
+            eq for eq in prestamo.equipos
+            if str(eq.equipo_id) not in [str(eid) for eid in equipos_devueltos_ids]
+        ]
 
         devolucion = self.devolucion_repo.crear(devolucion)
         self.prestamo_repo.actualizar(prestamo)
