@@ -41,6 +41,9 @@ class EquiposUnificadaView:
         self.notebook.add(self.tab_inventario, text="📦 Inventario")
         self.notebook.add(self.tab_movimiento, text="↔️ Movimiento de Equipos")
         self.notebook.add(self.tab_historial, text="📜 Historial")
+        
+        # Vincular evento de cambio de pestaña para auto-actualización
+        self.notebook.bind('<<NotebookTabChanged>>', self._on_tab_changed)
 
         self.inventario_view = EquiposInventarioView(
             self.tab_inventario,
@@ -70,6 +73,21 @@ class EquiposUnificadaView:
     def cargar_historial(self):
         """Carga historial de préstamos y devoluciones"""
         self.historial_view.cargar_historial()
+
+    def _on_tab_changed(self, event=None):
+        """Auto-actualiza contenido cuando se cambia de pestaña"""
+        try:
+            tab_actual = self.notebook.select()
+            tab_index = self.notebook.index(tab_actual)
+            
+            if tab_index == 0:  # Pestaña Inventario
+                print("[INVENTARIO] Auto-actualizando vista...")
+                self.cargar_inventario()
+            elif tab_index == 2:  # Pestaña Historial
+                print("[HISTORIAL] Auto-actualizando vista...")
+                self.cargar_historial()
+        except Exception as e:
+            print(f"Error al actualizar pestaña: {e}")
 
     def detectar_nfc_automático(self, codigo_nfc):
         """Procesa lectura NFC y muestra formulario según estado del docente"""

@@ -66,10 +66,17 @@ class EquiposMovimientoView:
             widget.destroy()
 
     def detectar_nfc_automático(self, codigo_nfc):
-        """Procesa lectura NFC y muestra formulario según estado del docente"""
+        """Procesa lectura NFC y muestra formulario según estado del docente o agrega equipo"""
         if not codigo_nfc:
             return
 
+        # Detectar si es código de equipo (comienza con INV, DJ, PC, etc.)
+        if self._es_codigo_equipo(codigo_nfc):
+            print(f"[CARRITO] Código de equipo detectado: {codigo_nfc}")
+            self._agregar_equipo_interno(codigo_nfc)
+            return
+
+        # Si no es equipo, procesar como carnet de docente
         self._limpiar_movimiento()
         self.docente_nfc_mov = codigo_nfc
         self.label_codigo_nfc_mov.config(text=codigo_nfc, foreground='green')
@@ -119,6 +126,15 @@ class EquiposMovimientoView:
         frame = ttk.LabelFrame(self.frame_contenido_mov, text="📤 Nuevo Préstamo - Lectura de Códigos", padding="15")
         frame.pack(fill='both', expand=True)
 
+        # Botones en la parte superior
+        frame_botones = ttk.Frame(frame)
+        frame_botones.pack(fill='x', pady=(0, 15))
+
+        ttk.Button(frame_botones, text="✔️ Confirmar Préstamo",
+                   command=self._confirmar_prestamo_carrito).pack(side='left', padx=5)
+        ttk.Button(frame_botones, text="🗑️ Limpiar Carrito",
+                   command=self._limpiar_carrito).pack(side='left', padx=5)
+
         frame_entrada = ttk.LabelFrame(frame, text="📖 Escanea Equipos", padding="10")
         frame_entrada.pack(fill='x', pady=(0, 15))
 
@@ -127,7 +143,12 @@ class EquiposMovimientoView:
         self.entrada_codigo_barras.pack(side='left', fill='x', expand=True)
         self.entrada_codigo_barras.focus()
 
+        # Timer para auto-submit después de que el lector termina
+        self.auto_submit_timer = None
+        
+        # Bind eventos
         self.entrada_codigo_barras.bind('<Return>', lambda e: self._agregar_equipo_al_carrito())
+        self.entrada_codigo_barras.bind('<KeyRelease>', self._on_codigo_barras_change)
 
         frame_carrito = ttk.LabelFrame(frame, text="🛒 Carrito de Préstamo", padding="10")
         frame_carrito.pack(fill='both', expand=True, pady=(0, 15))
@@ -158,14 +179,6 @@ class EquiposMovimientoView:
         scrollbar_carrito.pack(side='right', fill='y')
 
         self.tree_carrito.bind('<ButtonRelease-1>', self._on_click_eliminar_carrito)
-
-        frame_botones = ttk.Frame(frame)
-        frame_botones.pack(fill='x', pady=10)
-
-        ttk.Button(frame_botones, text="✔️ Confirmar Préstamo",
-                   command=self._confirmar_prestamo_carrito).pack(side='left', padx=5)
-        ttk.Button(frame_botones, text="🗑️ Limpiar Carrito",
-                   command=self._limpiar_carrito).pack(side='left', padx=5)
 
         self.carrito_equipos = []
 
@@ -254,7 +267,42 @@ class EquiposMovimientoView:
         except Exception as e:
             messagebox.showerror("Error", str(e))
 
+    def _on_codigo_barras_change(self, event=None):
+        """Maneja cambios en el campo de código de barras: normaliza y auto-submit"""
+        # Cancelar timer anterior si existe
+        if self.auto_submit_timer:
+            self.entrada_codigo_barras.after_cancel(self.auto_submit_timer)
+        
+        # Obtener y normalizar el texto actual
+        codigo_actual = self.entrada_codigo_barras.get()
+        if codigo_actual and "'" in codigo_actual:
+            # Normalizar: reemplazar comillas simples por guiones
+            codigo_normalizado = codigo_actual.replace("'", "-")
+            self.entrada_codigo_barras.delete(0, 'end')
+            self.entrada_codigo_barras.insert(0, codigo_normalizado)
+            print(f"[CARRITO] Código normalizado: {codigo_actual} → {codigo_normalizado}")
+        
+        # Si hay contenido, programar auto-submit después de 200ms (cuando el lector termina)
+        if self.entrada_codigo_barras.get().strip():
+            self.auto_submit_timer = self.entrada_codigo_barras.after(200, self._auto_submit_codigo)
+    
+    def _auto_submit_codigo(self):
+        """Auto-ejecuta el agregado al carrito después de que el lector termina"""
+        codigo = self.entrada_codigo_barras.get().strip()
+        if codigo:
+            print(f"[CARRITO] Auto-submit: {codigo}")
+            self._agregar_equipo_al_carrito()
+
+    def _es_codigo_equipo(self, codigo):
+        """Detecta si el código es de un equipo (INV, DJ, PC, etc.) o de docente"""
+        if not codigo:
+            return False
+        # Códigos de equipos típicamente empiezan con prefijo de inventario
+        prefijos_equipo = ['INV', 'DJ', 'PC', 'MON', 'TEC', 'DICT']
+        return any(codigo.upper().startswith(prefijo) for prefijo in prefijos_equipo)
+
     def _agregar_equipo_al_carrito(self):
+
         """Agrega un equipo al carrito por código de barras"""
         codigo_barras = self.entrada_codigo_barras.get().strip()
 
@@ -263,43 +311,59 @@ class EquiposMovimientoView:
             self.entrada_codigo_barras.focus()
             return
 
+        self._agregar_equipo_interno(codigo_barras)
+
+    def _agregar_equipo_interno(self, codigo_barras):
+        """Lógica interna para agregar equipo (reutilizable desde NFC)"""
         equipo = self.equipo_controller.obtener_por_codigo_barras(codigo_barras)
 
         if not equipo:
             messagebox.showerror("Error", f"Equipo no encontrado: {codigo_barras}")
-            self.entrada_codigo_barras.delete(0, 'end')
-            self.entrada_codigo_barras.focus()
+            if hasattr(self, 'entrada_codigo_barras'):
+                self.entrada_codigo_barras.delete(0, 'end')
+                self.entrada_codigo_barras.focus()
             return
 
         equipo_dict = equipo.to_dict() if hasattr(equipo, 'to_dict') else equipo
         if equipo_dict.get('estado') != 'activo':
             messagebox.showerror("Error", f"Equipo no disponible: {equipo_dict.get('nombre')}")
-            self.entrada_codigo_barras.delete(0, 'end')
-            self.entrada_codigo_barras.focus()
+            if hasattr(self, 'entrada_codigo_barras'):
+                self.entrada_codigo_barras.delete(0, 'end')
+                self.entrada_codigo_barras.focus()
             return
 
         equipo_id = str(equipo_dict.get('_id', ''))
         for eq_carrito in self.carrito_equipos:
             if str(eq_carrito.get('_id', '')) == equipo_id:
                 messagebox.showwarning("Advertencia", "Este equipo ya está en el carrito")
-                self.entrada_codigo_barras.delete(0, 'end')
-                self.entrada_codigo_barras.focus()
+                if hasattr(self, 'entrada_codigo_barras'):
+                    self.entrada_codigo_barras.delete(0, 'end')
+                    self.entrada_codigo_barras.focus()
                 return
 
         self.carrito_equipos.append(equipo_dict)
+        print(f"[CARRITO] Equipo agregado: {equipo_dict.get('codigo_inventario')}")
 
-        self.tree_carrito.insert('', 'end',
-            values=(
-                equipo_dict.get('codigo_inventario', ''),
-                equipo_dict.get('nombre', ''),
-                equipo_dict.get('consecutivo', ''),
-                equipo_dict.get('codigo_barras', ''),
-                'Eliminar'
+        # Si el árbol de carrito existe (formulario ya mostrado), actualizar UI
+        if hasattr(self, 'tree_carrito'):
+            self.tree_carrito.insert('', 'end',
+                values=(
+                    equipo_dict.get('codigo_inventario', ''),
+                    equipo_dict.get('nombre', ''),
+                    equipo_dict.get('consecutivo', ''),
+                    equipo_dict.get('codigo_barras', ''),
+                    'Eliminar'
+                )
             )
-        )
 
-        self.entrada_codigo_barras.delete(0, 'end')
-        self.entrada_codigo_barras.focus()
+        if hasattr(self, 'entrada_codigo_barras'):
+            self.entrada_codigo_barras.delete(0, 'end')
+            self.entrada_codigo_barras.focus()
+        
+        # Mostrar confirmación sin messagebox cuando se agrega desde NFC para evitar bloqueos
+        # (El usuario verá el equipo en el carrito inmediatamente)
+        print(f"[CARRITO] ✅ {equipo_dict.get('nombre')} agregado al carrito")
+
 
     def _on_click_eliminar_carrito(self, event):
         """Elimina un equipo del carrito cuando se hace clic en 'Eliminar'"""
