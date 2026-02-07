@@ -2,7 +2,7 @@
 Entidad Préstamo - Modelo de dominio
 Representa un préstamo de equipos a un docente
 """
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Optional, List, Dict
 from bson import ObjectId
