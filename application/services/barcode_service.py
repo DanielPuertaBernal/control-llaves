@@ -3,10 +3,8 @@ Servicio de Generación de Códigos de Barras
 """
 import os
 import tempfile
-from pathlib import Path
 import barcode
 from barcode.writer import ImageWriter
-from PIL import Image
 from typing import Optional
 
 

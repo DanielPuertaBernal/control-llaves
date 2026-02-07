@@ -3,7 +3,7 @@ Vista de Estadísticas para Administrador
 Muestra estadísticas generales o del día
 """
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk
 from datetime import datetime
 from application.helpers import TimeHelper
 

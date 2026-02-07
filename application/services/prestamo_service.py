@@ -1,7 +1,7 @@
 """
 Servicio de Préstamos - Lógica de negocio para gestión de préstamos de equipos
 """
-from typing import List, Optional, Dict, Tuple
+from typing import List, Optional, Dict
 from bson import ObjectId
 from datetime import datetime, timedelta
 
