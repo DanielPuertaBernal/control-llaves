@@ -41,4 +41,7 @@ class PréstamoController:
     
     def marcar_vencido(self, prestamo_id):
         """Marca préstamo como vencido"""
-        return self.service.marcar_vencido(prestamo_id)
+        return self.service.marcar_vencido(prestamo_id)    
+    def verificar_equipo_prestado(self, equipo_id):
+        """Verifica si un equipo está actualmente en préstamo"""
+        return self.service.verificar_equipo_prestado(equipo_id)

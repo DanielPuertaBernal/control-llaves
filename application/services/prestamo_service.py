@@ -207,4 +207,27 @@ class PréstamoService:
         self.prestamo_repo.actualizar(prestamo)
         
         return prestamo
-
+    
+    def verificar_equipo_prestado(self, equipo_id: ObjectId) -> Optional[Tuple[bool, str]]:
+        """
+        Verifica si un equipo está actualmente en préstamo
+        
+        Args:
+            equipo_id: ID del equipo a verificar
+            
+        Returns:
+            Tupla (está_prestado, nombre_docente) o None si no está prestado
+        """
+        prestamos_activos = self.prestamo_repo.obtener_activos()
+        
+        for prestamo in prestamos_activos:
+            prestamo_dict = prestamo.to_dict() if hasattr(prestamo, 'to_dict') else prestamo
+            equipos = prestamo_dict.get('equipos', [])
+            
+            for equipo_detalle in equipos:
+                equipo_detalle_id = equipo_detalle.get('equipo_id')
+                if str(equipo_detalle_id) == str(equipo_id):
+                    docente_nombre = prestamo_dict.get('docente_nombre', 'Docente desconocido')
+                    return (True, docente_nombre)
+        
+        return None

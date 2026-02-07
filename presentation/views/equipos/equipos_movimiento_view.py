@@ -333,6 +333,20 @@ class EquiposMovimientoView:
                 self.entrada_codigo_barras.focus()
             return
 
+        # Validar si el equipo ya está en préstamo activo
+        equipo_id = equipo_dict.get('_id')
+        prestamo_info = self.prestamo_controller.verificar_equipo_prestado(equipo_id)
+        if prestamo_info:
+            esta_prestado, docente_nombre = prestamo_info
+            messagebox.showerror(
+                "Equipo en Préstamo", 
+                f"⚠️ {equipo_dict.get('nombre')} ya está prestado a:\n\n👤 {docente_nombre}\n\nNo se puede prestar hasta que sea devuelto."
+            )
+            if hasattr(self, 'entrada_codigo_barras'):
+                self.entrada_codigo_barras.delete(0, 'end')
+                self.entrada_codigo_barras.focus()
+            return
+
         equipo_id = str(equipo_dict.get('_id', ''))
         for eq_carrito in self.carrito_equipos:
             if str(eq_carrito.get('_id', '')) == equipo_id:
