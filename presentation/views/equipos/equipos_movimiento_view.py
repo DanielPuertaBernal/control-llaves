@@ -106,36 +106,44 @@ class EquiposMovimientoView:
                 if nombre_prestamo:
                     self.docente_nombre_mov = nombre_prestamo
                     self.label_nombre_mov.config(text=nombre_prestamo)
-                self.label_estado_mov.config(text="✅ Tiene equipos en préstamo", foreground='green')
-                self._mostrar_formulario_devolucion()
+                self.label_estado_mov.config(text="✅ Tiene equipos en préstamo - Puede devolver o agregar más", foreground='green')
+                self._mostrar_formulario_unificado()
             else:
                 self.prestamo_actual = None
                 self.label_estado_mov.config(text="❌ Sin préstamos - Disponible para nuevos", foreground='orange')
-                self._mostrar_formulario_prestamo()
+                self._mostrar_formulario_unificado()
 
             return True
         except Exception as e:
             messagebox.showerror("Error", f"Error al detectar estado: {str(e)}")
             return False
 
-    def _mostrar_formulario_prestamo(self):
-        """Muestra formulario con carrito de lectura de códigos de barras"""
+    def _mostrar_formulario_unificado(self):
+        """Muestra formulario unificado con una sola tabla para equipos prestados y nuevos"""
         for widget in self.frame_contenido_mov.winfo_children():
             widget.destroy()
 
-        frame = ttk.LabelFrame(self.frame_contenido_mov, text="📤 Nuevo Préstamo - Lectura de Códigos", padding="15")
+        frame = ttk.LabelFrame(self.frame_contenido_mov, text="🔄 Gestión de Equipos", padding="15")
         frame.pack(fill='both', expand=True)
 
-        # Botones en la parte superior
-        frame_botones = ttk.Frame(frame)
-        frame_botones.pack(fill='x', pady=(0, 15))
+        # Botones superiores
+        frame_botones_top = ttk.Frame(frame)
+        frame_botones_top.pack(fill='x', pady=(0, 15))
 
-        ttk.Button(frame_botones, text="✔️ Confirmar Préstamo",
-                   command=self._confirmar_prestamo_carrito).pack(side='left', padx=5)
-        ttk.Button(frame_botones, text="🗑️ Limpiar Carrito",
+        if self.prestamo_actual:
+            # Tiene préstamo activo - guardar cambios (agregar nuevos)
+            ttk.Button(frame_botones_top, text="✔️ Guardar Cambios",
+                       command=self._guardar_cambios_prestamo).pack(side='left', padx=5)
+        else:
+            # Sin préstamo - confirmar nuevo préstamo
+            ttk.Button(frame_botones_top, text="✔️ Confirmar Préstamo",
+                       command=self._confirmar_prestamo_carrito).pack(side='left', padx=5)
+
+        ttk.Button(frame_botones_top, text="🗑️ Limpiar Nuevos",
                    command=self._limpiar_carrito).pack(side='left', padx=5)
 
-        frame_entrada = ttk.LabelFrame(frame, text="📖 Escanea Equipos", padding="10")
+        # Campo de escaneo
+        frame_entrada = ttk.LabelFrame(frame, text="📖 Escanear Equipos", padding="10")
         frame_entrada.pack(fill='x', pady=(0, 15))
 
         ttk.Label(frame_entrada, text="Código de Barras:").pack(side='left', padx=(0, 10))
@@ -143,34 +151,35 @@ class EquiposMovimientoView:
         self.entrada_codigo_barras.pack(side='left', fill='x', expand=True)
         self.entrada_codigo_barras.focus()
 
-        # Timer para auto-submit después de que el lector termina
+        # Timer para auto-submit
         self.auto_submit_timer = None
         
         # Bind eventos
         self.entrada_codigo_barras.bind('<Return>', lambda e: self._agregar_equipo_al_carrito())
         self.entrada_codigo_barras.bind('<KeyRelease>', self._on_codigo_barras_change)
 
-        frame_carrito = ttk.LabelFrame(frame, text="🛒 Carrito de Préstamo", padding="10")
-        frame_carrito.pack(fill='both', expand=True, pady=(0, 15))
+        # Tabla unificada
+        frame_carrito = ttk.LabelFrame(frame, text="📦 Equipos", padding="10")
+        frame_carrito.pack(fill='both', expand=True)
 
         self.tree_carrito = ttk.Treeview(
             frame_carrito,
-            height=10,
-            columns=('codigo', 'nombre', 'consecutivo', 'codigo_barras', 'eliminar'),
+            height=12,
+            columns=('tipo', 'codigo', 'nombre', 'consecutivo', 'accion'),
             show='headings'
         )
 
+        self.tree_carrito.heading('tipo', text='Estado', anchor='center')
         self.tree_carrito.heading('codigo', text='Código', anchor='center')
         self.tree_carrito.heading('nombre', text='Nombre', anchor='center')
         self.tree_carrito.heading('consecutivo', text='Consecutivo', anchor='center')
-        self.tree_carrito.heading('codigo_barras', text='Código Barras', anchor='center')
-        self.tree_carrito.heading('eliminar', text='Acción', anchor='center')
+        self.tree_carrito.heading('accion', text='Acción', anchor='center')
 
+        self.tree_carrito.column('tipo', width=100, anchor='center')
         self.tree_carrito.column('codigo', width=80, anchor='center')
-        self.tree_carrito.column('nombre', width=120, anchor='center')
+        self.tree_carrito.column('nombre', width=150, anchor='center')
         self.tree_carrito.column('consecutivo', width=80, anchor='center')
-        self.tree_carrito.column('codigo_barras', width=140, anchor='center')
-        self.tree_carrito.column('eliminar', width=80, anchor='center')
+        self.tree_carrito.column('accion', width=80, anchor='center')
 
         scrollbar_carrito = ttk.Scrollbar(frame_carrito, orient='vertical', command=self.tree_carrito.yview)
         self.tree_carrito.configure(yscrollcommand=scrollbar_carrito.set)
@@ -178,89 +187,136 @@ class EquiposMovimientoView:
         self.tree_carrito.pack(side='left', fill='both', expand=True)
         scrollbar_carrito.pack(side='right', fill='y')
 
-        self.tree_carrito.bind('<ButtonRelease-1>', self._on_click_eliminar_carrito)
+        self.tree_carrito.bind('<ButtonRelease-1>', self._on_click_accion_equipo)
 
+        # Inicializar listas
         self.carrito_equipos = []
+        self.equipos_tabla_map = {}  # {item_id: {'tipo': 'prestado'/'nuevo', 'data': equipo_data}}
 
-    def _mostrar_formulario_devolucion(self):
-        """Muestra formulario para devolver un préstamo"""
-        for widget in self.frame_contenido_mov.winfo_children():
-            widget.destroy()
+        # Cargar equipos prestados si existen
+        if self.prestamo_actual:
+            equipos_prestados = self.prestamo_actual.get('equipos', [])
+            for eq in equipos_prestados:
+                equipo_id = eq.get('equipo_id')
+                consecutivo = ''
+                if equipo_id:
+                    equipo_obj = self.equipo_controller.obtener_equipo(equipo_id)
+                    if equipo_obj:
+                        equipo_dict = equipo_obj.to_dict() if hasattr(equipo_obj, 'to_dict') else equipo_obj
+                        consecutivo = equipo_dict.get('consecutivo', '')
+                
+                item_id = self.tree_carrito.insert('', 'end', values=(
+                    '🔵 Prestado',
+                    eq.get('equipo_codigo', ''),
+                    eq.get('equipo_nombre', ''),
+                    consecutivo,
+                    'Devolver'
+                ), tags=('prestado',))
+                
+                self.equipos_tabla_map[item_id] = {'tipo': 'prestado', 'data': eq}
+            
+            # Aplicar color a equipos prestados
+            self.tree_carrito.tag_configure('prestado', background='#e3f2fd')
 
-        if not self.prestamo_actual:
+    def _on_click_accion_equipo(self, event):
+        """Maneja clic en acción: Devolver (prestados) o Eliminar (nuevos)"""
+        region = self.tree_carrito.identify('region', event.x, event.y)
+        if region != 'cell':
+            return
+        
+        col = self.tree_carrito.identify_column(event.x)
+        if col != '#5':  # Columna de acción
             return
 
-        frame = ttk.LabelFrame(self.frame_contenido_mov, text="📥 Devolución de Préstamo", padding="15")
-        frame.pack(fill='both', expand=True)
+        item_id = self.tree_carrito.identify_row(event.y)
+        if not item_id or item_id not in self.equipos_tabla_map:
+            return
 
-        frame_info = ttk.Frame(frame)
-        frame_info.pack(fill='x', pady=5)
-        ttk.Label(frame_info, text=f"Fecha de Préstamo: {self.prestamo_actual.get('fecha_prestamo', 'N/A')}").pack(side='left')
+        equipo_info = self.equipos_tabla_map[item_id]
+        
+        if equipo_info['tipo'] == 'prestado':
+            # Devolver equipo prestado
+            self._devolver_equipo_individual(item_id, equipo_info['data'])
+        elif equipo_info['tipo'] == 'nuevo':
+            # Eliminar del carrito
+            self._eliminar_equipo_nuevo(item_id)
 
-        frame_tabla = ttk.Frame(frame)
-        frame_tabla.pack(fill='both', expand=True, pady=10)
+    def _devolver_equipo_individual(self, item_id, equipo_data):
+        """Devuelve un equipo prestado individualmente"""
+        if not self.prestamo_actual:
+            messagebox.showerror("Error", "No hay préstamo activo")
+            return
 
-        tree = ttk.Treeview(frame_tabla, height=8, columns=('codigo', 'nombre', 'consecutivo', 'accion'), show='headings')
-        tree.heading('codigo', text='Código', anchor='center')
-        tree.heading('nombre', text='Nombre', anchor='center')
-        tree.heading('consecutivo', text='Consecutivo', anchor='center')
-        tree.heading('accion', text='Acción', anchor='center')
-
-        tree.column('codigo', width=80, anchor='center')
-        tree.column('nombre', width=120, anchor='center')
-        tree.column('consecutivo', width=140, anchor='center')
-        tree.column('accion', width=100, anchor='center')
-
-        equipos = self.prestamo_actual.get('equipos', [])
-        for eq in equipos:
-            equipo_id = eq.get('equipo_id')
-            consecutivo = ''
-            if equipo_id:
-                equipo_obj = self.equipo_controller.obtener_equipo(equipo_id)
-                if equipo_obj:
-                    equipo_dict = equipo_obj.to_dict() if hasattr(equipo_obj, 'to_dict') else equipo_obj
-                    consecutivo = equipo_dict.get('consecutivo', '')
-            tree.insert('', 'end', values=(
-                eq.get('equipo_codigo', ''),
-                eq.get('equipo_nombre', ''),
-                consecutivo,
-                'Devolver'
-            ))
-
-        scrollbar = ttk.Scrollbar(frame_tabla, orient='vertical', command=tree.yview)
-        tree.configure(yscrollcommand=scrollbar.set)
-        tree.pack(side='left', fill='both', expand=True)
-        scrollbar.pack(side='right', fill='y')
-
-        def on_click_devolver(event):
-            region = tree.identify('region', event.x, event.y)
-            if region != 'cell':
-                return
-            col = tree.identify_column(event.x)
-            if col != '#4':
-                return
-            item_id = tree.identify_row(event.y)
-            if not item_id:
-                return
-            self._registrar_devolucion_simple()
-
-        tree.bind('<ButtonRelease-1>', on_click_devolver)
-
-    def _registrar_devolucion_simple(self):
-        """Registra la devolución completa"""
         try:
-            if not self.prestamo_actual:
-                messagebox.showerror("Error", "No hay préstamo activo")
-                return
-
+            # Devolver solo este equipo
             self.devolucion_controller.crear_devolucion(
                 self.prestamo_actual.get('_id'),
                 self.docente_nfc_mov,
                 self.docente_nombre_mov,
-                self.prestamo_actual.get('equipos', [])
+                [equipo_data]  # Solo este equipo
             )
 
-            messagebox.showinfo("Éxito", "Devolución registrada correctamente")
+            # Eliminar de la tabla y del map
+            self.tree_carrito.delete(item_id)
+            del self.equipos_tabla_map[item_id]
+
+            messagebox.showinfo("Éxito", f"✅ {equipo_data.get('equipo_nombre', 'Equipo')} devuelto")
+            
+            if self.on_actualizar_historial:
+                self.on_actualizar_historial()
+                
+            # Recargar estado del docente
+            self._detectar_estado_docente(self.docente_nfc_mov)
+            
+        except Exception as e:
+            messagebox.showerror("Error", str(e))
+
+    def _eliminar_equipo_nuevo(self, item_id):
+        """Elimina un equipo nuevo del carrito"""
+        # Encontrar índice en carrito_equipos
+        items = self.tree_carrito.get_children()
+        idx_visual = list(items).index(item_id)
+        
+        # Contar cuántos prestados hay antes de este ítem
+        prestados_antes = 0
+        for i, item in enumerate(items):
+            if i >= idx_visual:
+                break
+            if item in self.equipos_tabla_map and self.equipos_tabla_map[item]['tipo'] == 'prestado':
+                prestados_antes += 1
+        
+        # Índice real en carrito_equipos
+        idx_real = idx_visual - prestados_antes
+        
+        if 0 <= idx_real < len(self.carrito_equipos):
+            self.carrito_equipos.pop(idx_real)
+        
+        self.tree_carrito.delete(item_id)
+        del self.equipos_tabla_map[item_id]
+
+    def _guardar_cambios_prestamo(self):
+        """Guarda cambios: agrega equipos nuevos al préstamo existente"""
+        if not self.carrito_equipos:
+            messagebox.showinfo("Info", "No hay equipos nuevos para agregar")
+            return
+
+        if not self.prestamo_actual:
+            messagebox.showerror("Error", "No hay préstamo activo")
+            return
+
+        try:
+            prestamo_id = self.prestamo_actual.get('_id')
+            
+            # Agregar cada equipo del carrito al préstamo
+            for equipo in self.carrito_equipos:
+                equipo_id = equipo.get('_id')
+                self.prestamo_controller.agregar_equipo(prestamo_id, equipo_id, 1)
+
+            messagebox.showinfo(
+                "Éxito",
+                f"✅ {len(self.carrito_equipos)} equipo(s) agregado(s) al préstamo"
+            )
+
             self._limpiar_movimiento()
             if self.on_actualizar_historial:
                 self.on_actualizar_historial()
@@ -360,16 +416,18 @@ class EquiposMovimientoView:
         print(f"[CARRITO] Equipo agregado: {equipo_dict.get('codigo_inventario')}")
 
         # Si el árbol de carrito existe (formulario ya mostrado), actualizar UI
-        if hasattr(self, 'tree_carrito'):
-            self.tree_carrito.insert('', 'end',
+        if hasattr(self, 'tree_carrito') and hasattr(self, 'equipos_tabla_map'):
+            item_id = self.tree_carrito.insert('', 'end',
                 values=(
+                    '🟢 Nuevo',
                     equipo_dict.get('codigo_inventario', ''),
                     equipo_dict.get('nombre', ''),
                     equipo_dict.get('consecutivo', ''),
-                    equipo_dict.get('codigo_barras', ''),
                     'Eliminar'
-                )
-            )
+                ), tags=('nuevo',))
+            
+            self.equipos_tabla_map[item_id] = {'tipo': 'nuevo', 'data': equipo_dict}
+            self.tree_carrito.tag_configure('nuevo', background='#e8f5e9')
 
         if hasattr(self, 'entrada_codigo_barras'):
             self.entrada_codigo_barras.delete(0, 'end')
@@ -379,31 +437,22 @@ class EquiposMovimientoView:
         # (El usuario verá el equipo en el carrito inmediatamente)
         print(f"[CARRITO] ✅ {equipo_dict.get('nombre')} agregado al carrito")
 
-
-    def _on_click_eliminar_carrito(self, event):
-        """Elimina un equipo del carrito cuando se hace clic en 'Eliminar'"""
-        region = self.tree_carrito.identify('region', event.x, event.y)
-        if region != 'cell':
-            return
-        col = self.tree_carrito.identify_column(event.x)
-        if col != '#5':
-            return
-
-        item_id = self.tree_carrito.identify_row(event.y)
-        if not item_id:
-            return
-
-        items = self.tree_carrito.get_children()
-        idx = list(items).index(item_id)
-
-        self.carrito_equipos.pop(idx)
-        self.tree_carrito.delete(item_id)
-
     def _limpiar_carrito(self):
-        """Limpia todos los equipos del carrito"""
+        """Limpia solo los equipos nuevos del carrito (mantiene prestados)"""
+        if not hasattr(self, 'equipos_tabla_map'):
+            return
+        
+        # Eliminar solo items nuevos
+        items_a_eliminar = []
+        for item_id, info in self.equipos_tabla_map.items():
+            if info['tipo'] == 'nuevo':
+                items_a_eliminar.append(item_id)
+        
+        for item_id in items_a_eliminar:
+            self.tree_carrito.delete(item_id)
+            del self.equipos_tabla_map[item_id]
+        
         self.carrito_equipos.clear()
-        for item in self.tree_carrito.get_children():
-            self.tree_carrito.delete(item)
 
     def _confirmar_prestamo_carrito(self):
         """Confirma el préstamo con todos los equipos del carrito"""
