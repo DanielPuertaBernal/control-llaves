@@ -4,6 +4,7 @@ Vista de Movimiento de Equipos (Préstamo/Devolución)
 from tkinter import ttk, messagebox
 
 from controllers import DocenteController, EquipoController, PréstamoController, DevolucionController
+from application.auth.session_manager import SessionManager
 
 
 class EquiposMovimientoView:
@@ -17,6 +18,7 @@ class EquiposMovimientoView:
         self.devolucion_controller = devolucion_controller
         self.docente_controller = docente_controller
         self.on_actualizar_historial = on_actualizar_historial
+        self.session_manager = SessionManager()
 
         self.frame = ttk.Frame(parent_frame, padding="15")
         self.frame.pack(fill='both', expand=True)
@@ -248,12 +250,17 @@ class EquiposMovimientoView:
             return
 
         try:
+            # Obtener usuario actual
+            usuario_actual = self.session_manager.obtener_usuario_actual()
+            auxiliar_nombre = usuario_actual.nombre if usuario_actual else "Auxiliar"
+            
             # Devolver solo este equipo
             self.devolucion_controller.crear_devolucion(
                 self.prestamo_actual.get('_id'),
                 self.docente_nfc_mov,
                 self.docente_nombre_mov,
-                [equipo_data]  # Solo este equipo
+                [equipo_data],  # Solo este equipo
+                auxiliar_que_recibio=auxiliar_nombre
             )
 
             # Eliminar de la tabla y del map
@@ -496,10 +503,15 @@ class EquiposMovimientoView:
             return
 
         try:
+            # Obtener usuario actual
+            usuario_actual = self.session_manager.obtener_usuario_actual()
+            auxiliar_nombre = usuario_actual.nombre if usuario_actual else "Auxiliar"
+            
             self.prestamo_controller.crear_prestamo(
                 self.docente_nfc_mov,
                 self.docente_nombre_mov,
-                self.carrito_equipos
+                self.carrito_equipos,
+                auxiliar_prestamista=auxiliar_nombre
             )
 
             messagebox.showinfo(

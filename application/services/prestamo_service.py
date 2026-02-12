@@ -3,7 +3,7 @@ Servicio de Préstamos - Lógica de negocio para gestión de préstamos de equip
 """
 from typing import List, Optional, Dict, Tuple
 from bson import ObjectId
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from domain.prestamo import Préstamo, DetallePréstamo
 from domain.equipo import Equipo
@@ -28,9 +28,7 @@ class PréstamoService:
         docente_codigo_nfc: str,
         docente_nombre: str,
         equipos: List,  # Acepta List[Tuple[ObjectId, int]] o List[Dict]
-        auxiliar_prestamista: str = "Auxiliar",
-        dias_plazo: int = None,
-        notas: str = None
+        auxiliar_prestamista: str = "Auxiliar"
     ) -> Préstamo:
         """
         Crea un nuevo préstamo de equipos
@@ -44,8 +42,6 @@ class PréstamoService:
             docente_nombre: Nombre del docente
             equipos: Lista de equipos (tuplas o diccionarios)
             auxiliar_prestamista: Nombre del auxiliar que hace el préstamo (default: "Auxiliar")
-            dias_plazo: Días para devolver (opcional)
-            notas: Notas adicionales
             
         Returns:
             Préstamo creado
@@ -64,12 +60,8 @@ class PréstamoService:
         prestamo = Préstamo(
             docente_codigo_nfc=docente_codigo_nfc,
             docente_nombre=docente_nombre,
-            auxiliar_prestamista=auxiliar_prestamista,
-            notas=notas
+            auxiliar_prestamista=auxiliar_prestamista
         )
-        
-        if dias_plazo:
-            prestamo.fecha_prevista_devolucion = datetime.now() + timedelta(days=dias_plazo)
         
         # Agregar equipos al préstamo
         for equipo_data in equipos_normalizados:
