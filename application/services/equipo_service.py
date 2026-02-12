@@ -12,8 +12,9 @@ from infrastructure.repositories.equipo_mongo_repository import EquipoMongoRepos
 class EquipoService:
     """Casos de uso para gestión de equipos"""
     
-    def __init__(self, equipo_repository: EquipoMongoRepository = None):
+    def __init__(self, equipo_repository: EquipoMongoRepository = None, prestamo_service=None):
         self.repository = equipo_repository or EquipoMongoRepository()
+        self._prestamo_service = prestamo_service
     
     def registrar_equipo(
         self,

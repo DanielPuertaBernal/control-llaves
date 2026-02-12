@@ -5,8 +5,7 @@ from typing import List, Optional, Dict, Tuple
 from bson import ObjectId
 from datetime import datetime
 
-from domain.prestamo import Préstamo, DetallePréstamo
-from domain.equipo import Equipo
+from domain.prestamo import Préstamo
 from infrastructure.repositories.prestamo_mongo_repository import PréstamoMongoRepository
 from infrastructure.repositories.equipo_mongo_repository import EquipoMongoRepository
 from application.helpers import ValidationHelper

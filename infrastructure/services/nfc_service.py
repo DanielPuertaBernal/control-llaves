@@ -133,33 +133,27 @@ class NFCService:
             
             return None
             
-        except Exception as e:
-            print(f"Error al leer carnet: {e}")
+        except Exception:
+            pass  # Silenciar errores de lectura
             return None
     
     def _loop_escucha(self):
         """Loop de escucha continua (ejecutado en thread separado)"""
-        print("[NFC] Iniciando loop de escucha...")
         while self.is_listening:
             try:
                 if self.serial_connection and self.serial_connection.is_open:
                     if self.serial_connection.in_waiting > 0:
                         linea = self.serial_connection.readline().decode('utf-8').strip()
-                        print(f"[NFC] Datos recibidos: {linea}")
                         
                         if linea:
                             # Normalizar formato: reemplazar comillas simples por guiones
                             # INV'12'012 → INV-12-012
                             id_carnet = linea.replace("'", "-").upper()
-                            print(f"[NFC] ID normalizado: {id_carnet}")
                             tiempo_actual = time.time()
-                            
-                            print(f"[NFC] ID carnet: {id_carnet}, Último: {self.ultimo_id_leido}")
                             
                             # Debounce: ignorar si es el mismo ID en menos de N segundos
                             if (id_carnet == self.ultimo_id_leido and 
                                 tiempo_actual - self.tiempo_ultimo_id < self.debounce_time):
-                                print(f"[NFC] Ignorado por debounce")
                                 continue
                             
                             # Actualizar último ID leído
@@ -168,16 +162,12 @@ class NFCService:
                             
                             # Llamar callback si existe
                             if self.callback:
-                                print(f"[NFC] Ejecutando callback con ID: {id_carnet}")
                                 self.callback(id_carnet)
-                            else:
-                                print(f"[NFC] ⚠️ No hay callback configurado!")
                 
                 time.sleep(0.1)  # Pequeña pausa para no saturar CPU
                 
-            except Exception as e:
-                print(f"[NFC] Error en loop de escucha: {e}")
-                time.sleep(1)  # Esperar un poco antes de reintentar
+            except Exception:
+                time.sleep(1)  # Esperar antes de reintentar
     
     def iniciar_escucha(self, callback):
         """

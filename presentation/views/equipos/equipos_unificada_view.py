@@ -92,13 +92,24 @@ class EquiposUnificadaView:
             inventario_rows = []
             for equipo in inventario:
                 eq = equipo.to_dict() if hasattr(equipo, 'to_dict') else equipo
+                equipo_id = eq.get("_id")
+                
+                # Verificar si está en préstamo
+                estado_prestamo = "Disponible"
+                prestado_a = ""
+                resultado = self.prestamo_controller.service.verificar_equipo_prestado(equipo_id)
+                if resultado:
+                    estado_prestamo = "En Préstamo"
+                    prestado_a = resultado[1]
+                
                 inventario_rows.append({
                     "codigo_barras": eq.get("codigo_barras", ""),
                     "codigo_inventario": eq.get("codigo_inventario", ""),
                     "nombre": eq.get("nombre", ""),
                     "marca": eq.get("marca", ""),
                     "consecutivo": eq.get("consecutivo", ""),
-                    "estado": eq.get("estado", ""),
+                    "estado": estado_prestamo,
+                    "prestado_a": prestado_a,
                     "descripcion": eq.get("descripcion", "")
                 })
             df_inventario = pd.DataFrame(inventario_rows)

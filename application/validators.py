@@ -1,6 +1,6 @@
 """
-Validadores de Dominio
-Centralizan la lógica de validación de negocio
+Validadores de Dominio - Reglas de negocio
+Centraliza lógica de validación específica del negocio
 """
 from datetime import datetime, date
 
@@ -19,33 +19,9 @@ class ValidadorLlave:
         return True, "Válido"
     
     @staticmethod
-    def validar_numero_documento(numero: str) -> tuple[bool, str]:
-        """Valida que el número de documento sea válido"""
-        if not numero or not str(numero).strip():
-            return False, "El número de documento no puede estar vacío"
-        return True, "Válido"
-    
-    @staticmethod
-    def calcular_duracion(fecha_inicio: str, hora_inicio: str, 
-                         fecha_fin: datetime) -> str:
-        """Calcula la duración entre dos tiempos"""
-        try:
-            # Parsear fecha y hora de inicio
-            inicio = datetime.strptime(f"{fecha_inicio} {hora_inicio}", '%Y-%m-%d %H:%M:%S')
-            
-            # Calcular diferencia
-            duracion = fecha_fin - inicio
-            horas = duracion.total_seconds() // 3600
-            minutos = (duracion.total_seconds() % 3600) // 60
-            
-            return f"{int(horas)}h {int(minutos)}m"
-        except Exception:
-            return "N/A"
-    
-    @staticmethod
     def validar_tiempo_para_entrega(horario: str) -> tuple[bool, int, str]:
         """
-        Valida si es tiempo apropiado para entregar llave
+        Valida si es tiempo apropiado para entregar llave.
         Retorna: (permitir_inmediato, minutos_faltantes, tiempo_faltante_str)
         """
         try:
@@ -98,6 +74,10 @@ class ValidadorLlave:
 class ValidadorDocente:
     """Valida reglas de negocio para docentes"""
     
+    @staticmethod
+    def validar_documento_unico(numero_documento: str, docentes_existentes: list) -> bool:
+        """Valida que un documento no esté duplicado"""
+        return numero_documento not in [d['Numero de documento'] for d in docentes_existentes]
     @staticmethod
     def validar_documento(numero_documento: str) -> tuple[bool, str]:
         """Valida que el documento sea válido"""

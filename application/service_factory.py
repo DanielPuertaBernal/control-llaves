@@ -1,7 +1,7 @@
 """
-Service Factory - Patrón Factory para crear servicios con dependencias inyectadas
+Service Factory - Patrón Singleton para gestión de servicios
+Implementa inyección de dependencias centralizada
 """
-import logging
 from application.services.docente_service import DocenteService
 from application.services.llave_service import LlaveService
 from application.services.historial_service import HistorialService
@@ -19,16 +19,8 @@ from infrastructure.repositories.prestamo_mongo_repository import PréstamoMongo
 from infrastructure.repositories.devolucion_mongo_repository import DevolucionMongoRepository
 
 
-# Configurar logger centralizado
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger('ControlDeLLaves')
-
-
 class ServiceFactory:
-    """Factory para crear servicios con todas sus dependencias"""
+    """Singleton Factory para crear servicios con dependencias inyectadas"""
     
     _instance = None
     _services = {}
@@ -40,9 +32,7 @@ class ServiceFactory:
         return cls._instance
     
     def _inicializar(self):
-        """Inicializa los servicios una sola vez (singleton)"""
-        logger.info("Inicializando ServiceFactory...")
-        
+        """Inicializa repositorios y servicios (ejecutado una sola vez)"""
         # Crear repositories
         self._docente_repo = DocenteMongoRepository()
         self._llave_repo = LlaveMongoRepository()
@@ -56,11 +46,9 @@ class ServiceFactory:
         self._services['docente'] = DocenteService(self._docente_repo)
         self._services['llave'] = LlaveService(self._llave_repo)
         self._services['auth'] = AuthService(self._usuario_repo)
-        
-        # HistorialService usa LlaveRepository para traer datos
         self._services['historial'] = HistorialService(self._llave_repo)
         
-        # ProgramacionService requiere llave_service
+        # ProgramacionService depende de llave_service
         self._services['programacion'] = ProgramacionService(
             self._programacion_repo,
             self._services['llave']
@@ -69,44 +57,38 @@ class ServiceFactory:
         # Servicios de equipos
         self._services['equipo'] = EquipoService(self._equipo_repo)
         self._services['prestamo'] = PréstamoService(self._prestamo_repo, self._equipo_repo)
-        self._services['devolucion'] = DevolucionService(self._devolucion_repo, self._prestamo_repo, self._equipo_repo)
-        
-        logger.info("ServiceFactory inicializado exitosamente")
+        self._services['devolucion'] = DevolucionService(
+            self._devolucion_repo, 
+            self._prestamo_repo, 
+            self._equipo_repo
+        )
     
     def get_docente_service(self) -> DocenteService:
-        """Obtiene servicio de docentes"""
         return self._services['docente']
     
     def get_llave_service(self) -> LlaveService:
-        """Obtiene servicio de llaves"""
         return self._services['llave']
     
     def get_historial_service(self) -> HistorialService:
-        """Obtiene servicio de historial"""
         return self._services['historial']
     
     def get_auth_service(self) -> AuthService:
-        """Obtiene servicio de autenticación"""
         return self._services['auth']
     
-    def get_logger(self):
-        """Obtiene el logger centralizado"""
-        return logger
-    
     def get_programacion_service(self) -> ProgramacionService:
-        """Obtiene servicio de programación"""
         return self._services['programacion']
     
     def get_equipo_service(self) -> EquipoService:
-        """Obtiene servicio de equipos"""
         return self._services['equipo']
     
     def get_prestamo_service(self) -> PréstamoService:
-        """Obtiene servicio de préstamos"""
         return self._services['prestamo']
     
     def get_devolucion_service(self) -> DevolucionService:
-        """Obtiene servicio de devoluciones"""
+        return self._services['devolucion']
+
+    
+    def get_devolucion_service(self) -> DevolucionService:
         return self._services['devolucion']
     
     @classmethod

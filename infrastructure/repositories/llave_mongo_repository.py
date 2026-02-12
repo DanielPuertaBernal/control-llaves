@@ -65,8 +65,7 @@ class LlaveMongoRepository(LlaveRepository):
             self.collection.insert_one(nuevo_registro)
             return True
             
-        except Exception as e:
-            print(f"Error en registrar_entrega: {e}")
+        except Exception:
             return False
 
     def registrar_devolucion(self, nroidenti: str) -> bool:
@@ -116,8 +115,7 @@ class LlaveMongoRepository(LlaveRepository):
 
             return True
             
-        except Exception as e:
-            print(f"Error en registrar_devolucion: {e}")
+        except Exception:
             return False
 
     def obtener_llaves_pendientes(self) -> list:
@@ -145,8 +143,7 @@ class LlaveMongoRepository(LlaveRepository):
                 llaves_pendientes.append(llave_info)
             return llaves_pendientes
             
-        except Exception as e:
-            print(f"Error al obtener llaves pendientes: {e}")
+        except Exception:
             return []
 
     def obtener_clases_procesadas_hoy(self, fecha_actual):
@@ -170,8 +167,7 @@ class LlaveMongoRepository(LlaveRepository):
                 clases_procesadas.append(clase_info)
             return clases_procesadas
             
-        except Exception as e:
-            print(f"Error al obtener clases procesadas hoy: {e}")
+        except Exception:
             return []
 
     def obtener_llaves_prestadas_dia(self, fecha_actual):
@@ -203,8 +199,7 @@ class LlaveMongoRepository(LlaveRepository):
                 llaves_del_dia.append(llave_info)
             return llaves_del_dia
             
-        except Exception as e:
-            print(f"Error al obtener llaves prestadas del día: {e}")
+        except Exception:
             return []
 
     def obtener_historial_completo(self) -> pd.DataFrame:
@@ -218,8 +213,7 @@ class LlaveMongoRepository(LlaveRepository):
             registros = list(self.collection.find({}, {"_id": 0}))
             return pd.DataFrame(registros)
             
-        except Exception as e:
-            print(f"Error al obtener historial completo: {e}")
+        except Exception:
             return pd.DataFrame()
 
     def evaluar_retraso_entrega(self, horario: str) -> bool:
@@ -247,8 +241,7 @@ class LlaveMongoRepository(LlaveRepository):
             
             return retraso_minutos > 60
             
-        except Exception as e:
-            print(f"Error en evaluar_retraso_entrega: {e}")
+        except Exception:
             return False
 
     # ============ Helpers de tiempo ============
@@ -325,8 +318,7 @@ class LlaveMongoRepository(LlaveRepository):
             
             return ' '.join(partes)
             
-        except Exception as e:
-            print(f"Error calculando retraso devolución: {e}")
+        except Exception:
             return ''
 
     @staticmethod
