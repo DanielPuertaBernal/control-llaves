@@ -10,7 +10,7 @@ from bson import ObjectId
 
 @dataclass
 class DetallePréstamo:
-    """Detalle de un equipo prestado (instancia individual única)"""
+    """Detalle de un equipo prestado con ciclo de vida completo (entrega y devolución)"""
     
     equipo_id: ObjectId
     equipo_nombre: str
@@ -19,6 +19,12 @@ class DetallePréstamo:
     equipo_consecutivo: int  # Consecutivo del equipo
     equipo_codigo_barras: str  # Código de barras del equipo
     
+    # Ciclo de vida del equipo en el préstamo
+    estado_equipo: str = "entregado"  # "entregado", "devuelto"
+    fecha_entrega: datetime = field(default_factory=datetime.now)
+    fecha_devolucion: Optional[datetime] = None
+    auxiliar_que_recibio_devolucion: Optional[str] = None  # Quién recibió la devolución
+    
     def to_dict(self):
         return {
             'equipo_id': self.equipo_id,
@@ -26,8 +32,27 @@ class DetallePréstamo:
             'equipo_marca': self.equipo_marca,
             'equipo_codigo': self.equipo_codigo,
             'equipo_consecutivo': self.equipo_consecutivo,
-            'equipo_codigo_barras': self.equipo_codigo_barras
+            'equipo_codigo_barras': self.equipo_codigo_barras,
+            'estado_equipo': self.estado_equipo,
+            'fecha_entrega': self.fecha_entrega,
+            'fecha_devolucion': self.fecha_devolucion,
+            'auxiliar_que_recibio_devolucion': self.auxiliar_que_recibio_devolucion
         }
+    
+    @staticmethod
+    def from_dict(data: dict):
+        return DetallePréstamo(
+            equipo_id=data.get('equipo_id'),
+            equipo_nombre=data.get('equipo_nombre', ''),
+            equipo_marca=data.get('equipo_marca', ''),
+            equipo_codigo=data.get('equipo_codigo', ''),
+            equipo_consecutivo=data.get('equipo_consecutivo', 0),
+            equipo_codigo_barras=data.get('equipo_codigo_barras', ''),
+            estado_equipo=data.get('estado_equipo', 'entregado'),
+            fecha_entrega=data.get('fecha_entrega', datetime.now()),
+            fecha_devolucion=data.get('fecha_devolucion'),
+            auxiliar_que_recibio_devolucion=data.get('auxiliar_que_recibio_devolucion')
+        )
 
 
 @dataclass
@@ -90,16 +115,9 @@ class Préstamo:
     @classmethod
     def from_dict(cls, data):
         """Crea una instancia desde un diccionario"""
-        # Reconstruir detalles
+        # Reconstruir detalles - usar DetallePréstamo.from_dict para capturar todos los campos
         equipos = [
-            DetallePréstamo(
-                equipo_id=item['equipo_id'],
-                equipo_nombre=item['equipo_nombre'],
-                equipo_marca=item['equipo_marca'],
-                equipo_codigo=item['equipo_codigo'],
-                equipo_consecutivo=item.get('equipo_consecutivo', 1),
-                equipo_codigo_barras=item.get('equipo_codigo_barras', '')
-            )
+            DetallePréstamo.from_dict(item)
             for item in data.get('equipos', [])
         ]
         

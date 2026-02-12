@@ -103,51 +103,30 @@ class EquiposUnificadaView:
                 })
             df_inventario = pd.DataFrame(inventario_rows)
 
-            # Registro unificado de préstamos y devoluciones
+            # Registro unificado: solo usar tabla de Préstamos
             registros = []
-            equipos_procesados = set()  # Para evitar duplicados
 
-            # Obtener todos los préstamos y devoluciones
-            prestamos_map = {}  # {prestamo_id: prestamo_data}
             prestamos = self.prestamo_controller.obtener_todos()
             for prestamo in prestamos:
                 pr = prestamo.to_dict() if hasattr(prestamo, 'to_dict') else prestamo
-                prestamos_map[str(pr.get("_id", ""))] = pr
-            
-            devoluciones = self.devolucion_controller.obtener_todas()
-
-            devoluciones_map = {}
-            for devolucion in devoluciones:
-                dev = devolucion.to_dict() if hasattr(devolucion, 'to_dict') else devolucion
-                prestamo_id = str(dev.get("prestamo_id", ""))
-                for eq_dev in dev.get("equipos_devueltos", []):
-                    equipo_id = str(eq_dev.get("equipo_id", ""))
-                    devoluciones_map[(prestamo_id, equipo_id)] = {
-                        "fecha_devolucion": dev.get("fecha_devolucion", ""),
-                        "recibido_por": dev.get("auxiliar_que_recibio", ""),
-                        "docente_codigo_nfc": dev.get("docente_codigo_nfc", ""),
-                        "docente_nombre": dev.get("docente_nombre", ""),
-                        "equipo_nombre": eq_dev.get("equipo_nombre", "")
-                    }
-
-            # Primero: procesar todos los préstamos con equipos registrados
-            for prestamo_id_str, pr in prestamos_map.items():
+                prestamo_id_str = str(pr.get("_id", ""))
+                
                 for eq in pr.get("equipos", []):
                     fecha_prestamo = pr.get("fecha_prestamo", "")
                     fecha_prestamo_str = fecha_prestamo.strftime('%d/%m/%Y %H:%M:%S') if isinstance(fecha_prestamo, datetime) else str(fecha_prestamo)
-
-                    equipo_id_str = str(eq.get("equipo_id", ""))
-
-                    devolucion_data = devoluciones_map.get((prestamo_id_str, equipo_id_str))
+                    
                     fecha_devolucion_str = ""
                     recibido_por = ""
                     estado = "Entregado"
-                    if devolucion_data:
-                        fecha_devolucion = devolucion_data.get("fecha_devolucion", "")
-                        fecha_devolucion_str = fecha_devolucion.strftime('%d/%m/%Y %H:%M:%S') if isinstance(fecha_devolucion, datetime) else str(fecha_devolucion)
-                        recibido_por = devolucion_data.get("recibido_por", "")
+                    
+                    # Si el equipo tiene fecha de devolución, es que fue devuelto
+                    fecha_dev = eq.get("fecha_devolucion")
+                    estado_equipo = eq.get("estado_equipo", "entregado")
+                    if fecha_dev and estado_equipo == "devuelto":
+                        fecha_devolucion_str = fecha_dev.strftime('%d/%m/%Y %H:%M:%S') if isinstance(fecha_dev, datetime) else str(fecha_dev)
+                        recibido_por = eq.get("auxiliar_que_recibio_devolucion", "")
                         estado = "Devuelto"
-
+                    
                     registros.append({
                         "prestamo_id": prestamo_id_str,
                         "docente_codigo_nfc": pr.get("docente_codigo_nfc", ""),
@@ -163,37 +142,6 @@ class EquiposUnificadaView:
                         "equipo_consecutivo": eq.get("equipo_consecutivo", ""),
                         "equipo_codigo_barras": eq.get("equipo_codigo_barras", "")
                     })
-                    equipos_procesados.add((prestamo_id_str, equipo_id_str))
-
-            # Segundo: procesar devoluciones sin equipos en el préstamo
-            for (prestamo_id_str, equipo_id_str), dev_data in devoluciones_map.items():
-                if (prestamo_id_str, equipo_id_str) in equipos_procesados:
-                    continue
-
-                pr = prestamos_map.get(prestamo_id_str, {})
-
-                fecha_devolucion = dev_data.get("fecha_devolucion", "")
-                fecha_devolucion_str = fecha_devolucion.strftime('%d/%m/%Y %H:%M:%S') if isinstance(fecha_devolucion, datetime) else str(fecha_devolucion)
-
-                equipo_info = self.equipo_controller.obtener_equipo(equipo_id_str) if equipo_id_str else None
-                eq_info = equipo_info.to_dict() if hasattr(equipo_info, 'to_dict') else (equipo_info or {})
-
-                registros.append({
-                    "prestamo_id": prestamo_id_str,
-                    "docente_codigo_nfc": pr.get("docente_codigo_nfc", "") or dev_data.get("docente_codigo_nfc", ""),
-                    "docente_nombre": pr.get("docente_nombre", "") or dev_data.get("docente_nombre", ""),
-                    "prestado_por": pr.get("auxiliar_prestamista", ""),
-                    "recibido_por": dev_data.get("recibido_por", ""),
-                    "fecha_prestamo": "",
-                    "fecha_devolucion": fecha_devolucion_str,
-                    "estado": "Devuelto",
-                    "equipo_codigo": eq_info.get("codigo_inventario", ""),
-                    "equipo_nombre": dev_data.get("equipo_nombre", ""),
-                    "equipo_marca": eq_info.get("marca", ""),
-                    "equipo_consecutivo": eq_info.get("consecutivo", ""),
-                    "equipo_codigo_barras": eq_info.get("codigo_barras", "")
-                })
-                equipos_procesados.add((prestamo_id_str, equipo_id_str))
 
             df_registros = pd.DataFrame(registros)
 

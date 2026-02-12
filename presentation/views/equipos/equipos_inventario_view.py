@@ -79,10 +79,13 @@ class EquiposInventarioView:
                 prestamo_dict = prestamo.to_dict() if hasattr(prestamo, 'to_dict') else prestamo
                 docente_nombre = prestamo_dict.get('docente_nombre', '')
                 for item in prestamo_dict.get('equipos', []):
-                    equipo_id = item.get('equipo_id')
-                    if equipo_id:
-                        self.equipos_prestados_ids.add(str(equipo_id))
-                        self.equipo_docente_responsable[str(equipo_id)] = docente_nombre
+                    # Solo marcar como prestado si el equipo aún está "entregado"
+                    estado_equipo = item.get('estado_equipo', 'entregado')
+                    if estado_equipo == 'entregado':
+                        equipo_id = item.get('equipo_id')
+                        if equipo_id:
+                            self.equipos_prestados_ids.add(str(equipo_id))
+                            self.equipo_docente_responsable[str(equipo_id)] = docente_nombre
 
             self.equipos_dict = {}
             self.equipos_filtrados = []

@@ -195,10 +195,15 @@ class EquiposMovimientoView:
         self.carrito_equipos = []
         self.equipos_tabla_map = {}  # {item_id: {'tipo': 'prestado'/'nuevo', 'data': equipo_data}}
 
-        # Cargar equipos prestados si existen
+        # Cargar equipos prestados si existen (solo mostrar los que NO han sido devueltos)
         if self.prestamo_actual:
             equipos_prestados = self.prestamo_actual.get('equipos', [])
             for eq in equipos_prestados:
+                # Solo mostrar equipos que aún están "entregados" (no "devuelto")
+                estado_equipo = eq.get('estado_equipo', 'entregado')
+                if estado_equipo == 'devuelto':
+                    continue  # Saltar equipos ya devueltos
+                
                 equipo_id = eq.get('equipo_id')
                 consecutivo = ''
                 if equipo_id:
@@ -269,18 +274,31 @@ class EquiposMovimientoView:
 
             print(f"[DEVOLUCION] ✅ {equipo_data.get('equipo_nombre', 'Equipo')} devuelto")
             
+            # Recargar el préstamo actualizado desde BD
+            if self.docente_nfc_mov:
+                prestamos = self.prestamo_controller.obtener_activos_docente(self.docente_nfc_mov)
+                if prestamos:
+                    prestamo = prestamos[0] if isinstance(prestamos, list) else prestamos
+                    self.prestamo_actual = prestamo.to_dict() if hasattr(prestamo, 'to_dict') else prestamo
+                else:
+                    self.prestamo_actual = None
+            
             if self.on_actualizar_historial:
                 self.on_actualizar_historial()
             
-            # Verificar si quedan equipos prestados en la tabla
+            # Verificar si quedan equipos prestados en la BD
             equipos_prestados_restantes = [
-                info for info in self.equipos_tabla_map.values() 
-                if info['tipo'] == 'prestado'
+                eq for eq in self.equipos_tabla_map.values() 
+                if eq['tipo'] == 'prestado'
             ]
             
-            # Si no quedan equipos prestados, recargar estado (para mostrar sin préstamo)
+            # Si no quedan equipos prestados en UI, limpiar o mantener estado actualizado
             if not equipos_prestados_restantes:
-                self._limpiar_movimiento()
+                # No hay más equipos en la tabla, pero podría haber nuevos en el carrito
+                # Si no hay nada en carrito ni prestados, limpiar
+                if not self.carrito_equipos:
+                    self._limpiar_movimiento()
+                # Si hay equipos nuevos en el carrito, mantener la vista mostrando estado "Sin equipos prestados"
             
         except Exception as e:
             messagebox.showerror("Error", str(e))
