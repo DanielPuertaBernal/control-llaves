@@ -3,6 +3,7 @@ Cliente MongoDB centralizado
 Gestiona conexión y acceso a la base de datos
 """
 import os
+import urllib.parse
 from dotenv import load_dotenv
 from pymongo import MongoClient
 
@@ -22,6 +23,13 @@ class MongoClientProvider:
             mongo_uri = os.getenv("MONGO_URI")
             if not mongo_uri:
                 raise ValueError("MONGO_URI no está configurado.")
+            
+            # Codificar la contraseña si está separada en el .env
+            password = os.getenv('MONGO_PASSWORD')
+            if password:
+                escaped_password = urllib.parse.quote_plus(password)
+                mongo_uri = mongo_uri.replace('@', f':{escaped_password}@')
+            
             cls._client = MongoClient(mongo_uri)
         return cls._client
 

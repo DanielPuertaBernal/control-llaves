@@ -43,12 +43,28 @@ pip install -r requirements.txt
 
 ### 2. Configurar MongoDB
 
-Cree un archivo `.env` en la raíz del proyecto:
+#### Opción A: MongoDB Atlas (Nube - Recomendado para producción)
+
+1. Crea una cuenta en [MongoDB Atlas](https://www.mongodb.com/cloud/atlas)
+2. Crea un cluster gratuito (M0)
+3. Ve a **Database Access** y crea un usuario con contraseña
+4. Ve a **Network Access** y agrega tu IP (o 0.0.0.0/0 para acceso desde cualquier IP)
+5. Obtén tu cadena de conexión: **Database > Connect > Drivers > Python**
+6. Crea un archivo `.env` en la raíz del proyecto:
 
 ```env
-MONGO_URI=mongodb://localhost:27017/
-DB_NAME=control_llaves
+MONGO_URI=mongodb+srv://<usuario>:<password>@<cluster>.mongodb.net/?retryWrites=true&w=majority
+MONGO_DB=AulaSyncDB
 ```
+
+#### Opción B: MongoDB Local (Desarrollo)
+
+```env
+MONGO_URI=mongodb://localhost:27017
+MONGO_DB=AulaSyncDB
+```
+
+**Nota:** Usa el archivo `.env.example` como referencia.
 
 ### 3. Ejecutar aplicación
 

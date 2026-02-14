@@ -4,6 +4,7 @@ xlrd>=2.0.1
 odfpy>=1.4.1
 pyserial>=3.5
 pymongo>=4.7.0
+dnspython>=2.3.0
 python-dotenv>=1.0.0
 bcrypt>=4.0.0
 tkcalendar>=1.6.1
