@@ -10,7 +10,6 @@ from controllers import (ProgramacionController, LlaveController, HistorialContr
                          EquipoController, PréstamoController, DevolucionController)
 from presentation.views.llaves.entrega_view import EntregaView
 from presentation.views.programacion.programacion_view import ProgramacionView
-from presentation.views.llaves.historial_view import HistorialView
 from presentation.views.informes.informes_view import InformesView
 from presentation.views.equipos.equipos_unificada_view import EquiposUnificadaView
 from presentation.nfc_presenter import NFCPresenter
@@ -143,8 +142,7 @@ class MainView:
             {"texto": "  📊 Informes de Llaves", "vista": "informes_admin", "roles": [RolUsuario.ADMIN_PROG]},
             {"texto": "  📦 Sistema de Equipos", "vista": "equipos", "roles": [RolUsuario.ADMIN_PROG, RolUsuario.AUX_PROG]},
             {"texto": "  📅 Programación del Día", "vista": "entrega", "roles": [RolUsuario.AUX_PROG]},
-            {"texto": "  🔓 Llaves en Préstamo", "vista": "historial", "roles": [RolUsuario.AUX_PROG]},
-            {"texto": "  📊 Informes del Día", "vista": "informes", "roles": [RolUsuario.AUX_PROG]},
+            {"texto": "   Informes del Día", "vista": "informes", "roles": [RolUsuario.AUX_PROG]},
             {"texto": "  📡 Sistema NFC", "vista": "nfc", "roles": [RolUsuario.AUX_PROG]}
         ]
         
@@ -296,11 +294,6 @@ class MainView:
             dia_actual = self._obtener_dia_actual()
             self.titulo_contenido.config(text=f"PROGRAMACIÓN DEL DÍA - {dia_actual}")
             self.vista_entrega = EntregaView(vista_frame, self.programacion_controller, self.llave_controller)
-        elif nombre_vista == "historial":
-            dia_actual = self._obtener_dia_actual()
-            self.titulo_contenido.config(text=f"LLAVES EN PRÉSTAMO DEL DÍA - {dia_actual}")
-            self.vista_historial = HistorialView(vista_frame, self.historial_controller, self.llave_controller)
-            self.vista_historial.actualizar_datos()
         elif nombre_vista == "informes":
             dia_actual = self._obtener_dia_actual()
             self.titulo_contenido.config(text=f"INFORME DE LLAVES DEL DÍA - {dia_actual}")
@@ -308,7 +301,9 @@ class MainView:
             self.vista_informes = InformesView(
                 vista_frame,
                 factory.get_historial_service(),
-                factory.get_llave_service()
+                factory.get_llave_service(),
+                self.historial_controller,
+                self.llave_controller
             )
         elif nombre_vista == "estadisticas":
             self.titulo_contenido.config(text="ESTADÍSTICAS DE LLAVES")
@@ -381,10 +376,6 @@ class MainView:
                 # Actualizar vista de entrega si está activa
                 if hasattr(self, 'vista_entrega') and self.vista_actual == "entrega":
                     self.vista_entrega.cargar_clases_del_dia()
-                
-                # Actualizar vista de historial si está activa
-                if hasattr(self, 'vista_historial') and self.vista_actual == "historial":
-                    self.vista_historial.actualizar_datos()
                 
                 # Actualizar vista de informes si está activa
                 if hasattr(self, 'vista_informes') and self.vista_actual == "informes":

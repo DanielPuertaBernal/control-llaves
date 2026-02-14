@@ -12,9 +12,6 @@ class HistorialService:
     def obtener_historial_completo(self):
         return self.repository.obtener_historial_completo()
 
-    def obtener_prestamos_activos(self):
-        return self.repository.obtener_llaves_pendientes()
-
     def filtrar_por_fecha(self, fecha_inicio, fecha_fin, historial_df=None):
         if historial_df is None:
             historial_df = self.repository.obtener_historial_completo()
