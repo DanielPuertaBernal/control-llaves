@@ -29,32 +29,6 @@ class HistorialController:
         """
         return self.service.obtener_prestamos_activos()
     
-    def buscar_en_historial(self, termino, historial_df=None):
-        """
-        Busca en el historial por término
-        
-        Args:
-            termino (str): Término de búsqueda
-            historial_df: DataFrame del historial (opcional)
-        
-        Returns:
-            pd.DataFrame: Resultados filtrados
-        """
-        return self.service.buscar_en_historial(termino, historial_df)
-    
-    def filtrar_por_estado(self, estado, historial_df=None):
-        """
-        Filtra el historial por estado
-        
-        Args:
-            estado (str): Estado a filtrar ('En Préstamo', 'Devuelta', etc.)
-            historial_df: DataFrame del historial (opcional)
-        
-        Returns:
-            pd.DataFrame: Historial filtrado
-        """
-        return self.service.filtrar_por_estado(estado, historial_df)
-    
     def filtrar_por_fecha(self, fecha_inicio, fecha_fin, historial_df=None):
         """
         Filtra el historial por rango de fechas
@@ -68,15 +42,6 @@ class HistorialController:
             pd.DataFrame: Historial filtrado
         """
         return self.service.filtrar_por_fecha(fecha_inicio, fecha_fin, historial_df)
-    
-    def obtener_estadisticas(self):
-        """
-        Obtiene estadísticas del historial
-        
-        Returns:
-            dict: Diccionario con estadísticas
-        """
-        return self.service.obtener_estadisticas()
 
     def filtrar_historial(self, fecha_inicio=None, fecha_fin=None, facultad=None, docente=None, historial_df=None):
         """Filtra historial por fecha, facultad y/o docente"""
@@ -89,10 +54,6 @@ class HistorialController:
     def obtener_facultades(self, historial_df=None):
         """Obtiene lista de facultades disponibles"""
         return self.service.obtener_facultades(historial_df)
-
-    def obtener_docentes(self, historial_df=None):
-        """Obtiene lista de docentes disponibles"""
-        return self.service.obtener_docentes(historial_df)
 
     def exportar_excel(self, historial_df, ruta_guardado: str):
         """Exporta el DataFrame a Excel"""

@@ -45,8 +45,7 @@ class DocenteMongoRepository(DocenteRepository):
             doc_limpio = str(numero_documento).replace('.0', '').strip()
             docente = self.collection.find_one({"Numero de documento": doc_limpio}, {"_id": 0})
             return docente
-        except Exception as e:
-            print(f"Error al buscar docente: {e}")
+        except Exception:
             return None
 
     def buscar_docente_por_carnet(self, id_carnet: str):
@@ -54,6 +53,5 @@ class DocenteMongoRepository(DocenteRepository):
             carnet_limpio = str(id_carnet).strip().upper()
             docente = self.collection.find_one({"Id Carnet": carnet_limpio}, {"_id": 0})
             return docente
-        except Exception as e:
-            print(f"Error al buscar docente por carnet: {e}")
+        except Exception:
             return None

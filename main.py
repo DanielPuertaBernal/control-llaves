@@ -4,7 +4,7 @@ Punto de entrada principal de la aplicación
 """
 from tkinter import Tk
 from presentation.views import MainView
-from presentation.views.login_view import mostrar_login
+from presentation.views.auth.login_view import mostrar_login
 from presentation.assets.estiloTkinter import ConfigurarVentanaPrincipal, AplicarEstilo
 from application.auth.session_manager import SessionManager
 

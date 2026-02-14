@@ -15,33 +15,6 @@ class HistorialService:
     def obtener_prestamos_activos(self):
         return self.repository.obtener_llaves_pendientes()
 
-    def buscar_en_historial(self, termino, historial_df=None):
-        if historial_df is None:
-            historial_df = self.repository.obtener_historial_completo()
-
-        if historial_df.empty or not termino:
-            return historial_df
-
-        termino = termino.strip().lower()
-        mascara_busqueda = pd.Series([False] * len(historial_df))
-
-        columnas_busqueda = ['Número de Documento', 'Docente', 'Aula', 'Materia de la Clase']
-
-        for columna in columnas_busqueda:
-            if columna in historial_df.columns:
-                mascara_busqueda |= historial_df[columna].astype(str).str.lower().str.contains(termino, na=False)
-
-        return historial_df[mascara_busqueda]
-
-    def filtrar_por_estado(self, estado, historial_df=None):
-        if historial_df is None:
-            historial_df = self.repository.obtener_historial_completo()
-
-        if historial_df.empty or 'Estado' not in historial_df.columns:
-            return historial_df
-
-        return historial_df[historial_df['Estado'] == estado]
-
     def filtrar_por_fecha(self, fecha_inicio, fecha_fin, historial_df=None):
         if historial_df is None:
             historial_df = self.repository.obtener_historial_completo()
@@ -52,17 +25,6 @@ class HistorialService:
             fecha_inicio,
             fecha_fin
         )
-
-    def obtener_estadisticas(self):
-        historial = self.repository.obtener_historial_completo()
-        prestamos_activos = self.repository.obtener_llaves_pendientes()
-
-        return {
-            'total_registros': len(historial),
-            'prestamos_activos': len(prestamos_activos),
-            'llaves_devueltas': len(historial[historial['Estado'] == 'Devuelta']) if not historial.empty else 0,
-            'docentes_unicos': historial['Docente'].nunique() if not historial.empty else 0
-        }
 
     def filtrar_historial(
         self,
@@ -108,13 +70,6 @@ class HistorialService:
         if historial_df.empty or 'Facultad' not in historial_df.columns:
             return []
         return sorted([f for f in historial_df['Facultad'].dropna().unique().tolist() if str(f).strip()])
-
-    def obtener_docentes(self, historial_df: Optional[pd.DataFrame] = None) -> List[str]:
-        if historial_df is None:
-            historial_df = self.repository.obtener_historial_completo()
-        if historial_df.empty or 'Docente' not in historial_df.columns:
-            return []
-        return sorted([d for d in historial_df['Docente'].dropna().unique().tolist() if str(d).strip()])
 
     def exportar_excel(self, historial_df: pd.DataFrame, ruta_guardado: str) -> None:
         """Exporta el DataFrame a Excel"""

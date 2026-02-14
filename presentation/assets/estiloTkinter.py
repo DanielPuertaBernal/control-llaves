@@ -1,5 +1,26 @@
 from tkinter import ttk
 
+# Colores globales - paleta profesional azul y gris
+COLOR_PRIMARIO = "#1976D2"      # Azul corporativo vibrante
+COLOR_SECUNDARIO = "#42A5F5"    # Azul claro brillante
+COLOR_ACENTO = "#64B5F6"        # Azul celeste suave
+COLOR_FONDO = "#F5F7FA"         # Gris azulado muy claro
+COLOR_SIDEBAR = "#37474F"       # Gris azulado oscuro elegante
+COLOR_TEXTO = "#263238"         # Gris carbón oscuro
+COLOR_TEXTO_CLARO = "#546E7A"   # Gris medio
+COLOR_BLANCO = "#FFFFFF"
+COLOR_HOVER = "#2196F3"         # Azul brillante para hover
+COLOR_CARD = "#FFFFFF"          # Blanco puro para tarjetas
+COLOR_SOMBRA = "#CFD8DC"        # Gris azulado claro para sombras
+COLOR_SALIR = "#EF5350"         # Rojo coral para botón salir
+
+# Colores para estados de llaves
+COLORS_LLAVES = {
+    'devuelta': '#D4EDDA',      # Verde suave
+    'en_prestamo': '#FFF3CD',   # Amarillo suave
+    'retraso': '#F8D7DA',       # Rojo suave
+}
+
 def AplicarEstilo(root):
     """Aplica estilos personalizados a la aplicación con tema verde moderno"""
     style = ttk.Style(root)
@@ -8,18 +29,18 @@ def AplicarEstilo(root):
     style.theme_use('default')
 
     # Configuración de colores - Paleta profesional azul y gris
-    color_primario = "#1976D2"      # Azul corporativo vibrante
-    color_secundario = "#42A5F5"    # Azul claro brillante
-    color_acento = "#64B5F6"        # Azul celeste suave
-    color_fondo = "#F5F7FA"         # Gris azulado muy claro
-    color_sidebar = "#37474F"       # Gris azulado oscuro elegante
-    color_texto = "#263238"         # Gris carbón oscuro
-    color_texto_claro = "#546E7A"   # Gris medio
-    color_blanco = "#FFFFFF"
-    color_hover = "#2196F3"         # Azul brillante para hover
-    color_card = "#FFFFFF"          # Blanco puro para tarjetas
-    color_sombra = "#CFD8DC"        # Gris azulado claro para sombras
-    color_salir = "#EF5350"         # Rojo coral para botón salir
+    color_primario = COLOR_PRIMARIO
+    color_secundario = COLOR_SECUNDARIO
+    color_acento = COLOR_ACENTO
+    color_fondo = COLOR_FONDO
+    color_sidebar = COLOR_SIDEBAR
+    color_texto = COLOR_TEXTO
+    color_texto_claro = COLOR_TEXTO_CLARO
+    color_blanco = COLOR_BLANCO
+    color_hover = COLOR_HOVER
+    color_card = COLOR_CARD
+    color_sombra = COLOR_SOMBRA
+    color_salir = COLOR_SALIR
     
     # Configurar el fondo de la ventana principal
     root.configure(bg=color_fondo)
@@ -214,3 +235,4 @@ def ConfigurarVentanaPrincipal(root):
         root.iconbitmap('assets/icon.ico')
     except:
         pass  # Si no existe el icono, continuar sin él
+

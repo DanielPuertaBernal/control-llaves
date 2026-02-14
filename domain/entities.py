@@ -1,10 +1,19 @@
-"""Entidades del dominio (puras)"""
+"""
+DEPRECATED: Este archivo contiene entidades duplicadas.
+Usa los archivos individuales en su lugar:
+- Docente -> domain/docente.py
+- ClaseProgramacion -> domain/clase.py  
+- RegistroLlave -> domain/llave.py
+
+Este archivo se mantiene por compatibilidad temporal.
+"""
 from dataclasses import dataclass
 from typing import Optional
 
 
 @dataclass(frozen=True)
 class Docente:
+    """DEPRECATED: Usar domain.docente.Docente"""
     numero_documento: str
     nombre: str
     facultad: Optional[str] = None
@@ -15,6 +24,7 @@ class Docente:
 
 @dataclass(frozen=True)
 class ClaseProgramacion:
+    """DEPRECATED: Usar domain.clase.ClaseProgramacion"""
     codigo_materia: Optional[str]
     grupo: Optional[str]
     nivel_grupo: Optional[str]
@@ -35,6 +45,7 @@ class ClaseProgramacion:
 
 @dataclass(frozen=True)
 class RegistroLlave:
+    """DEPRECATED: Usar domain.llave.Llave"""
     numero_documento: str
     docente: str
     dia: str
@@ -52,3 +63,4 @@ class RegistroLlave:
     tiempo_retraso: Optional[str] = None
     retraso_entrega: Optional[str] = None
     tiempo_retraso_devolucion: Optional[str] = None
+

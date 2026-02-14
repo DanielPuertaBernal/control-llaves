@@ -133,8 +133,8 @@ class NFCService:
             
             return None
             
-        except Exception as e:
-            print(f"Error al leer carnet: {e}")
+        except Exception:
+            pass  # Silenciar errores de lectura
             return None
     
     def _loop_escucha(self):
@@ -146,7 +146,9 @@ class NFCService:
                         linea = self.serial_connection.readline().decode('utf-8').strip()
                         
                         if linea:
-                            id_carnet = linea.upper()
+                            # Normalizar formato: reemplazar comillas simples por guiones
+                            # INV'12'012 → INV-12-012
+                            id_carnet = linea.replace("'", "-").upper()
                             tiempo_actual = time.time()
                             
                             # Debounce: ignorar si es el mismo ID en menos de N segundos
@@ -164,9 +166,8 @@ class NFCService:
                 
                 time.sleep(0.1)  # Pequeña pausa para no saturar CPU
                 
-            except Exception as e:
-                print(f"Error en loop de escucha: {e}")
-                time.sleep(1)  # Esperar un poco antes de reintentar
+            except Exception:
+                time.sleep(1)  # Esperar antes de reintentar
     
     def iniciar_escucha(self, callback):
         """

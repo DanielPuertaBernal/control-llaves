@@ -2,8 +2,9 @@
 Vista de programación académica
 Maneja solo la presentación de carga de programación
 """
-from tkinter import ttk, messagebox, filedialog
+from tkinter import ttk, filedialog
 from controllers import DocenteController
+from presentation.helpers import ViewHelper
 
 
 class ProgramacionView:
@@ -139,10 +140,10 @@ class ProgramacionView:
         
         if exito:
             self.label_archivo.config(text=mensaje, foreground="#2e7d32")
-            messagebox.showinfo("Éxito", mensaje)
+            ViewHelper.mostrar_exito("Éxito", mensaje)
         else:
             self.label_archivo.config(text=mensaje, foreground="#d32f2f")
-            messagebox.showerror("Error", mensaje)
+            ViewHelper.mostrar_error("Error", mensaje)
     
     def _exportar_programacion(self):
         """Exporta la programación limpia a un archivo Excel"""
@@ -150,32 +151,21 @@ class ProgramacionView:
         exito, df, mensaje = self.programacion_controller.cargar_programacion_inicial()
         
         if not exito or df is None or df.empty:
-            messagebox.showwarning("Advertencia", "No hay programación cargada para exportar")
+            ViewHelper.mostrar_advertencia("Advertencia", "No hay programación cargada para exportar")
             return
         
-        # Seleccionar ubicación de guardado
-        ruta_guardado = filedialog.asksaveasfilename(
-            title="Guardar programación limpia",
-            defaultextension=".xlsx",
-            filetypes=[
-                ("Archivo Excel", "*.xlsx"),
-                ("Todos los archivos", "*.*")
-            ],
-            initialfile="programacion_limpia.xlsx"
+        # Exportar programación con callback personalizado
+        def exportar_programacion(df_export, ruta):
+            exito_exp, mensaje_exp = self.programacion_controller.exportar_programacion(df_export, ruta)
+            if not exito_exp:
+                raise Exception(mensaje_exp)
+        
+        ViewHelper.exportar_excel_dialogo(
+            df,
+            exportar_programacion,
+            "programacion_limpia.xlsx",
+            "Guardar programación limpia"
         )
-        
-        if not ruta_guardado:
-            return
-        
-        # Exportar programación
-        exito_exportar, mensaje_exportar = self.programacion_controller.exportar_programacion(
-            df, ruta_guardado
-        )
-        
-        if exito_exportar:
-            messagebox.showinfo("Éxito", mensaje_exportar)
-        else:
-            messagebox.showerror("Error", mensaje_exportar)
     
     def _verificar_docentes(self):
         """Verifica si hay información de docentes cargada"""
@@ -211,7 +201,7 @@ class ProgramacionView:
         
         if exito:
             self.label_docentes.config(text=mensaje, foreground="#2e7d32")
-            messagebox.showinfo("Éxito", mensaje)
+            ViewHelper.mostrar_exito("Éxito", mensaje)
         else:
             self.label_docentes.config(text=mensaje, foreground="#d32f2f")
-            messagebox.showerror("Error", mensaje)
+            ViewHelper.mostrar_error("Error", mensaje)

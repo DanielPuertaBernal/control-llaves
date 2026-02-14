@@ -2,7 +2,6 @@
 Controlador de Equipos - Orquesta entre vistas y servicios
 """
 from application.services.equipo_service import EquipoService
-from bson import ObjectId
 
 
 class EquipoController:
@@ -39,14 +38,3 @@ class EquipoController:
         """Actualiza un equipo"""
         return self.service.actualizar_equipo(equipo_id, nombre, marca, consecutivo, descripcion, estado)
     
-    def marcar_dañado(self, equipo_id):
-        """Marca equipo como dañado"""
-        return self.service.marcar_dañado(equipo_id)
-    
-    def reparar_equipo(self, equipo_id):
-        """Marca equipo como reparado"""
-        return self.service.reparar_equipo(equipo_id)
-    
-    def eliminar_equipo(self, equipo_id):
-        """Elimina (descarta) un equipo"""
-        return self.service.eliminar_equipo(equipo_id)

@@ -25,32 +25,4 @@ class DevolucionMongoRepository(DevolucionRepository):
         devolucion.id = resultado.inserted_id
         
         return devolucion
-    
-    def obtener_por_id(self, devolucion_id: ObjectId) -> Optional[Devolución]:
-        """Obtiene una devolución por ID"""
-        doc = self.collection.find_one({"_id": devolucion_id})
-        return Devolución.from_dict(doc) if doc else None
-    
-    def obtener_todos(self) -> List[Devolución]:
-        """Obtiene todas las devoluciones"""
-        docs = self.collection.find().sort("fecha_devolucion", -1)
-        return [Devolución.from_dict(doc) for doc in docs]
-    
-    def obtener_por_prestamo(self, prestamo_id: ObjectId) -> List[Devolución]:
-        """Obtiene todas las devoluciones de un préstamo"""
-        docs = self.collection.find({
-            "prestamo_id": prestamo_id
-        }).sort("fecha_devolucion", -1)
-        return [Devolución.from_dict(doc) for doc in docs]
-    
-    def obtener_por_docente_nfc(self, codigo_nfc: str) -> List[Devolución]:
-        """Obtiene todas las devoluciones de un docente"""
-        docs = self.collection.find({
-            "docente_codigo_nfc": codigo_nfc
-        }).sort("fecha_devolucion", -1)
-        return [Devolución.from_dict(doc) for doc in docs]
-    
-    def buscar(self, criterios: dict) -> List[Devolución]:
-        """Busca devoluciones según criterios"""
-        docs = self.collection.find(criterios).sort("fecha_devolucion", -1)
-        return [Devolución.from_dict(doc) for doc in docs]
+

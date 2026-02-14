@@ -25,6 +25,11 @@ class EquipoRepository(ABC):
     def obtener_por_codigo(self, codigo_inventario: str) -> Optional[Equipo]:
         """Obtiene un equipo por su código de inventario"""
         pass
+
+    @abstractmethod
+    def obtener_por_codigo_barras(self, codigo_barras: str) -> Optional[Equipo]:
+        """Obtiene un equipo por su código de barras"""
+        pass
     
     @abstractmethod
     def obtener_todos(self) -> List[Equipo]:
@@ -37,7 +42,7 @@ class EquipoRepository(ABC):
         pass
     
     @abstractmethod
-    def actualizar(self, equipo: Equipo) -> bool:
+    def actualizar(self, equipo_id: ObjectId, equipo: Equipo) -> Optional[Equipo]:
         """Actualiza un equipo existente"""
         pass
     
