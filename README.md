@@ -53,9 +53,19 @@ pip install -r requirements.txt
 6. Crea un archivo `.env` en la raíz del proyecto:
 
 ```env
-MONGO_URI=mongodb+srv://<usuario>:<password>@<cluster>.mongodb.net/?retryWrites=true&w=majority
-MONGO_DB=AulaSyncDB
+MONGO_URI=mongodb+srv://<usuario>@<cluster>.mongodb.net/?appName=<APP>
+MONGO_PASSWORD=<tu-contraseña>
+MONGO_DB=<nombre-base-datos>
 ```
+
+**Ejemplo:**
+```env
+MONGO_URI=mongodb+srv://DanielPB@uco.t3giqlw.mongodb.net/?appName=UCO
+MONGO_PASSWORD=Test123456
+MONGO_DB=UCO
+```
+
+**Nota:** La contraseña se mantiene separada por seguridad y se codifica automáticamente en el código. Los caracteres especiales como `$`, `@`, `:` se manejan correctamente.
 
 #### Opción B: MongoDB Local (Desarrollo)
 
@@ -94,6 +104,7 @@ python main.py
 | Librería | Versión | Propósito |
 |----------|---------|-----------|
 | `pymongo` | ≥4.7.0 | Conexión y operaciones con MongoDB |
+| `dnspython` | ≥2.3.0 | Resolución DNS para MongoDB Atlas (obligatorio para srv://) |
 | `bcrypt` | ≥4.0.0 | Cifrado de contraseñas (hashing seguro) |
 | `pandas` | ≥2.0.0 | Procesamiento de datos y programación |
 | `openpyxl` | ≥3.1.0 | Lectura de archivos Excel |
