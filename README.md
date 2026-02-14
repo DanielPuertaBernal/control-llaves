@@ -43,14 +43,57 @@ pip install -r requirements.txt
 
 ### 2. Configurar MongoDB
 
-Cree un archivo `.env` en la raíz del proyecto:
+#### Opción A: MongoDB Atlas (Nube - Recomendado para producción)
+
+1. Crea una cuenta en [MongoDB Atlas](https://www.mongodb.com/cloud/atlas)
+2. Crea un cluster gratuito (M0)
+3. Ve a **Database Access** y crea un usuario con contraseña
+4. Ve a **Network Access** y agrega tu IP (o 0.0.0.0/0 para acceso desde cualquier IP)
+5. Obtén tu cadena de conexión: **Database > Connect > Drivers > Python**
+6. Crea un archivo `.env` en la raíz del proyecto:
 
 ```env
-MONGO_URI=mongodb://localhost:27017/
-DB_NAME=control_llaves
+MONGO_URI=mongodb+srv://<usuario>@<cluster>.mongodb.net/?appName=<APP>
+MONGO_PASSWORD=<tu-contraseña>
+MONGO_DB=<nombre-base-datos>
 ```
 
-### 3. Ejecutar aplicación
+**Ejemplo:**
+```env
+MONGO_URI=mongodb+srv://DanielPB@uco.t3giqlw.mongodb.net/?appName=UCO
+MONGO_PASSWORD=Test123456
+MONGO_DB=UCO
+```
+
+**Nota:** La contraseña se mantiene separada por seguridad y se codifica automáticamente en el código. Los caracteres especiales como `$`, `@`, `:` se manejan correctamente.
+
+#### Opción B: MongoDB Local (Desarrollo)
+
+```env
+MONGO_URI=mongodb://localhost:27017
+MONGO_DB=AulaSyncDB
+```
+
+**Nota:** Usa el archivo `.env.example` como referencia.
+
+### 3. Inicializar Base de Datos (Primera vez)
+
+**Antes de ejecutar la aplicación por primera vez**, debes crear el usuario administrador:
+
+```bash
+# Ejecutar script de inicialización
+python scripts/init_db.py
+```
+
+Este script te pedirá:
+- **Usuario**: Nombre de usuario (ej: `admin`, `adminuc`)
+- **Email**: Correo electrónico
+- **Nombre**: Nombre completo (opcional)
+- **Contraseña**: Contraseña segura (mínimo 8 caracteres)
+
+**Nota:** Este script solo crea el admin si no existe uno. Si intentas ejecutarlo nuevamente, te avisará que ya existe.
+
+### 4. Ejecutar aplicación
 
 ```bash
 python main.py
@@ -78,6 +121,7 @@ python main.py
 | Librería | Versión | Propósito |
 |----------|---------|-----------|
 | `pymongo` | ≥4.7.0 | Conexión y operaciones con MongoDB |
+| `dnspython` | ≥2.3.0 | Resolución DNS para MongoDB Atlas (obligatorio para srv://) |
 | `bcrypt` | ≥4.0.0 | Cifrado de contraseñas (hashing seguro) |
 | `pandas` | ≥2.0.0 | Procesamiento de datos y programación |
 | `openpyxl` | ≥3.1.0 | Lectura de archivos Excel |

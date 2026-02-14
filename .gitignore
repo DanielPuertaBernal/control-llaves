@@ -1,3 +1,7 @@
+# Archivos de test y desarrollo
+test_*.py
+*_test.py
+
 # Archivos de imagen
 *.png
 *.jpg
