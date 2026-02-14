@@ -2,7 +2,6 @@
 Vistas de informes y reportes
 """
 from .informes_view import InformesView
-from .informes_analytics_view import InformesAnalyticsView
-from .admin_analytics_view import AdminAnalyticsView
+from .informes_llaves_admin_view import InformesLlavesAdminView
 
-__all__ = ['InformesView', 'InformesAnalyticsView', 'AdminAnalyticsView']
+__all__ = ['InformesView', 'InformesLlavesAdminView']

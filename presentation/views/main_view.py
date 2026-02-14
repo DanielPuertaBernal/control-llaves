@@ -314,8 +314,8 @@ class MainView:
             self.vista_estadisticas = AdminAnalyticsView(vista_frame, self.historial_controller)
         elif nombre_vista == "informes_admin":
             self.titulo_contenido.config(text="INFORMES DE LLAVES")
-            from presentation.views.informes.informes_analytics_view import InformesAnalyticsView
-            self.vista_informes_admin = InformesAnalyticsView(vista_frame, self.historial_controller)
+            from presentation.views.informes.informes_llaves_admin_view import InformesLlavesAdminView
+            self.vista_informes_admin = InformesLlavesAdminView(vista_frame, self.historial_controller)
         elif nombre_vista == "nfc":
             self.titulo_contenido.config(text="MONITOREO DEL SISTEMA NFC")
             self.vista_nfc = NFCView(vista_frame, None)
