@@ -1,8 +1,9 @@
 """
 Vista de Informes del día
 Muestra todos los registros de llaves del día con colores según el estado
+Incluye funcionalidad de devolución de llaves
 """
-from tkinter import ttk
+from tkinter import ttk, messagebox
 from datetime import date
 from application.services.historial_service import HistorialService
 from application.services.llave_service import LlaveService
@@ -11,16 +12,19 @@ from presentation.helpers import ViewHelper
 
 
 class InformesView:
-    """Vista para mostrar informes diarios de llaves"""
+    """Vista para mostrar informes diarios de llaves con capacidad de devolución"""
     
     # Colores
     COLOR_DEVUELTA = "#C8E6C9"   # Verde suave
     COLOR_PRESTAMO = "#FFE0B2"   # Naranja suave
     COLOR_RETRASO = "#FFCDD2"    # Rojo suave
     
-    def __init__(self, parent_frame, historial_service: HistorialService, llave_service: LlaveService):
+    def __init__(self, parent_frame, historial_service: HistorialService, llave_service: LlaveService, 
+                 historial_controller=None, llave_controller=None):
         self.historial_service = historial_service
         self.llave_service = llave_service
+        self.historial_controller = historial_controller
+        self.llave_controller = llave_controller
         
         # Servicio de paginación
         self.paginacion_service = PaginacionComponent(items_por_pagina=15)
@@ -106,6 +110,10 @@ class InformesView:
         
         frame_tabla.grid_rowconfigure(0, weight=1)
         frame_tabla.grid_columnconfigure(0, weight=1)
+        
+        # Evento de doble clic para devolución (si hay controllers)
+        if self.llave_controller:
+            self.tree.bind('<Double-1>', self._on_doble_click)
     
     def _configurar_treeview(self):
         """Configura columnas del Treeview (oculta Documento, Facultad y Día)"""
@@ -304,6 +312,54 @@ class InformesView:
                 nombre_archivo,
                 "Guardar registro completo de llaves"
             )
-            
+        
         except Exception as e:
             ViewHelper.mostrar_error("Error", f"Error al exportar:\n{str(e)}")
+    
+    def _on_doble_click(self, event):
+        """Maneja doble clic para devolver llave (si hay llave_controller)"""
+        if not self.llave_controller:
+            return
+        
+        try:
+            seleccion = self.tree.selection()
+            if not seleccion:
+                return
+            
+            valores = self.tree.item(seleccion[0], 'values')
+            
+            # El docente está en posición 0, el documento se obtiene de los datos originales
+            # Necesitamos encontrar el registro original para obtener el documento
+            docente = valores[0]
+            
+            # Buscar en los datos originales para obtener el documento
+            documento = None
+            for registro in self.datos_dia:
+                if str(registro.get('Docente', '')) == docente:
+                    documento = str(registro.get('Número de Documento', ''))
+                    break
+            
+            if not documento:
+                messagebox.showwarning("Advertencia", "No se pudo encontrar el documento del docente")
+                return
+            
+            # Confirmar devolución
+            if not messagebox.askyesno(
+                "Confirmar Devolución",
+                f"¿Confirmar devolución de llave?\n\n"
+                f"Docente: {docente}\n"
+                f"Documento: {documento}"
+            ):
+                return
+            
+            # Procesar devolución
+            exito, mensaje = self.llave_controller.procesar_devolucion(documento, docente)
+            
+            if exito:
+                messagebox.showinfo("Éxito", mensaje)
+                self.actualizar_datos()
+            else:
+                messagebox.showwarning("Advertencia", mensaje)
+                
+        except Exception as e:
+            messagebox.showerror("Error", f"Error al procesar devolución: {str(e)}")
