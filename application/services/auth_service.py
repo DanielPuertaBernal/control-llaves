@@ -137,38 +137,6 @@ class AuthService:
         """Obtiene todos los administradores de programación"""
         return self.repository.obtener_usuarios_por_rol(RolUsuario.ADMIN_PROG)
     
-    def cambiar_contraseña(self, usuario: str, password_actual: str, 
-                          password_nuevo: str) -> Tuple[bool, str]:
-        """
-        Cambia la contraseña de un usuario
-        
-        Args:
-            usuario (str): Nombre de usuario
-            password_actual (str): Contraseña actual
-            password_nuevo (str): Nueva contraseña
-            
-        Returns:
-            Tuple[bool, str]: (éxito, mensaje)
-        """
-        try:
-            usuario_obj = self.repository.buscar_por_usuario(usuario)
-            
-            if not usuario_obj:
-                return False, "❌ Usuario no encontrado"
-            
-            # Verificar contraseña actual
-            if not AuthManager.validar_credenciales(usuario_obj, password_actual):
-                return False, "❌ Contraseña actual incorrecta"
-            
-            # Actualizar contraseña
-            usuario_obj.hash_password = AuthManager.hash_password(password_nuevo)
-            self.repository.actualizar_usuario(usuario_obj)
-            
-            return True, "✅ Contraseña actualizada exitosamente"
-            
-        except Exception as e:
-            return False, f"❌ Error: {str(e)}"
-    
     def desactivar_usuario(self, nombre_usuario: str) -> Tuple[bool, str]:
         """
         Desactiva un usuario
@@ -216,3 +184,85 @@ class AuthService:
             
         except Exception as e:
             return False, f"❌ Error: {str(e)}"
+
+    def actualizar_usuario_info(self, usuario_obj: Usuario, usuario_nuevo: str, nombre_nuevo: str, 
+                                email_nuevo: str, contacto_nuevo: str) -> bool:
+        """
+        Actualiza la información personal del usuario
+        
+        Args:
+            usuario_obj (Usuario): Usuario a actualizar
+            usuario_nuevo (str): Nuevo nombre de usuario
+            nombre_nuevo (str): Nuevo nombre completo
+            email_nuevo (str): Nuevo email
+            contacto_nuevo (str): Nuevo contacto
+            
+        Returns:
+            bool: True si se actualizó exitosamente
+        """
+        try:
+            from domain.value_objects import NombreUsuario, Email, Telefono
+            
+            # Validar con Value Objects (normalizan automáticamente)
+            nombre_usuario_vo = NombreUsuario(usuario_nuevo)
+            email_vo = Email(email_nuevo)
+            telefono_vo = Telefono(contacto_nuevo)
+            
+            # Valores ya normalizados por Value Objects
+            usuario_nuevo = nombre_usuario_vo.value
+            email_nuevo = email_vo.value
+            contacto_nuevo = telefono_vo.value
+            nombre_nuevo = nombre_nuevo.strip()
+            
+            # Guardar usuario anterior para el query a BD
+            usuario_anterior = usuario_obj.usuario
+            
+            # Si el usuario cambió, validar que sea único
+            if usuario_nuevo != usuario_anterior:
+                existente = self.repository.buscar_por_usuario(usuario_nuevo)
+                if existente:
+                    raise ValueError(f"El usuario '{usuario_nuevo}' ya existe")
+            
+            # Actualizar el objeto con los nuevos datos
+            usuario_obj.usuario = usuario_nuevo
+            usuario_obj.nombre = nombre_nuevo
+            usuario_obj.email = email_nuevo
+            usuario_obj.contacto = contacto_nuevo
+            
+            # Actualizar en BD usando el usuario anterior como filtro
+            self.repository.actualizar_usuario_por_antiguo(usuario_anterior, usuario_obj)
+            
+            # Actualizar el usuario en la sesión activa
+            self.session_manager.actualizar_usuario_sesion(usuario_obj)
+            
+            return True
+            
+        except Exception as e:
+            raise Exception(f"Error actualizando usuario: {str(e)}")
+
+    def cambiar_contraseña(self, usuario_obj: Usuario, pwd_actual: str, pwd_nueva: str) -> bool:
+        """
+        Cambia la contraseña del usuario
+        
+        Args:
+            usuario_obj (Usuario): Usuario cuya contraseña cambiar
+            pwd_actual (str): Contraseña actual en texto plano
+            pwd_nueva (str): Nueva contraseña en texto plano
+            
+        Returns:
+            bool: True si se cambió exitosamente
+        """
+        try:
+            # Validar contraseña actual
+            if not AuthManager.validar_credenciales(usuario_obj, pwd_actual):
+                return False
+            
+            # Crear nuevo hash
+            nuevo_hash = AuthManager.hash_password(pwd_nueva)
+            usuario_obj.hash_password = nuevo_hash
+            
+            self.repository.actualizar_usuario(usuario_obj)
+            return True
+            
+        except Exception as e:
+            raise Exception(f"Error cambiando contraseña: {str(e)}")

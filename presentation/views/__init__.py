@@ -13,9 +13,10 @@ from .informes.informes_llaves_admin_view import InformesLlavesAdminView
 from .usuarios.usuarios_view import UsuariosView
 from .nfc.nfc_view import NFCView
 from .equipos.equipos_unificada_view import EquiposUnificadaView
+from .perfil.perfil_usuario_view import PerfilUsuarioView
 
 __all__ = [
     'MainView', 'LoginView', 'EntregaView', 'HistorialView', 'ProgramacionView',
     'InformesView', 'AdminAnalyticsView', 'InformesLlavesAdminView', 'UsuariosView',
-    'NFCView', 'EquiposUnificadaView'
+    'NFCView', 'EquiposUnificadaView', 'PerfilUsuarioView'
 ]
