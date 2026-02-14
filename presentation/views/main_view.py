@@ -377,10 +377,6 @@ class MainView:
                 if hasattr(self, 'vista_entrega') and self.vista_actual == "entrega":
                     self.vista_entrega.cargar_clases_del_dia()
                 
-                # Actualizar vista de historial si está activa
-                if hasattr(self, 'vista_historial') and self.vista_actual == "historial":
-                    self.vista_historial.actualizar_datos()
-                
                 # Actualizar vista de informes si está activa
                 if hasattr(self, 'vista_informes') and self.vista_actual == "informes":
                     self.vista_informes.actualizar_datos()

@@ -20,15 +20,6 @@ class HistorialController:
         """
         return self.service.obtener_historial_completo()
     
-    def obtener_prestamos_activos(self):
-        """
-        Obtiene solo los préstamos activos (llaves no devueltas)
-        
-        Returns:
-            list: Lista de préstamos activos
-        """
-        return self.service.obtener_prestamos_activos()
-    
     def filtrar_por_fecha(self, fecha_inicio, fecha_fin, historial_df=None):
         """
         Filtra el historial por rango de fechas
