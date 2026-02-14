@@ -76,7 +76,24 @@ MONGO_DB=AulaSyncDB
 
 **Nota:** Usa el archivo `.env.example` como referencia.
 
-### 3. Ejecutar aplicación
+### 3. Inicializar Base de Datos (Primera vez)
+
+**Antes de ejecutar la aplicación por primera vez**, debes crear el usuario administrador:
+
+```bash
+# Ejecutar script de inicialización
+python scripts/init_db.py
+```
+
+Este script te pedirá:
+- **Usuario**: Nombre de usuario (ej: `admin`, `adminuc`)
+- **Email**: Correo electrónico
+- **Nombre**: Nombre completo (opcional)
+- **Contraseña**: Contraseña segura (mínimo 8 caracteres)
+
+**Nota:** Este script solo crea el admin si no existe uno. Si intentas ejecutarlo nuevamente, te avisará que ya existe.
+
+### 4. Ejecutar aplicación
 
 ```bash
 python main.py
