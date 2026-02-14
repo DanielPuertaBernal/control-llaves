@@ -117,17 +117,19 @@ class MainView:
         )
         titulo_sidebar.pack(pady=(5, 10))
         
-        # Info del usuario autenticado
+        # Info del usuario autenticado (clickeable para perfil)
         if self.usuario:
-            user_info = tk.Label(
+            self.user_info = tk.Label(
                 self.sidebar,
                 text=f"👤 {self.usuario.nombre}\n({self.usuario.rol.value})",
                 font=('Segoe UI', 8),
                 bg="#37474F",
                 fg="#90CAF9",
-                justify=tk.CENTER
+                justify=tk.CENTER,
+                cursor="hand2"
             )
-            user_info.pack(pady=(0, 20))
+            self.user_info.pack(pady=(0, 20))
+            self.user_info.bind("<Button-1>", lambda e: self._mostrar_vista("perfil"))
         
         # Separador
         separador = tk.Frame(self.sidebar, bg="#64B5F6", height=2)
@@ -330,11 +332,34 @@ class MainView:
                 self.devolucion_controller,
                 self.docente_controller
             )
+        elif nombre_vista == "perfil":
+            self.titulo_contenido.config(text="MI PERFIL - CONFIGURACIÓN")
+            from presentation.views.perfil.perfil_usuario_view import PerfilUsuarioView
+            factory = ServiceFactory()
+            self.vista_perfil = PerfilUsuarioView(
+                vista_frame, 
+                self.usuario, 
+                factory.get_auth_service(),
+                callback_actualizar_nombre=self._actualizar_nombre_sidebar
+            )
     
     def _obtener_dia_actual(self):
         """Obtiene el día actual en español"""
         dias = ['LUNES', 'MARTES', 'MIÉRCOLES', 'JUEVES', 'VIERNES', 'SÁBADO', 'DOMINGO']
         return dias[datetime.now().weekday()]
+    
+    def _actualizar_nombre_sidebar(self, nuevo_nombre):
+        """Actualiza el nombre del usuario en el sidebar"""
+        if hasattr(self, 'user_info') and self.usuario:
+            self.usuario.nombre = nuevo_nombre
+            self.user_info.config(text=f"👤 {nuevo_nombre}\n({self.usuario.rol.value})")
+    
+    def _actualizar_usuario_desde_sesion(self):
+        """Recarga el usuario desde la sesión (después de cambios en perfil)"""
+        usuario_sesion = self.session_manager.obtener_usuario_actual()
+        if usuario_sesion:
+            # Reemplazar la referencia en MainView con la de SessionManager
+            self.usuario = usuario_sesion
     
     def _salir_aplicacion(self):
         """Cierra la aplicación"""

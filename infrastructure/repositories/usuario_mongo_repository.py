@@ -23,7 +23,7 @@ class UsuarioMongoRepository:
         Crea un nuevo usuario
         
         Args:
-            usuario (Usuario): Usuario a crear
+            usuario (Usuario): Usuario a crear (ya validado con Value Objects)
             
         Returns:
             bool: True si se creó exitosamente
@@ -32,6 +32,7 @@ class UsuarioMongoRepository:
             Exception: Si el usuario ya existe
         """
         try:
+            # Los Value Objects ya normalizaron usuario y email
             # Verificar que no exista
             if self.collection.find_one({"usuario": usuario.usuario}):
                 raise ValueError(f"Usuario '{usuario.usuario}' ya existe")
@@ -121,14 +122,37 @@ class UsuarioMongoRepository:
         Actualiza un usuario existente
         
         Args:
-            usuario (Usuario): Usuario con datos actualizados
+            usuario (Usuario): Usuario con datos actualizados (ya validado con Value Objects)
             
         Returns:
             bool: True si se actualizó
         """
         try:
+            # Los Value Objects ya normalizaron usuario y email
             resultado = self.collection.update_one(
                 {"usuario": usuario.usuario},
+                {"$set": usuario.a_dict()}
+            )
+            return resultado.modified_count > 0
+        except Exception as e:
+            raise Exception(f"Error al actualizar usuario: {str(e)}")
+    
+    def actualizar_usuario_por_antiguo(self, usuario_anterior: str, usuario: Usuario) -> bool:
+        """
+        Actualiza un usuario usando su nombre anterior como filtro
+        (necesario cuando el usuario cambia su nombre de usuario)
+        
+        Args:
+            usuario_anterior (str): Nombre de usuario anterior (para búsqueda, ya normalizado)
+            usuario (Usuario): Usuario con datos actualizados (ya validado con Value Objects)
+            
+        Returns:
+            bool: True si se actualizó
+        """
+        try:
+            # Los Value Objects ya normalizaron usuario y email
+            resultado = self.collection.update_one(
+                {"usuario": usuario_anterior},
                 {"$set": usuario.a_dict()}
             )
             return resultado.modified_count > 0
